@@ -2,7 +2,7 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { estimateSavingsAction, type ActionState } from "@/app/actions/estimateSavingsAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Sparkles, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { currencyOptions, getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies";
 
 const initialState: ActionState = {
   data: null,
@@ -39,6 +40,7 @@ function SubmitButton() {
 export function SavingsEstimatorForm() {
   const [state, formAction] = useFormState(estimateSavingsAction, initialState);
   const { toast } = useToast();
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>(getDefaultCurrency());
 
   useEffect(() => {
     if (state.message) {
@@ -56,17 +58,45 @@ export function SavingsEstimatorForm() {
     }
   }, [state.message, state.error, toast]);
 
+  const handleCurrencyChange = (currencyCode: string) => {
+    const newCurrency = getCurrencyByCode(currencyCode) || getDefaultCurrency();
+    setSelectedCurrency(newCurrency);
+  };
+
   return (
     <form action={formAction} className="space-y-6">
+      <div className="space-y-2">
+          <Label htmlFor="currency">Currency</Label>
+          <Select name="currency" defaultValue={selectedCurrency.value} onValueChange={handleCurrencyChange}>
+            <SelectTrigger id="currency">
+              <SelectValue placeholder="Select currency" />
+            </SelectTrigger>
+            <SelectContent>
+              {currencyOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="currentElectricityBill">Current Monthly Electricity Bill ($)</Label>
-          <Input id="currentElectricityBill" name="currentElectricityBill" type="number" placeholder="e.g., 150" required />
+          <Label htmlFor="currentElectricityBill">Current Monthly Electricity Bill</Label>
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground text-sm">
+              {selectedCurrency.symbol}
+            </span>
+            <Input id="currentElectricityBill" name="currentElectricityBill" type="number" placeholder="e.g., 150" required className="pl-8" />
+          </div>
           {state.fieldErrors?.currentElectricityBill && <p className="text-sm text-destructive">{state.fieldErrors.currentElectricityBill[0]}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="solarPanelCost">Estimated Solar Panel Cost ($)</Label>
-          <Input id="solarPanelCost" name="solarPanelCost" type="number" placeholder="e.g., 15000" required />
+          <Label htmlFor="solarPanelCost">Estimated Solar Panel Cost</Label>
+           <div className="relative">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground text-sm">
+              {selectedCurrency.symbol}
+            </span>
+            <Input id="solarPanelCost" name="solarPanelCost" type="number" placeholder="e.g., 15000" required className="pl-8" />
+          </div>
           {state.fieldErrors?.solarPanelCost && <p className="text-sm text-destructive">{state.fieldErrors.solarPanelCost[0]}</p>}
         </div>
         <div className="space-y-2">
@@ -122,7 +152,7 @@ export function SavingsEstimatorForm() {
           <CardContent className="space-y-4 text-lg">
             <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
               <span className="font-medium">Estimated Annual Savings:</span>
-              <span className="font-bold text-accent">${state.data.estimatedSavingsPerYear.toLocaleString()}</span>
+              <span className="font-bold text-accent">{selectedCurrency.symbol}{state.data.estimatedSavingsPerYear.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
               <span className="font-medium">Payback Period:</span>
@@ -144,7 +174,7 @@ export function SavingsEstimatorForm() {
           </CardContent>
           <CardFooter>
              <p className="text-sm text-muted-foreground text-center w-full">
-              These are AI-generated estimates. Actual results may vary. Consult with a professional installer for precise figures.
+              These are AI-generated estimates. Actual results may vary. Consult with a professional installer for precise figures. Currency used for estimation: {selectedCurrency.value}.
             </p>
           </CardFooter>
         </Card>

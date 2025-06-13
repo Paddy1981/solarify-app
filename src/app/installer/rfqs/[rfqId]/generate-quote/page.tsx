@@ -9,6 +9,7 @@ import * as z from "zod";
 
 import { getRFQById, type RFQ } from "@/lib/mock-data/rfqs";
 import { getMockUserById, type MockUser } from "@/lib/mock-data/users";
+import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,32 +20,32 @@ import { useToast } from "@/hooks/use-toast";
 import { FileSpreadsheet, PlusCircle, Trash2, Send, Info, UserCircle, Home, Edit } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// In a real app, this would come from the logged-in installer's context
-const MOCK_CURRENT_INSTALLER_ID = "installer-user-001";
 
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description is required."),
   quantity: z.coerce.number().min(0.1, "Quantity must be positive."),
   unitPrice: z.coerce.number().min(0, "Unit price cannot be negative."),
-  total: z.coerce.number(), // Will be calculated
+  total: z.coerce.number(), 
 });
 
 const quoteFormSchema = z.object({
   rfqId: z.string(),
-  generatedByInstallerId: z.string().default(MOCK_CURRENT_INSTALLER_ID),
-  homeownerName: z.string(), // Pre-filled from RFQ
-  homeownerEmail: z.string().email(), // Pre-filled from RFQ
-  projectAddress: z.string(), // Pre-filled from RFQ
+  generatedByInstallerId: z.string(),
+  homeownerName: z.string(), 
+  homeownerEmail: z.string().email(),
+  projectAddress: z.string(), 
   quoteDate: z.string().default(new Date().toISOString().split("T")[0]),
   validityPeriodDays: z.coerce.number().min(1, "Validity period must be at least 1 day.").default(30),
   lineItems: z.array(lineItemSchema).min(1, "Please add at least one line item."),
   subtotal: z.coerce.number(),
-  taxRate: z.coerce.number().min(0).max(100).default(0), // Percentage
+  taxRate: z.coerce.number().min(0).max(100).default(0), 
   taxAmount: z.coerce.number(),
   totalAmount: z.coerce.number(),
   notes: z.string().optional(),
   termsAndConditions: z.string().optional().default("Standard terms apply. Payment due upon completion unless otherwise agreed."),
+  currencyCode: z.string(), // To store the currency code for the quote
 });
 
 type QuoteFormData = z.infer<typeof quoteFormSchema>;
@@ -60,12 +61,14 @@ export default function GenerateQuotePage() {
 
   const [rfqDetails, setRfqDetails] = React.useState<RFQ | null>(null);
   const [installerDetails, setInstallerDetails] = React.useState<MockUser | null>(null);
+  const [quoteCurrency, setQuoteCurrency] = React.useState<Currency>(getDefaultCurrency());
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const form = useForm<QuoteFormData>({
     resolver: zodResolver(quoteFormSchema),
     defaultValues: {
       rfqId: rfqId,
-      generatedByInstallerId: MOCK_CURRENT_INSTALLER_ID,
+      generatedByInstallerId: "", // Will be set from installerDetails
       homeownerName: "",
       homeownerEmail: "",
       projectAddress: "",
@@ -78,6 +81,7 @@ export default function GenerateQuotePage() {
       totalAmount: 0,
       notes: "",
       termsAndConditions: "Standard terms apply. Payment due upon completion unless otherwise agreed.",
+      currencyCode: getDefaultCurrency().value,
     },
   });
 
@@ -87,26 +91,32 @@ export default function GenerateQuotePage() {
   });
 
   React.useEffect(() => {
+    // In a real app, current installer ID would come from auth context
+    const MOCK_CURRENT_INSTALLER_ID = "installer-user-001"; 
     const rfq = getRFQById(rfqId);
     const installer = getMockUserById(MOCK_CURRENT_INSTALLER_ID);
-    if (rfq) {
+    
+    if (rfq && installer) {
       setRfqDetails(rfq);
+      setInstallerDetails(installer);
+      const currentInstallerCurrency = getCurrencyByCode(installer.currency) || getDefaultCurrency();
+      setQuoteCurrency(currentInstallerCurrency);
+
       form.reset({
-        ...form.getValues(), // Keep existing values like lineItems if user started typing
+        ...form.getValues(), 
         rfqId: rfq.id,
+        generatedByInstallerId: installer.id,
         homeownerName: rfq.name,
         homeownerEmail: rfq.email,
         projectAddress: rfq.address,
-        // Potentially pre-fill some line items based on rfq.estimatedSystemSizeKW or notes
+        currencyCode: currentInstallerCurrency.value,
       });
     } else {
-      // Handle RFQ not found, maybe redirect or show error
-      toast({ title: "Error", description: "RFQ not found.", variant: "destructive" });
+      if (!rfq) toast({ title: "Error", description: "RFQ not found.", variant: "destructive" });
+      if (!installer) toast({ title: "Error", description: "Installer profile not found.", variant: "destructive" });
       router.push("/installer/rfqs");
     }
-    if (installer) {
-      setInstallerDetails(installer);
-    }
+    setIsLoading(false);
   }, [rfqId, form, router, toast]);
 
   const watchedLineItems = form.watch("lineItems");
@@ -131,24 +141,40 @@ export default function GenerateQuotePage() {
 
 
   const onSubmit: SubmitHandler<QuoteFormData> = async (data) => {
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     console.log("Generated Quote Data:", data);
     toast({
       title: "Quote Generated (Simulated)",
-      description: `Quote for RFQ ID ${data.rfqId} has been successfully generated.`,
+      description: `Quote for RFQ ID ${data.rfqId} has been successfully generated in ${data.currencyCode}.`,
     });
-    // router.push("/installer/rfqs"); // Or to a "View Sent Quotes" page
   };
 
-  if (!rfqDetails || !installerDetails) {
+  if (isLoading || !rfqDetails || !installerDetails) {
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        <svg className="animate-spin h-10 w-10 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <p className="ml-4 text-lg">Loading RFQ details...</p>
+      <div className="max-w-4xl mx-auto">
+         <Card className="shadow-xl">
+            <CardHeader className="text-center pb-4 pt-6">
+                <Skeleton className="h-10 w-10 mx-auto mb-4 rounded-full" />
+                <Skeleton className="h-7 w-1/2 mx-auto mb-2" />
+                <Skeleton className="h-4 w-3/4 mx-auto" />
+            </CardHeader>
+            <CardContent className="space-y-6 pt-2">
+                <Skeleton className="h-20 w-full" />
+                {[...Array(3)].map((_, i) => (
+                <div key={i} className="space-y-2 border p-4 rounded-md">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-1/2" />
+                </div>
+                ))}
+                <Skeleton className="h-10 w-1/3 mt-4" />
+            </CardContent>
+             <CardFooter className="flex flex-col items-end gap-3 pt-6 bg-muted/30 p-6 rounded-b-lg">
+                <Skeleton className="h-6 w-1/4" />
+                <Skeleton className="h-6 w-1/3" />
+                <Skeleton className="h-8 w-1/2 mt-2" />
+                <Skeleton className="h-10 w-1/2 mt-4 self-stretch sm:self-auto" />
+             </CardFooter>
+        </Card>
       </div>
     );
   }
@@ -164,7 +190,8 @@ export default function GenerateQuotePage() {
               </div>
               <CardTitle className="text-3xl font-headline">Generate Quote</CardTitle>
               <CardDescription>
-                Create a detailed quote for RFQ ID: <span className="font-semibold text-accent">{rfqId}</span>
+                Create a detailed quote for RFQ ID: <span className="font-semibold text-accent">{rfqId}</span>.
+                All monetary values in {quoteCurrency.value} ({quoteCurrency.symbol}).
               </CardDescription>
             </CardHeader>
 
@@ -201,7 +228,7 @@ export default function GenerateQuotePage() {
 
               <div>
                 <h3 className="text-xl font-semibold font-headline text-accent mb-1">Line Items</h3>
-                <FormDescription className="mb-4">Add products, services, and their costs.</FormDescription>
+                <FormDescription className="mb-4">Add products, services, and their costs. Currency: {quoteCurrency.symbol}</FormDescription>
                 {fields.map((field, index) => (
                   <div key={field.id} className="p-4 border rounded-md mb-4 shadow-sm bg-muted/30 relative">
                     <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr] gap-x-4 gap-y-4 items-end">
@@ -221,15 +248,25 @@ export default function GenerateQuotePage() {
                       )} />
                       <FormField control={form.control} name={`lineItems.${index}.unitPrice`} render={({ field: f }) => (
                         <FormItem>
-                          <FormLabel>Unit Price ($)</FormLabel>
-                          <FormControl><Input type="number" step="0.01" placeholder="250" {...f} /></FormControl>
+                          <FormLabel>Unit Price</FormLabel>
+                           <div className="relative">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground text-sm">
+                              {quoteCurrency.symbol}
+                            </span>
+                            <FormControl><Input type="number" step="0.01" placeholder="250" className="pl-8" {...f} /></FormControl>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <FormField control={form.control} name={`lineItems.${index}.total`} render={({ field: f }) => (
                         <FormItem>
-                          <FormLabel>Line Total ($)</FormLabel>
-                          <FormControl><Input type="number" {...f} readOnly className="bg-muted border-none" /></FormControl>
+                          <FormLabel>Line Total</FormLabel>
+                          <div className="relative">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground text-sm">
+                              {quoteCurrency.symbol}
+                            </span>
+                            <FormControl><Input type="number" {...f} readOnly className="bg-muted border-none pl-8" /></FormControl>
+                          </div>
                         </FormItem>
                       )} />
                     </div>
@@ -279,7 +316,7 @@ export default function GenerateQuotePage() {
                 <div className="w-full max-w-xs space-y-1 text-sm">
                     <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span className="font-medium">${form.getValues("subtotal").toFixed(2)}</span>
+                        <span className="font-medium">{quoteCurrency.symbol}{form.getValues("subtotal").toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                         <div className="flex items-center gap-1">
@@ -290,11 +327,11 @@ export default function GenerateQuotePage() {
                                 </FormItem>
                             )} />
                         </div>
-                        <span className="font-medium">${form.getValues("taxAmount").toFixed(2)}</span>
+                        <span className="font-medium">{quoteCurrency.symbol}{form.getValues("taxAmount").toFixed(2)}</span>
                     </div>
                      <div className="flex justify-between text-lg font-bold text-accent border-t pt-1 mt-1">
                         <span>Total Amount:</span>
-                        <span>${form.getValues("totalAmount").toFixed(2)}</span>
+                        <span>{quoteCurrency.symbol}{form.getValues("totalAmount").toFixed(2)}</span>
                     </div>
                 </div>
                  <Button type="submit" size="lg" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 mt-4" disabled={form.formState.isSubmitting}>

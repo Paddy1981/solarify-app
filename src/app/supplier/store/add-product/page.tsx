@@ -6,16 +6,21 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getMockUserByEmail, type MockUser } from "@/lib/mock-data/users";
+import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies"; // Import currency utils
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea"; // May not be needed, but good to have
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PackagePlus, Save, XCircle, Image as ImageIcon } from "lucide-react";
+import { PackagePlus, Save, XCircle, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const productCategories = [
   { value: "Panels", label: "Solar Panels" },
@@ -33,7 +38,7 @@ const productFormSchema = z.object({
   imageHint: z.string().max(50, "Hint too long").optional().refine(val => !val || val.split(" ").length <= 2, { message: "Hint must be one or two words"}),
   stock: z.coerce.number().int().min(0, { message: "Stock quantity cannot be negative." }),
   category: z.string().min(1, { message: "Please select a product category." }),
-  description: z.string().optional(), // Optional description field
+  description: z.string().optional(),
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
@@ -42,12 +47,33 @@ export default function AddProductPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [currentSupplier, setCurrentSupplier] = useState<MockUser | null>(null);
+  const [currency, setCurrency] = useState<Currency>(getDefaultCurrency());
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && user.email) {
+        const profile = getMockUserByEmail(user.email);
+        if (profile && profile.role === "supplier") {
+          setCurrentSupplier(profile);
+          setCurrency(getCurrencyByCode(profile.currency) || getDefaultCurrency());
+        } else {
+          setCurrentSupplier(null); // Not a supplier or profile not found
+        }
+      } else {
+        setCurrentSupplier(null);
+      }
+      setIsLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: "",
-      price: 0,
+      price: undefined, // Use undefined for number inputs to show placeholder
       imageUrl: "",
       imageHint: "",
       stock: 0,
@@ -57,20 +83,69 @@ export default function AddProductPage() {
   });
 
   const onSubmit: SubmitHandler<ProductFormData> = async (data) => {
+    if (!currentSupplier) {
+        toast({ title: "Error", description: "You must be logged in as a supplier.", variant: "destructive" });
+        return;
+    }
     setIsSubmitting(true);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log("New Product Data:", data);
+    console.log("New Product Data:", data, "Supplier ID:", currentSupplier.id, "Currency:", currency.value);
     
     toast({
       title: "Product Added (Simulated)",
       description: `Product "${data.name}" has been successfully added to your catalog.`,
     });
-    // In a real app, you might redirect or clear the form
-    // router.push("/supplier/store"); 
-    // form.reset(); 
     setIsSubmitting(false);
   };
+
+  if (isLoadingAuth) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card className="shadow-xl">
+          <CardHeader className="text-center pb-4 pt-6">
+            <Skeleton className="h-10 w-10 mx-auto mb-4 rounded-full" />
+            <Skeleton className="h-7 w-1/2 mx-auto mb-2" />
+            <Skeleton className="h-4 w-3/4 mx-auto" />
+          </CardHeader>
+          <CardContent className="space-y-6 pt-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
+          <CardFooter className="pt-6">
+            <Skeleton className="h-10 w-24 ml-auto" />
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentSupplier) {
+     return (
+      <div className="max-w-xl mx-auto text-center py-12">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <div className="flex justify-center mb-4">
+                <AlertTriangle className="w-16 h-16 text-destructive" />
+            </div>
+            <CardTitle className="text-2xl font-headline text-destructive">Access Denied</CardTitle>
+            <CardDescription>
+              You need to be logged in as a supplier to add products.
+            </CardDescription>
+          </CardHeader>
+           <CardContent>
+            <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Link href="/login">Login</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -81,7 +156,7 @@ export default function AddProductPage() {
           </div>
           <CardTitle className="text-3xl font-headline">Add New Product</CardTitle>
           <CardDescription>
-            Expand your catalog by adding a new solar product or equipment.
+            Expand your catalog. Prices will be in your profile currency ({currency.value} - {currency.symbol}).
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -119,10 +194,23 @@ export default function AddProductPage() {
                   name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price ($)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="e.g., 299.99" {...field} />
-                      </FormControl>
+                      <FormLabel>Price</FormLabel>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground text-sm">
+                          {currency.symbol}
+                        </span>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            placeholder="e.g., 299.99" 
+                            className="pl-8" // Adjust based on symbol width
+                            {...field} 
+                            onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
+                            value={field.value ?? ""}
+                          />
+                        </FormControl>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -134,7 +222,7 @@ export default function AddProductPage() {
                     <FormItem>
                       <FormLabel>Stock Quantity</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="e.g., 100" {...field} />
+                        <Input type="number" placeholder="e.g., 100" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} value={field.value ?? ""} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

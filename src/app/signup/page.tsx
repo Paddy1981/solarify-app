@@ -9,7 +9,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { mockUsers, type MockUser } from "@/lib/mock-data/users"; // Import mockUsers
+import { mockUsers, type MockUser } from "@/lib/mock-data/users"; 
+import { currencyOptions } from "@/lib/currencies";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,15 +19,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-
-const currencyOptions = [
-  { value: "USD", label: "USD - US Dollar" },
-  { value: "EUR", label: "EUR - Euro" },
-  { value: "GBP", label: "GBP - British Pound" },
-  { value: "INR", label: "INR - Indian Rupee" },
-  { value: "CAD", label: "CAD - Canadian Dollar" },
-  { value: "AUD", label: "AUD - Australian Dollar" },
-];
 
 const signupFormSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
@@ -79,11 +71,10 @@ export default function SignupPage() {
         storeRating: data.role === 'supplier' ? 0 : undefined,
       };
 
-      // This now pushes to global._mockUsers via the mockUsers export
       mockUsers.push(newUserProfile);
       console.log("New user profile added to in-memory mockUsers:", JSON.stringify(newUserProfile));
       console.log("Current in-memory mockUsers count (from global):", global._mockUsers?.length);
-      // To verify, you can try to find this new user in global._mockUsers
+      
       const foundUser = global._mockUsers?.find(u => u.email === newUserProfile.email);
       console.log("Verification: Found new user in global._mockUsers by email:", foundUser ? JSON.stringify(foundUser) : "NOT FOUND IN GLOBAL AFTER PUSH");
 

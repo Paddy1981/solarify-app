@@ -12,6 +12,7 @@ import { Trash2, PlusCircle, Lightbulb } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { currencyOptions, getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies";
 
 const commonAppliancesData: { value: string; label: string; defaultWattage: number }[] = [
   { value: "refrigerator", label: "Refrigerator (Energy Star)", defaultWattage: 150 },
@@ -25,7 +26,7 @@ const commonAppliancesData: { value: string; label: string; defaultWattage: numb
   { value: "water_pump_0.5hp_brief", label: "Water Pump (0.5 HP, brief use)", defaultWattage: 375 },
   { value: "cpap_machine", label: "CPAP Machine", defaultWattage: 60 },
   { value: "sump_pump_brief", label: "Sump Pump (1/3 HP, brief use)", defaultWattage: 800 },
-  { value: "other", label: "Other (Specify)", defaultWattage: 0 }, // Default wattage for 'other' itself is 0, user fills it.
+  { value: "other", label: "Other (Specify)", defaultWattage: 0 },
 ];
 
 const applianceSchema = z.object({
@@ -49,19 +50,18 @@ const applianceSchema = z.object({
 const formSchema = z.object({
   appliances: z.array(applianceSchema).min(1, "Please add at least one appliance."),
   currentMonthlyBill: z.coerce.number({ invalid_type_error: "Must be a number" }).min(0, "Bill amount must be positive").optional(),
+  selectedCurrencyValue: z.string().optional(),
 });
 
 type ApplianceFormEntry = z.infer<typeof applianceSchema>;
 type FormData = z.infer<typeof formSchema>;
 
-// Define the type for default values more explicitly for RHF
 type ApplianceDefaultValue = {
   applianceType: string;
   customName?: string;
-  wattage?: number; // Can be undefined for RHF defaultValues
-  hoursPerDay?: number; // Can be undefined for RHF defaultValues
+  wattage?: number; 
+  hoursPerDay?: number; 
 };
-
 
 interface CalculationResult {
   dailyConsumptionKWh: number;
@@ -75,27 +75,28 @@ const getDefaultNewAppliance = (): ApplianceDefaultValue => {
     return { 
       applianceType: firstAppliance.value, 
       customName: "", 
-      wattage: firstAppliance.defaultWattage, // Pre-filled
-      hoursPerDay: undefined // Starts blank
+      wattage: firstAppliance.defaultWattage, 
+      hoursPerDay: undefined 
     };
   }
-  // Fallback if commonAppliancesData is empty or only has 'other'
   return { 
     applianceType: "other", 
     customName: "", 
-    wattage: undefined, // Starts blank
-    hoursPerDay: undefined // Starts blank
+    wattage: undefined, 
+    hoursPerDay: undefined 
   };
 };
 
 export function EnergyCalculatorForm() {
   const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>(getDefaultCurrency());
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      appliances: [getDefaultNewAppliance() as ApplianceFormEntry], // Cast needed due to undefined in ApplianceDefaultValue
+      appliances: [getDefaultNewAppliance() as ApplianceFormEntry],
       currentMonthlyBill: undefined,
+      selectedCurrencyValue: getDefaultCurrency().value,
     },
   });
 
@@ -103,6 +104,12 @@ export function EnergyCalculatorForm() {
     control: form.control,
     name: "appliances",
   });
+  
+  const watchedCurrencyValue = form.watch("selectedCurrencyValue");
+  useEffect(() => {
+    setSelectedCurrency(getCurrencyByCode(watchedCurrencyValue) || getDefaultCurrency());
+  }, [watchedCurrencyValue]);
+
 
   const onSubmit: SubmitHandler<FormData> = (data) => {
     let totalDailyWattHours = 0;
@@ -112,7 +119,7 @@ export function EnergyCalculatorForm() {
 
     const dailyConsumptionKWh = totalDailyWattHours / 1000;
     const monthlyConsumptionKWh = dailyConsumptionKWh * 30;
-    const suggestedSystemSizeKW = (dailyConsumptionKWh / 4) * 1.25; // Assuming 4 peak sun hours & 25% buffer
+    const suggestedSystemSizeKW = (dailyConsumptionKWh / 4) * 1.25; 
 
     setCalculationResult({
       dailyConsumptionKWh: parseFloat(dailyConsumptionKWh.toFixed(2)),
@@ -147,7 +154,6 @@ export function EnergyCalculatorForm() {
                                   form.setValue(`appliances.${index}.wattage`, applianceData.defaultWattage, { shouldValidate: true });
                                   form.setValue(`appliances.${index}.customName`, '', { shouldValidate: false });
                                  } else {
-                                   // For 'other', set wattage to undefined, user must input it.
                                    form.setValue(`appliances.${index}.wattage`, undefined as any, { shouldValidate: true });
                                  }
                               }
@@ -239,7 +245,7 @@ export function EnergyCalculatorForm() {
                         <Trash2 className="h-5 w-5" />
                       </Button>
                     ) : (
-                      <div className="hidden md:block h-10"></div>
+                      <div className="hidden md:block h-10"></div> // Placeholder for alignment
                     )}
                   </div>
                 </div>
@@ -259,28 +265,58 @@ export function EnergyCalculatorForm() {
           </div>
 
           <Separator />
-
-          <FormField
-              control={form.control}
-              name="currentMonthlyBill"
-              render={({ field }) => (
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+                control={form.control}
+                name="selectedCurrencyValue"
+                render={({ field }) => (
                   <FormItem>
-                      <FormLabel className="text-lg font-medium font-headline">Current Monthly Electricity Bill (Optional)</FormLabel>
+                    <FormLabel>Currency for Bill</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                       <FormControl>
-                          <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="Enter your average monthly bill in $"
-                              {...field}
-                              // This field was already good, coerce handles string from e.target.value
-                              onChange={e => field.onChange(e.target.value === "" ? undefined : e.target.value)}
-                              value={field.value ?? ""}
-                          />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
+                      <SelectContent>
+                        {currencyOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                   </FormItem>
-              )}
-          />
+                )}
+              />
+            <FormField
+                control={form.control}
+                name="currentMonthlyBill"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="font-medium">Current Monthly Electricity Bill (Optional)</FormLabel>
+                         <div className="relative">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground text-sm">
+                              {selectedCurrency.symbol}
+                            </span>
+                            <FormControl>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Enter your average monthly bill"
+                                    className="pl-8"
+                                    {...field}
+                                    onChange={e => field.onChange(e.target.value === "" ? undefined : e.target.value)}
+                                    value={field.value ?? ""}
+                                />
+                            </FormControl>
+                        </div>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+          </div>
+
 
           <Button type="submit" size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
             <Lightbulb className="mr-2 h-5 w-5" /> Calculate Energy Needs
@@ -317,5 +353,3 @@ export function EnergyCalculatorForm() {
     </>
   );
 }
-
-    
