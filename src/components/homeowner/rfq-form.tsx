@@ -15,24 +15,13 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { getMockUsersByRole, type MockUser } from "@/lib/mock-data/users";
 import { Skeleton } from "@/components/ui/skeleton";
 
-
-// Placeholder: In a real app, this would come from energy needs calculation or user profile
-const prefilledData = {
-  estimatedSystemSizeKW: 5.5,
-  monthlyConsumptionKWh: 750,
-  name: "John Doe", // This should ideally come from logged-in user context
-  email: "john.doe@example.com",
-  phone: "555-123-4567",
-  address: "123 Solar St, Sunville, CA 90210",
-};
-
 const rfqFormSchema = z.object({
-  name: z.string().min(1, "Name is required").default(prefilledData.name),
-  email: z.string().email("Invalid email address").default(prefilledData.email),
-  phone: z.string().min(10, "Phone number is too short").default(prefilledData.phone),
-  address: z.string().min(1, "Address is required").default(prefilledData.address),
-  estimatedSystemSizeKW: z.number().positive().default(prefilledData.estimatedSystemSizeKW),
-  monthlyConsumptionKWh: z.number().positive().default(prefilledData.monthlyConsumptionKWh),
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number is too short").optional().or(z.literal('')),
+  address: z.string().min(1, "Address is required").optional().or(z.literal('')),
+  estimatedSystemSizeKW: z.coerce.number().positive("System size must be positive."),
+  monthlyConsumptionKWh: z.coerce.number().positive("Consumption must be positive."),
   additionalNotes: z.string().optional(),
   includeMonitoring: z.boolean().default(true),
   includeBatteryStorage: z.boolean().default(false),
@@ -44,7 +33,11 @@ const rfqFormSchema = z.object({
 
 type RFQFormData = z.infer<typeof rfqFormSchema>;
 
-export function RFQForm() {
+interface RFQFormProps {
+  homeownerDetails: MockUser;
+}
+
+export function RFQForm({ homeownerDetails }: RFQFormProps) {
   const { toast } = useToast();
   const [availableInstallers, setAvailableInstallers] = React.useState<MockUser[]>([]);
   const [hasMounted, setHasMounted] = React.useState(false);
@@ -58,13 +51,13 @@ export function RFQForm() {
   const form = useForm<RFQFormData>({
     resolver: zodResolver(rfqFormSchema),
     defaultValues: {
-      name: prefilledData.name,
-      email: prefilledData.email,
-      phone: prefilledData.phone,
-      address: prefilledData.address,
-      estimatedSystemSizeKW: prefilledData.estimatedSystemSizeKW,
-      monthlyConsumptionKWh: prefilledData.monthlyConsumptionKWh,
-      additionalNotes: undefined,
+      name: homeownerDetails.fullName,
+      email: homeownerDetails.email,
+      phone: homeownerDetails.phone || "",
+      address: homeownerDetails.address || "",
+      estimatedSystemSizeKW: 5.0, // Default or could be passed via props if calculated
+      monthlyConsumptionKWh: 700, // Default or could be passed via props
+      additionalNotes: "",
       includeMonitoring: true,
       includeBatteryStorage: false,
       selectedInstallerIds: [],
@@ -93,10 +86,10 @@ export function RFQForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div>
           <h3 className="text-xl font-semibold font-headline text-primary mb-1">Your Details</h3>
-          <p className="text-sm text-muted-foreground mb-4">(Auto-filled for demonstration)</p>
+          <p className="text-sm text-muted-foreground mb-4">(Automatically pre-filled from your profile)</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField control={form.control} name="name" render={({ field }) => ( <FormItem> <FormLabel>Full Name</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-            <FormField control={form.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>Email Address</FormLabel> <FormControl><Input type="email" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+            <FormField control={form.control} name="name" render={({ field }) => ( <FormItem> <FormLabel>Full Name</FormLabel> <FormControl><Input {...field} readOnly className="bg-muted/50 border-muted" /></FormControl> <FormMessage /> </FormItem> )} />
+            <FormField control={form.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>Email Address</FormLabel> <FormControl><Input type="email" {...field} readOnly className="bg-muted/50 border-muted" /></FormControl> <FormMessage /> </FormItem> )} />
             <FormField control={form.control} name="phone" render={({ field }) => ( <FormItem> <FormLabel>Phone Number</FormLabel> <FormControl><Input type="tel" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
             <FormField control={form.control} name="address" render={({ field }) => ( <FormItem> <FormLabel>Installation Address</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
           </div>
@@ -104,7 +97,7 @@ export function RFQForm() {
 
         <div>
           <h3 className="text-xl font-semibold font-headline text-primary mb-1">Solar Requirements</h3>
-          <p className="text-sm text-muted-foreground mb-4">(Auto-filled based on calculations or estimates)</p>
+          <p className="text-sm text-muted-foreground mb-4">(Enter your estimated needs)</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField control={form.control} name="estimatedSystemSizeKW" render={({ field }) => ( <FormItem> <FormLabel>Estimated System Size (kW)</FormLabel> <FormControl><Input type="number" step="0.1" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl> <FormMessage /> </FormItem> )} />
             <FormField control={form.control} name="monthlyConsumptionKWh" render={({ field }) => ( <FormItem> <FormLabel>Avg. Monthly Consumption (kWh)</FormLabel> <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl> <FormMessage /> </FormItem> )} />
@@ -156,7 +149,6 @@ export function RFQForm() {
                 ) : availableInstallers.length > 0 ? (
                   availableInstallers.map((installer) => {
                     const isChecked = field.value?.includes(installer.id);
-                    // Disable checkbox if it's not checked AND we can't select more
                     const isDisabled = !isChecked && !canSelectMoreInstallers;
                     return (
                       <FormItem key={installer.id} className="flex flex-row items-start space-x-3 space-y-0 p-2 hover:bg-background rounded-md transition-colors">
@@ -225,4 +217,3 @@ export function RFQForm() {
     </Form>
   );
 }
-
