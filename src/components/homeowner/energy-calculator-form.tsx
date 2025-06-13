@@ -25,7 +25,7 @@ const commonAppliancesData: { value: string; label: string; defaultWattage: numb
   { value: "water_pump_0.5hp_brief", label: "Water Pump (0.5 HP, brief use)", defaultWattage: 375 },
   { value: "cpap_machine", label: "CPAP Machine", defaultWattage: 60 },
   { value: "sump_pump_brief", label: "Sump Pump (1/3 HP, brief use)", defaultWattage: 800 },
-  { value: "other", label: "Other (Specify)", defaultWattage: 0 },
+  { value: "other", label: "Other (Specify)", defaultWattage: 0 }, // Default wattage for 'other' itself is 0, user fills it.
 ];
 
 const applianceSchema = z.object({
@@ -54,19 +54,39 @@ const formSchema = z.object({
 type ApplianceFormEntry = z.infer<typeof applianceSchema>;
 type FormData = z.infer<typeof formSchema>;
 
+// Define the type for default values more explicitly for RHF
+type ApplianceDefaultValue = {
+  applianceType: string;
+  customName?: string;
+  wattage?: number; // Can be undefined for RHF defaultValues
+  hoursPerDay?: number; // Can be undefined for RHF defaultValues
+};
+
+
 interface CalculationResult {
   dailyConsumptionKWh: number;
   monthlyConsumptionKWh: number;
   suggestedSystemSizeKW: number;
 }
 
-const getDefaultNewAppliance = (): ApplianceFormEntry => {
+const getDefaultNewAppliance = (): ApplianceDefaultValue => {
   const firstAppliance = commonAppliancesData.find(a => a.value !== 'other');
   if (firstAppliance) {
-    return { applianceType: firstAppliance.value, customName: "", wattage: firstAppliance.defaultWattage, hoursPerDay: 0 };
+    return { 
+      applianceType: firstAppliance.value, 
+      customName: "", 
+      wattage: firstAppliance.defaultWattage, // Pre-filled
+      hoursPerDay: undefined // Starts blank
+    };
   }
-  return { applianceType: "other", customName: "", wattage: 0, hoursPerDay: 0 };
-}
+  // Fallback if commonAppliancesData is empty or only has 'other'
+  return { 
+    applianceType: "other", 
+    customName: "", 
+    wattage: undefined, // Starts blank
+    hoursPerDay: undefined // Starts blank
+  };
+};
 
 export function EnergyCalculatorForm() {
   const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
@@ -74,7 +94,7 @@ export function EnergyCalculatorForm() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      appliances: [getDefaultNewAppliance()],
+      appliances: [getDefaultNewAppliance() as ApplianceFormEntry], // Cast needed due to undefined in ApplianceDefaultValue
       currentMonthlyBill: undefined,
     },
   });
@@ -123,11 +143,12 @@ export function EnergyCalculatorForm() {
                               controllerField.onChange(value);
                               const applianceData = commonAppliancesData.find(a => a.value === value);
                               if (applianceData) {
-                                 form.setValue(`appliances.${index}.wattage`, applianceData.defaultWattage, { shouldValidate: true });
                                  if (value !== 'other') {
+                                  form.setValue(`appliances.${index}.wattage`, applianceData.defaultWattage, { shouldValidate: true });
                                   form.setValue(`appliances.${index}.customName`, '', { shouldValidate: false });
                                  } else {
-                                   form.setValue(`appliances.${index}.wattage`, 0, { shouldValidate: true });
+                                   // For 'other', set wattage to undefined, user must input it.
+                                   form.setValue(`appliances.${index}.wattage`, undefined as any, { shouldValidate: true });
                                  }
                               }
                             }}
@@ -174,7 +195,13 @@ export function EnergyCalculatorForm() {
                         <FormItem>
                           <FormLabel>Wattage (W)</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="e.g., 150" {...controllerField} onChange={e => controllerField.onChange(parseFloat(e.target.value) || 0)} />
+                            <Input 
+                              type="number" 
+                              placeholder="e.g., 150" 
+                              {...controllerField} 
+                              value={controllerField.value ?? ""}
+                              onChange={e => controllerField.onChange(e.target.value)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -187,7 +214,14 @@ export function EnergyCalculatorForm() {
                         <FormItem>
                           <FormLabel>Hours/Day</FormLabel>
                           <FormControl>
-                            <Input type="number" step="0.1" placeholder="e.g., 8" {...controllerField} onChange={e => controllerField.onChange(parseFloat(e.target.value) || 0)} />
+                            <Input 
+                              type="number" 
+                              step="0.1" 
+                              placeholder="e.g., 8" 
+                              {...controllerField} 
+                              value={controllerField.value ?? ""}
+                              onChange={e => controllerField.onChange(e.target.value)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -217,7 +251,7 @@ export function EnergyCalculatorForm() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => append(getDefaultNewAppliance())}
+              onClick={() => append(getDefaultNewAppliance() as ApplianceFormEntry)}
               className="mt-2"
             >
               <PlusCircle className="mr-2 h-4 w-4" /> Add Appliance
@@ -238,7 +272,8 @@ export function EnergyCalculatorForm() {
                               step="0.01"
                               placeholder="Enter your average monthly bill in $"
                               {...field}
-                              onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
+                              // This field was already good, coerce handles string from e.target.value
+                              onChange={e => field.onChange(e.target.value === "" ? undefined : e.target.value)}
                               value={field.value ?? ""}
                           />
                       </FormControl>
@@ -282,3 +317,5 @@ export function EnergyCalculatorForm() {
     </>
   );
 }
+
+    
