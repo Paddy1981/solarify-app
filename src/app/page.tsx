@@ -110,8 +110,11 @@ export default function HomePage() {
         <div className="container px-4 md:px-6">
           <div className="text-center mb-12">
             <div className="inline-block rounded-lg bg-primary px-3 py-1 text-sm text-primary-foreground font-medium font-headline">
-              The Future is Bright: What's Coming to Solarify
+              The Future is Bright
             </div>
+            <h2 className="text-3xl font-headline tracking-tighter sm:text-4xl md:text-5xl mt-3">
+              What's Coming to Solarify
+            </h2>
             <p className="mt-4 max-w-[900px] mx-auto text-foreground/70 md:text-lg">
               We're constantly innovating to bring you the best solar experience. Get ready for these exciting new features designed to put even more power in your hands!
             </p>
