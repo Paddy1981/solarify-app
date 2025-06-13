@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
@@ -106,20 +106,15 @@ export function Header() {
     const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
     displayedNavLinks = [...navLinksBase];
     if (roleSpecificMenu) {
-      // Check if roleSpecificMenu is already represented by a base link to avoid duplicates, or merge.
-      // For simplicity, if a role-specific top-level item exists, we'll assume it's distinct enough.
       const isRoleMenuAlreadyInBase = navLinksBase.some(bl => bl.label === roleSpecificMenu.label && bl.href);
       if (!isRoleMenuAlreadyInBase) {
          displayedNavLinks.push(roleSpecificMenu);
       } else {
-        // If a base link has the same label as a role menu, ensure sublinks are shown if user has that role
-        // This logic might need refinement based on exact desired behavior for overlaps.
-        // For now, if base and role menu share label, prioritize showing the role menu's sublinks.
         const baseLinkIndex = displayedNavLinks.findIndex(dl => dl.label === roleSpecificMenu.label);
         if (baseLinkIndex > -1 && (displayedNavLinks[baseLinkIndex] as any).subLinks) {
-          // Already a dropdown, assume it's fine or merge logic needed here
+          // Already a dropdown
         } else if (baseLinkIndex > -1) {
-           displayedNavLinks[baseLinkIndex] = roleSpecificMenu; // Replace base link with role-specific one
+           displayedNavLinks[baseLinkIndex] = roleSpecificMenu; 
         }
       }
     }
@@ -141,7 +136,7 @@ export function Header() {
               <Link
                 key={link.label}
                 href={link.href!}
-                className="transition-colors hover:text-primary"
+                className="transition-colors hover:text-accent"
               >
                 {link.label}
               </Link>
@@ -184,20 +179,24 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetHeader>
+                <SheetTitle className="sr-only">Main Navigation Menu</SheetTitle>
+              </SheetHeader>
               <nav className="flex flex-col space-y-4 mt-6">
                 {displayedNavLinks.map((link) =>
                   (link as typeof navLinksAuthenticated[0]).subLinks ? ( 
                     <MobileAccordionMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} onLinkClick={closeMobileSheet} />
                   ) : (
-                    <Link
-                      key={link.label}
-                      href={link.href!}
-                      onClick={closeMobileSheet}
-                      className="flex items-center gap-2 rounded-md p-2 text-lg font-medium hover:bg-accent hover:text-accent-foreground"
-                    >
-                      {(link.icon) && <link.icon className="h-5 w-5" />}
-                      {link.label}
-                    </Link>
+                    <SheetClose asChild key={link.label}>
+                      <Link
+                        href={link.href!}
+                        // onClick={closeMobileSheet} // SheetClose handles this
+                        className="flex items-center gap-2 rounded-md p-2 text-lg font-medium hover:bg-accent hover:text-accent-foreground"
+                      >
+                        {(link.icon) && <link.icon className="h-5 w-5" />}
+                        {link.label}
+                      </Link>
+                    </SheetClose>
                   )
                 )}
                 <div className="mt-auto pt-4 border-t">
@@ -216,7 +215,7 @@ export function Header() {
 function DesktopDropdownMenu({ link }: { link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> }}) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-1 transition-colors hover:text-primary outline-none text-sm font-medium">
+      <DropdownMenuTrigger className="flex items-center gap-1 transition-colors hover:text-accent outline-none text-sm font-medium">
         {link.icon && <link.icon className="h-4 w-4 mr-1" />}
         {link.label} <ChevronDown className="h-4 w-4" />
       </DropdownMenuTrigger>
@@ -236,7 +235,7 @@ function DesktopDropdownMenu({ link }: { link: typeof navLinksAuthenticated[0] &
 
 function MobileAccordionMenu({ 
   link,
-  onLinkClick 
+  onLinkClick // This prop remains for consistency if needed elsewhere, but SheetClose handles closing
 }: { 
   link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> };
   onLinkClick: () => void;
@@ -249,15 +248,16 @@ function MobileAccordionMenu({
         </AccordionTrigger>
         <AccordionContent className="pl-4">
           {link.subLinks.map((subLink) => (
-            <Link
-              key={subLink.label}
-              href={subLink.href}
-              onClick={onLinkClick}
-              className="flex items-center gap-2 rounded-md p-2 text-base font-medium hover:bg-accent hover:text-accent-foreground mt-1"
-            >
-              {subLink.icon && <subLink.icon className="h-5 w-5" />}
-              {subLink.label}
-            </Link>
+            <SheetClose asChild key={subLink.label}>
+              <Link
+                href={subLink.href}
+                // onClick={onLinkClick} // SheetClose handles this
+                className="flex items-center gap-2 rounded-md p-2 text-base font-medium hover:bg-accent hover:text-accent-foreground mt-1"
+              >
+                {subLink.icon && <subLink.icon className="h-5 w-5" />}
+                {subLink.label}
+              </Link>
+            </SheetClose>
           ))}
         </AccordionContent>
       </AccordionItem>
@@ -275,7 +275,7 @@ function AuthButtons({
   column?: boolean, 
   isLoadingAuth: boolean, 
   currentUser: FirebaseUser | null,
-  onAuthAction?: () => void;
+  onAuthAction?: () => void; // This is called by SheetClose automatically when wrapping a button
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -284,7 +284,7 @@ function AuthButtons({
     try {
       await signOut(auth);
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
-      onAuthAction?.(); // Close sheet if on mobile
+      // onAuthAction?.(); // SheetClose asChild on the button will handle this
       router.push('/login'); 
     } catch (error) {
       console.error("Logout error:", error);
@@ -293,12 +293,12 @@ function AuthButtons({
   };
 
   const handleLoginClick = () => {
-    onAuthAction?.();
+    // onAuthAction?.(); // SheetClose asChild on the button will handle this
     router.push('/login');
   };
 
   const handleSignupClick = () => {
-    onAuthAction?.();
+    // onAuthAction?.(); // SheetClose asChild on the button will handle this
     router.push('/signup');
   };
 
@@ -314,23 +314,53 @@ function AuthButtons({
   }
 
   if (currentUser) {
-    return (
-      <Button variant="outline" onClick={handleLogout} className={`${column ? 'w-full' : ''} text-sm`}>
+    // If column is true, it means it's in the mobile sheet, so wrap with SheetClose
+    if (column) {
+      return (
+        <SheetClose asChild>
+          <Button variant="outline" onClick={handleLogout} className="w-full text-sm">
+            <LogOut className="mr-2 h-4 w-4" /> Logout
+          </Button>
+        </SheetClose>
+      );
+    }
+    return ( // For desktop, no SheetClose needed
+      <Button variant="outline" onClick={handleLogout} className="text-sm">
         <LogOut className="mr-2 h-4 w-4" /> Logout
       </Button>
     );
   }
 
+  // For Login and Signup buttons when in mobile (column=true)
+  if (column) {
+    return (
+      <div className="flex flex-col space-y-2 w-full">
+        <SheetClose asChild>
+          <Button variant="ghost" onClick={handleLoginClick} className="w-full justify-start text-sm">
+            <LogIn className="mr-2 h-4 w-4" /> Login
+          </Button>
+        </SheetClose>
+        <SheetClose asChild>
+          <Button onClick={handleSignupClick} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
+            <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+          </Button>
+        </SheetClose>
+      </div>
+    );
+  }
+
+  // For desktop
   return (
-    <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
-      <Button variant="ghost" onClick={handleLoginClick} className={`${column ? 'w-full justify-start' : ''} text-sm`}>
+    <div className="flex space-x-2">
+      <Button variant="ghost" onClick={handleLoginClick} className="text-sm">
         <LogIn className="mr-2 h-4 w-4" /> Login
       </Button>
-      <Button onClick={handleSignupClick} className={`bg-accent text-accent-foreground hover:bg-accent/90 ${column ? 'w-full' : ''} text-sm`}>
+      <Button onClick={handleSignupClick} className="bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
         <UserPlus className="mr-2 h-4 w-4" /> Sign Up
       </Button>
     </div>
   );
 }
+        
 
     
