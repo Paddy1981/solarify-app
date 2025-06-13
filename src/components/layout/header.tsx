@@ -81,7 +81,7 @@ export function Header() {
   
   useEffect(() => {
     setMounted(true);
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => { 
       setCurrentUser(user);
       if (user && user.email) {
         const profile = getMockUserByEmail(user.email);
@@ -95,32 +95,45 @@ export function Header() {
   }, []);
   
   const cartItemCount = mounted ? getItemCount() : 0;
-
   const onAuthPages = pathname === '/login' || pathname === '/signup';
-  
-  let displayedNavLinks: Array<(typeof navLinksBase[0]) | (typeof navLinksAuthenticated[0])> = [];
 
-  if (onAuthPages) {
-    displayedNavLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
-  } else if (currentUser && userRole) {
-    const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
-    displayedNavLinks = [...navLinksBase];
-    if (roleSpecificMenu) {
-      const isRoleMenuAlreadyInBase = navLinksBase.some(bl => bl.label === roleSpecificMenu.label && bl.href);
-      if (!isRoleMenuAlreadyInBase) {
-         displayedNavLinks.push(roleSpecificMenu);
-      } else {
-        const baseLinkIndex = displayedNavLinks.findIndex(dl => dl.label === roleSpecificMenu.label);
-        if (baseLinkIndex > -1 && (displayedNavLinks[baseLinkIndex] as any).subLinks) {
-          // Already a dropdown
-        } else if (baseLinkIndex > -1) {
-           displayedNavLinks[baseLinkIndex] = roleSpecificMenu; 
+  const getInitialNavLinks = () => {
+    if (onAuthPages) {
+      return navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
+    }
+    return [...navLinksBase];
+  };
+
+  const [currentNavLinks, setCurrentNavLinks] = useState(() => getInitialNavLinks());
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    let newDisplayedNavLinks: Array<(typeof navLinksBase[0]) | (typeof navLinksAuthenticated[0])>;
+    if (onAuthPages) {
+      newDisplayedNavLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
+    } else if (currentUser && userRole && !isLoadingAuth) {
+      const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
+      newDisplayedNavLinks = [...navLinksBase]; 
+
+      if (roleSpecificMenu) {
+        const isRoleMenuInBase = navLinksBase.some(baseLink => baseLink.label === roleSpecificMenu.label && 'href' in baseLink);
+        if (!isRoleMenuInBase) {
+          newDisplayedNavLinks.push(roleSpecificMenu);
+        } else {
+          const baseLinkIndex = newDisplayedNavLinks.findIndex(link => link.label === roleSpecificMenu.label);
+          if (baseLinkIndex !== -1) {
+            newDisplayedNavLinks[baseLinkIndex] = roleSpecificMenu;
+          }
         }
       }
+    } else {
+      newDisplayedNavLinks = [...navLinksBase];
     }
-  } else {
-    displayedNavLinks = [...navLinksBase];
-  }
+    setCurrentNavLinks(newDisplayedNavLinks);
+
+  }, [mounted, currentUser, userRole, isLoadingAuth, onAuthPages, pathname]);
+
 
   const closeMobileSheet = () => setIsMobileSheetOpen(false);
 
@@ -129,13 +142,13 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between">
         <Logo />
         <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
-          {displayedNavLinks.map((link) =>
+          {currentNavLinks.map((link) =>
             (link as typeof navLinksAuthenticated[0]).subLinks ? ( 
               <DesktopDropdownMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} />
             ) : (
               <Link
                 key={link.label}
-                href={link.href!}
+                href={(link as typeof navLinksBase[0]).href!}
                 className="transition-colors hover:text-accent"
               >
                 {link.label}
@@ -183,14 +196,13 @@ export function Header() {
                 <SheetTitle className="sr-only">Main Navigation Menu</SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col space-y-4 mt-6">
-                {displayedNavLinks.map((link) =>
+                {currentNavLinks.map((link) =>
                   (link as typeof navLinksAuthenticated[0]).subLinks ? ( 
                     <MobileAccordionMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} onLinkClick={closeMobileSheet} />
                   ) : (
                     <SheetClose asChild key={link.label}>
                       <Link
-                        href={link.href!}
-                        // onClick={closeMobileSheet} // SheetClose handles this
+                        href={(link as typeof navLinksBase[0]).href!}
                         className="flex items-center gap-2 rounded-md p-2 text-lg font-medium hover:bg-accent hover:text-accent-foreground"
                       >
                         {(link.icon) && <link.icon className="h-5 w-5" />}
@@ -235,7 +247,7 @@ function DesktopDropdownMenu({ link }: { link: typeof navLinksAuthenticated[0] &
 
 function MobileAccordionMenu({ 
   link,
-  onLinkClick // This prop remains for consistency if needed elsewhere, but SheetClose handles closing
+  onLinkClick 
 }: { 
   link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> };
   onLinkClick: () => void;
@@ -251,7 +263,6 @@ function MobileAccordionMenu({
             <SheetClose asChild key={subLink.label}>
               <Link
                 href={subLink.href}
-                // onClick={onLinkClick} // SheetClose handles this
                 className="flex items-center gap-2 rounded-md p-2 text-base font-medium hover:bg-accent hover:text-accent-foreground mt-1"
               >
                 {subLink.icon && <subLink.icon className="h-5 w-5" />}
@@ -275,16 +286,20 @@ function AuthButtons({
   column?: boolean, 
   isLoadingAuth: boolean, 
   currentUser: FirebaseUser | null,
-  onAuthAction?: () => void; // This is called by SheetClose automatically when wrapping a button
+  onAuthAction?: () => void; 
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const [clientMounted, setClientMounted] = useState(false);
+
+  useEffect(() => {
+    setClientMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
-      // onAuthAction?.(); // SheetClose asChild on the button will handle this
       router.push('/login'); 
     } catch (error) {
       console.error("Logout error:", error);
@@ -293,20 +308,17 @@ function AuthButtons({
   };
 
   const handleLoginClick = () => {
-    // onAuthAction?.(); // SheetClose asChild on the button will handle this
     router.push('/login');
   };
 
   const handleSignupClick = () => {
-    // onAuthAction?.(); // SheetClose asChild on the button will handle this
     router.push('/signup');
   };
 
-
-  if (isLoadingAuth) {
+  if (!clientMounted || isLoadingAuth) {
     return (
       <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
-        <Button variant="ghost" disabled className={`${column ? 'w-full justify-start' : ''} text-sm`}>
+        <Button variant="ghost" disabled className={`${column ? 'w-full justify-start text-sm' : 'text-sm'} h-9 px-3`}> {/* Matched size for consistency */}
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading...
         </Button>
       </div>
@@ -314,24 +326,27 @@ function AuthButtons({
   }
 
   if (currentUser) {
-    // If column is true, it means it's in the mobile sheet, so wrap with SheetClose
+    const buttonContent = (
+      <>
+        <LogOut className="mr-2 h-4 w-4" /> Logout
+      </>
+    );
     if (column) {
       return (
         <SheetClose asChild>
           <Button variant="outline" onClick={handleLogout} className="w-full text-sm">
-            <LogOut className="mr-2 h-4 w-4" /> Logout
+            {buttonContent}
           </Button>
         </SheetClose>
       );
     }
-    return ( // For desktop, no SheetClose needed
+    return (
       <Button variant="outline" onClick={handleLogout} className="text-sm">
-        <LogOut className="mr-2 h-4 w-4" /> Logout
+        {buttonContent}
       </Button>
     );
   }
 
-  // For Login and Signup buttons when in mobile (column=true)
   if (column) {
     return (
       <div className="flex flex-col space-y-2 w-full">
@@ -349,7 +364,6 @@ function AuthButtons({
     );
   }
 
-  // For desktop
   return (
     <div className="flex space-x-2">
       <Button variant="ghost" onClick={handleLoginClick} className="text-sm">
@@ -362,5 +376,6 @@ function AuthButtons({
   );
 }
         
+    
 
     
