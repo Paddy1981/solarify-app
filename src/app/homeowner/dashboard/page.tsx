@@ -99,6 +99,8 @@ function ActualDashboardContent({ homeownerId }: ActualDashboardContentProps) {
   React.useEffect(() => {
     if (homeownerId) {
       setUserRFQs(getRFQsByHomeownerId(homeownerId));
+    } else {
+      setUserRFQs([]);
     }
   }, [homeownerId]);
 
@@ -363,7 +365,7 @@ export default function DashboardPage() {
   }
 
   if (dashboardStatus === 'existing_configured') {
-    return <ActualDashboardContent homeownerId={currentUser ? currentUser.uid : null} />;
+    return <ActualDashboardContent homeownerId={currentUserProfile ? currentUserProfile.id : null} />;
   }
 
   return <DashboardLoadingSkeleton />; 
