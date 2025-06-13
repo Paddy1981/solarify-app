@@ -6,6 +6,7 @@ import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -28,14 +29,22 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const navLinksBase = [
+interface NavLinkItem {
+  href?: string;
+  label: string;
+  icon: LucideIcon;
+  role?: UserRole;
+  subLinks?: Array<{ href: string; label: string; icon: LucideIcon }>;
+}
+
+const navLinksBase: NavLinkItem[] = [
   { href: '/', label: 'Home', icon: HomeIcon },
   { href: '/promotions', label: 'Promotions', icon: Megaphone },
   { href: '/installer/portfolio', label: 'Showcase', icon: Award },
   { href: '/supplier/store', label: 'Shop', icon: ShoppingBag },
 ];
 
-const navLinksAuthenticated = [
+const navLinksAuthenticated: NavLinkItem[] = [
   {
     label: 'For Homeowners',
     role: 'homeowner' as UserRole,
@@ -79,6 +88,8 @@ export function Header() {
   const pathname = usePathname();
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   
+  const [currentNavLinks, setCurrentNavLinks] = useState<NavLinkItem[]>([]);
+
   useEffect(() => {
     setMounted(true);
     const unsubscribe = onAuthStateChanged(auth, (user) => { 
@@ -97,40 +108,65 @@ export function Header() {
   const cartItemCount = mounted ? getItemCount() : 0;
   const onAuthPages = pathname === '/login' || pathname === '/signup';
 
-  const getInitialNavLinks = () => {
-    if (onAuthPages) {
-      return navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
-    }
-    return [...navLinksBase];
-  };
-
-  const [currentNavLinks, setCurrentNavLinks] = useState(() => getInitialNavLinks());
 
   useEffect(() => {
     if (!mounted) return;
 
-    let newDisplayedNavLinks: Array<(typeof navLinksBase[0]) | (typeof navLinksAuthenticated[0])>;
-    if (onAuthPages) {
-      newDisplayedNavLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
-    } else if (currentUser && userRole && !isLoadingAuth) {
-      const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
-      newDisplayedNavLinks = [...navLinksBase]; 
+    let newLinks: NavLinkItem[] = [];
 
-      if (roleSpecificMenu) {
-        const isRoleMenuInBase = navLinksBase.some(baseLink => baseLink.label === roleSpecificMenu.label && 'href' in baseLink);
-        if (!isRoleMenuInBase) {
-          newDisplayedNavLinks.push(roleSpecificMenu);
-        } else {
-          const baseLinkIndex = newDisplayedNavLinks.findIndex(link => link.label === roleSpecificMenu.label);
-          if (baseLinkIndex !== -1) {
-            newDisplayedNavLinks[baseLinkIndex] = roleSpecificMenu;
+    if (onAuthPages) {
+      newLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
+    } else {
+      newLinks = [...navLinksBase]; // Start with all base links
+
+      if (currentUser && userRole && !isLoadingAuth) {
+        // Add "My Dashboard" link
+        let dashboardPath = '/';
+        let DashboardIcon: LucideIcon = HomeIcon; 
+
+        switch (userRole) {
+          case 'homeowner':
+            dashboardPath = '/homeowner/dashboard';
+            DashboardIcon = BarChartBig;
+            break;
+          case 'installer':
+            dashboardPath = '/installer/dashboard';
+            DashboardIcon = HomeIcon; 
+            break;
+          case 'supplier':
+            dashboardPath = '/supplier/dashboard';
+            DashboardIcon = HomeIcon; 
+            break;
+        }
+
+        if (dashboardPath !== '/') {
+          const myDashboardLink: NavLinkItem = { href: dashboardPath, label: 'My Dashboard', icon: DashboardIcon };
+          const homeIndex = newLinks.findIndex(link => link.label === 'Home');
+          
+          // Avoid inserting duplicates if this effect re-runs with same conditions
+          const alreadyHasMyDashboard = newLinks.some(link => link.label === 'My Dashboard');
+
+          if (!alreadyHasMyDashboard) {
+            if (homeIndex !== -1) {
+              newLinks.splice(homeIndex + 1, 0, myDashboardLink);
+            } else {
+              newLinks.unshift(myDashboardLink);
+            }
+          }
+        }
+
+        // Add role-specific dropdown menu
+        const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
+        if (roleSpecificMenu) {
+           // Avoid inserting duplicates
+          const alreadyHasRoleMenu = newLinks.some(link => link.label === roleSpecificMenu.label && link.role === roleSpecificMenu.role);
+          if (!alreadyHasRoleMenu) {
+            newLinks.push(roleSpecificMenu);
           }
         }
       }
-    } else {
-      newDisplayedNavLinks = [...navLinksBase];
     }
-    setCurrentNavLinks(newDisplayedNavLinks);
+    setCurrentNavLinks(newLinks);
 
   }, [mounted, currentUser, userRole, isLoadingAuth, onAuthPages, pathname]);
 
@@ -143,12 +179,12 @@ export function Header() {
         <Logo />
         <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
           {currentNavLinks.map((link) =>
-            (link as typeof navLinksAuthenticated[0]).subLinks ? ( 
-              <DesktopDropdownMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} />
+            (link.subLinks) ? ( 
+              <DesktopDropdownMenu key={link.label} link={link} />
             ) : (
               <Link
                 key={link.label}
-                href={(link as typeof navLinksBase[0]).href!}
+                href={link.href!}
                 className="transition-colors hover:text-accent"
               >
                 {link.label}
@@ -197,13 +233,14 @@ export function Header() {
               </SheetHeader>
               <nav className="flex flex-col space-y-4 mt-6">
                 {currentNavLinks.map((link) =>
-                  (link as typeof navLinksAuthenticated[0]).subLinks ? ( 
-                    <MobileAccordionMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} onLinkClick={closeMobileSheet} />
+                  (link.subLinks) ? ( 
+                    <MobileAccordionMenu key={link.label} link={link} onLinkClick={closeMobileSheet} />
                   ) : (
                     <SheetClose asChild key={link.label}>
                       <Link
-                        href={(link as typeof navLinksBase[0]).href!}
+                        href={link.href!}
                         className="flex items-center gap-2 rounded-md p-2 text-lg font-medium hover:bg-accent hover:text-accent-foreground"
+                        onClick={closeMobileSheet}
                       >
                         {(link.icon) && <link.icon className="h-5 w-5" />}
                         {link.label}
@@ -224,7 +261,8 @@ export function Header() {
 }
 
 
-function DesktopDropdownMenu({ link }: { link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> }}) {
+function DesktopDropdownMenu({ link }: { link: NavLinkItem }) {
+  if (!link.subLinks) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1 transition-colors hover:text-accent outline-none text-sm font-medium">
@@ -249,9 +287,10 @@ function MobileAccordionMenu({
   link,
   onLinkClick 
 }: { 
-  link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> };
+  link: NavLinkItem;
   onLinkClick: () => void;
 }) {
+  if (!link.subLinks) return null;
   return (
     <Accordion type="single" collapsible className="w-full">
       <AccordionItem value={link.label} className="border-b-0">
@@ -264,6 +303,7 @@ function MobileAccordionMenu({
               <Link
                 href={subLink.href}
                 className="flex items-center gap-2 rounded-md p-2 text-base font-medium hover:bg-accent hover:text-accent-foreground mt-1"
+                onClick={onLinkClick}
               >
                 {subLink.icon && <subLink.icon className="h-5 w-5" />}
                 {subLink.label}
@@ -300,6 +340,7 @@ function AuthButtons({
     try {
       await signOut(auth);
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
+      if (onAuthAction) onAuthAction();
       router.push('/login'); 
     } catch (error) {
       console.error("Logout error:", error);
@@ -308,17 +349,19 @@ function AuthButtons({
   };
 
   const handleLoginClick = () => {
+    if (onAuthAction) onAuthAction();
     router.push('/login');
   };
 
   const handleSignupClick = () => {
+    if (onAuthAction) onAuthAction();
     router.push('/signup');
   };
 
   if (!clientMounted || isLoadingAuth) {
     return (
       <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
-        <Button variant="ghost" disabled className={`${column ? 'w-full justify-start text-sm' : 'text-sm'} h-9 px-3`}> {/* Matched size for consistency */}
+        <Button variant="ghost" disabled className={`${column ? 'w-full justify-start text-sm' : 'text-sm'} h-9 px-3`}>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading...
         </Button>
       </div>
@@ -333,11 +376,9 @@ function AuthButtons({
     );
     if (column) {
       return (
-        <SheetClose asChild>
           <Button variant="outline" onClick={handleLogout} className="w-full text-sm">
             {buttonContent}
           </Button>
-        </SheetClose>
       );
     }
     return (
@@ -350,16 +391,12 @@ function AuthButtons({
   if (column) {
     return (
       <div className="flex flex-col space-y-2 w-full">
-        <SheetClose asChild>
-          <Button variant="ghost" onClick={handleLoginClick} className="w-full justify-start text-sm">
-            <LogIn className="mr-2 h-4 w-4" /> Login
-          </Button>
-        </SheetClose>
-        <SheetClose asChild>
-          <Button onClick={handleSignupClick} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
-            <UserPlus className="mr-2 h-4 w-4" /> Sign Up
-          </Button>
-        </SheetClose>
+        <Button variant="ghost" onClick={handleLoginClick} className="w-full justify-start text-sm">
+          <LogIn className="mr-2 h-4 w-4" /> Login
+        </Button>
+        <Button onClick={handleSignupClick} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
+          <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+        </Button>
       </div>
     );
   }
@@ -375,7 +412,3 @@ function AuthButtons({
     </div>
   );
 }
-        
-    
-
-    
