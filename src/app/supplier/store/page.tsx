@@ -1,8 +1,10 @@
+
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StoreIcon, Package, PlusCircle, Search } from "lucide-react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
+import Link from "next/link"; // Added Link import
 
 const sampleProducts = [
   { id: "1", name: "High-Efficiency Solar Panel 450W", price: "$250.00", imageUrl: "https://placehold.co/300x200.png?p=1", imageHint: "solar panel", stock: 120, category: "Panels" },
@@ -21,8 +23,10 @@ export default function SupplierStorePage() {
             </h1>
             <p className="mt-1 text-lg text-foreground/70">Manage your product catalog, inventory, and promotions.</p>
         </div>
-        <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
-          <PlusCircle className="w-5 h-5 mr-2" /> Add New Product
+        <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
+          <Link href="/supplier/store/add-product"> {/* Updated Button to Link */}
+            <PlusCircle className="w-5 h-5 mr-2" /> Add New Product
+          </Link>
         </Button>
       </div>
 
@@ -72,8 +76,10 @@ export default function SupplierStorePage() {
                 <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-xl font-semibold">No products listed yet.</h3>
                 <p className="text-muted-foreground">Add products to start selling on Solarify.</p>
-                <Button className="mt-6 bg-accent text-accent-foreground hover:bg-accent/90">
+                <Button asChild className="mt-6 bg-accent text-accent-foreground hover:bg-accent/90">
+                  <Link href="/supplier/store/add-product"> {/* Updated Button to Link */}
                     <PlusCircle className="w-5 h-5 mr-2" /> Add First Product
+                  </Link>
                 </Button>
             </div>
           )}
