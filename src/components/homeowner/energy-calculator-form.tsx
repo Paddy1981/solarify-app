@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useFieldArray, type SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -108,7 +108,7 @@ export function EnergyCalculatorForm() {
   const watchedCurrencyValue = form.watch("selectedCurrencyValue");
   useEffect(() => {
     setSelectedCurrency(getCurrencyByCode(watchedCurrencyValue) || getDefaultCurrency());
-  }, [watchedCurrencyValue]);
+  }, [watchedCurrencyValue, form]);
 
 
   const onSubmit: SubmitHandler<FormData> = (data) => {
@@ -154,7 +154,7 @@ export function EnergyCalculatorForm() {
                                   form.setValue(`appliances.${index}.wattage`, applianceData.defaultWattage, { shouldValidate: true });
                                   form.setValue(`appliances.${index}.customName`, '', { shouldValidate: false });
                                  } else {
-                                   form.setValue(`appliances.${index}.wattage`, undefined as any, { shouldValidate: true });
+                                   form.setValue(`appliances.${index}.wattage`, undefined, { shouldValidate: true });
                                  }
                               }
                             }}
@@ -353,3 +353,4 @@ export function EnergyCalculatorForm() {
     </>
   );
 }
+
