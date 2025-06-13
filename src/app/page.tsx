@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Sun, Users, Briefcase, StoreIcon, ArrowRight, CheckCircle2, FileText, BarChartBig } from "lucide-react";
+import { Sun, Users, Briefcase, StoreIcon, ArrowRight, CheckCircle2, FileText, BarChartBig, SolarPanel, Home } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -10,42 +10,42 @@ export default function HomePage() {
     {
       title: "Energy Needs Calculation",
       description: "Calculate your energy needs by inputting home appliances and current usage.",
-      icon: <Sun className="w-8 h-8 text-primary" />,
+      icon: <Sun className="w-8 h-8 text-accent" />,
       link: "/homeowner/energy-needs",
       userType: "For Homeowners"
     },
     {
       title: "Savings Potential Estimator",
       description: "Estimate potential savings, payback period, and ROI with our AI-powered tool.",
-      icon: <CheckCircle2 className="w-8 h-8 text-primary" />,
+      icon: <CheckCircle2 className="w-8 h-8 text-accent" />,
       link: "/homeowner/savings-estimator",
       userType: "For Homeowners"
     },
     {
       title: "RFQ Generation",
       description: "Auto-populate a Request for Quotation based on your calculated needs.",
-      icon: <FileText className="w-8 h-8 text-primary" />,
+      icon: <FileText className="w-8 h-8 text-accent" />,
       link: "/homeowner/rfq",
       userType: "For Homeowners"
     },
     {
       title: "Installer Portfolio",
       description: "Installers can showcase their completed projects and expertise.",
-      icon: <Briefcase className="w-8 h-8 text-primary" />,
+      icon: <Briefcase className="w-8 h-8 text-accent" />,
       link: "/installer/portfolio",
       userType: "For Installers"
     },
     {
       title: "Supplier Storefront",
       description: "Suppliers manage digital storefronts and track inventory in real time.",
-      icon: <StoreIcon className="w-8 h-8 text-primary" />,
+      icon: <StoreIcon className="w-8 h-8 text-accent" />,
       link: "/supplier/store",
       userType: "For Suppliers"
     },
     {
       title: "Performance Dashboard",
       description: "Monitor your solar system's real-time energy generation, consumption, and savings.",
-      icon: <BarChartBig className="w-8 h-8 text-primary" />,
+      icon: <BarChartBig className="w-8 h-8 text-accent" />,
       link: "/homeowner/dashboard",
       userType: "For Homeowners"
     }
@@ -108,14 +108,12 @@ export default function HomePage() {
 
       <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
         <div className="container grid items-center gap-6 px-4 md:px-6 lg:grid-cols-2 lg:gap-12">
-          <Image
-            src="https://placehold.co/600x400.png"
-            alt="Solar panels on a residential roof"
+          <div
             data-ai-hint="solar panels roof"
-            width={600}
-            height={400}
-            className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
-          />
+            className="mx-auto aspect-video overflow-hidden rounded-xl sm:w-full lg:order-last bg-primary/5 flex items-center justify-center p-8"
+          >
+            <Home className="w-3/4 h-3/4 text-primary/30" />
+          </div>
           <div className="flex flex-col justify-center space-y-4">
             <div className="space-y-2">
               <div className="inline-block rounded-lg bg-primary px-3 py-1 text-sm text-primary-foreground font-medium">

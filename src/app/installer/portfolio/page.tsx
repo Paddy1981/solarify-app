@@ -54,7 +54,7 @@ const featuredInstallerProfile = {
     reviews: 250,
     yearsInBusiness: 12,
     specialties: ["Residential Solar", "Commercial Solar", "Battery Storage", "EV Charging"],
-    avatarUrl: "https://placehold.co/120x120.png?text=FS"
+    avatarUrl: "https://placehold.co/120x120.png?text=FS" // Specific placeholder with text, good as is.
 };
 
 
@@ -82,22 +82,25 @@ export default function InstallerPortfolioPage() {
   return (
     <div className="space-y-8">
       <Card className="shadow-xl overflow-hidden">
-        <div className="relative h-48 bg-gradient-to-r from-primary via-primary/70 to-accent">
-          <Image
-            src="https://placehold.co/1200x300.png"
-            alt="Installer cover photo"
-            data-ai-hint="solar company"
-            layout="fill"
-            objectFit="cover"
-            className="opacity-30"
-          />
+        <div className="relative h-48 bg-gradient-to-r from-primary/10 via-accent/5 to-background" data-ai-hint="solar company">
+          <div className="absolute inset-0 overflow-hidden opacity-30">
+            <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="portfolioCoverPattern" patternUnits="userSpaceOnUse" width="60" height="60" patternTransform="scale(0.7) rotate(-15)">
+                  <path d="M0 0 L30 30 L0 60 Z" fill="hsl(var(--primary))" opacity="0.5"/>
+                  <path d="M30 0 L60 30 L30 60 Z" fill="hsl(var(--accent))" opacity="0.5"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#portfolioCoverPattern)" />
+            </svg>
+          </div>
         </div>
         <CardContent className="relative pt-0 -mt-16">
             <div className="flex flex-col md:flex-row items-center md:items-end space-x-0 md:space-x-6">
                 <Image
                     src={featuredInstallerProfile.avatarUrl}
                     alt={`${featuredInstallerProfile.name} logo`}
-                    data-ai-hint="company logo"
+                    data-ai-hint="company logo" // This uses ?text=FS, so it's a good placeholder already
                     width={120}
                     height={120}
                     className="rounded-full border-4 border-background shadow-lg"
@@ -119,7 +122,7 @@ export default function InstallerPortfolioPage() {
       </Card>
 
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-headline tracking-tight flex items-center"><Award className="w-7 h-7 mr-2 text-primary" /> Project Showcase</h2>
+        <h2 className="text-3xl font-headline tracking-tight flex items-center text-accent"><Award className="w-7 h-7 mr-2 text-accent" /> Project Showcase</h2>
         {isInstaller && !isLoadingAuth && (
           <Button variant="outline" asChild>
             <Link href="/installer/portfolio/add-project">
