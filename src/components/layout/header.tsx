@@ -1,16 +1,18 @@
+
 "use client"; 
 
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ListOrdered, ShoppingBag, ShoppingCart as CartIcon } from 'lucide-react';
+import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/context/cart-context';
+import { getMockUserByEmail, type UserRole } from '@/lib/mock-data/users'; // Added getMockUserByEmail and UserRole
 
 import {
   DropdownMenu,
@@ -34,6 +36,7 @@ const navLinksBase = [
 const navLinksAuthenticated = [
   {
     label: 'For Homeowners',
+    role: 'homeowner' as UserRole,
     icon: Users,
     subLinks: [
       { href: '/homeowner/dashboard', label: 'Dashboard', icon: BarChartBig },
@@ -44,6 +47,7 @@ const navLinksAuthenticated = [
   },
   {
     label: 'For Installers',
+    role: 'installer' as UserRole,
     icon: Briefcase,
     subLinks: [
         { href: '/installer/dashboard', label: 'Dashboard', icon: HomeIcon },
@@ -53,6 +57,7 @@ const navLinksAuthenticated = [
   },
   {
     label: 'For Suppliers',
+    role: 'supplier' as UserRole,
     icon: StoreIcon,
     subLinks: [
         { href: '/supplier/dashboard', label: 'Dashboard', icon: HomeIcon },
@@ -65,14 +70,22 @@ const navLinksAuthenticated = [
 
 export function Header() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const { getItemCount } = useCart(); 
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
   
   useEffect(() => {
     setMounted(true);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
+      if (user && user.email) {
+        const profile = getMockUserByEmail(user.email);
+        setUserRole(profile?.role || null);
+      } else {
+        setUserRole(null);
+      }
       setIsLoadingAuth(false);
     });
     return () => unsubscribe(); 
@@ -80,8 +93,15 @@ export function Header() {
   
   const cartItemCount = mounted ? getItemCount() : 0;
 
+  const onAuthPages = pathname === '/login' || pathname === '/signup';
+  let displayedNavLinks: Array<typeof navLinksBase[0] | typeof navLinksAuthenticated[0]> = [...navLinksBase];
 
-  const combinedNavLinks = currentUser ? [...navLinksBase, ...navLinksAuthenticated] : navLinksBase;
+  if (currentUser && !onAuthPages && userRole) {
+    const roleSpecificLinks = navLinksAuthenticated.filter(link => link.role === userRole);
+    displayedNavLinks = [...navLinksBase, ...roleSpecificLinks];
+  } else if (onAuthPages) {
+    displayedNavLinks = [...navLinksBase]; // Only show base links on login/signup pages
+  }
 
 
   return (
@@ -89,9 +109,9 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between">
         <Logo />
         <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
-          {combinedNavLinks.map((link) =>
-            link.subLinks ? (
-              <DesktopDropdownMenu key={link.label} link={link} />
+          {displayedNavLinks.map((link) =>
+            (link as typeof navLinksAuthenticated[0]).subLinks ? ( // Type assertion to check for subLinks
+              <DesktopDropdownMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} />
             ) : (
               <Link
                 key={link.label}
@@ -140,9 +160,9 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <nav className="flex flex-col space-y-4 mt-6">
-                {combinedNavLinks.map((link) =>
-                  link.subLinks ? (
-                    <MobileAccordionMenu key={link.label} link={link} />
+                {displayedNavLinks.map((link) =>
+                  (link as typeof navLinksAuthenticated[0]).subLinks ? ( // Type assertion
+                    <MobileAccordionMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} />
                   ) : (
                     <Link
                       key={link.label}
@@ -256,3 +276,4 @@ function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: 
     </div>
   );
 }
+
