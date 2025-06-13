@@ -1,5 +1,5 @@
 
-"use client"; // This page uses client-side hooks and localStorage
+"use client"; 
 
 import * as React from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
@@ -14,10 +14,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { BarChartBig, Zap, Leaf, DollarSign, CheckCircle2, Bell, Info, AlertTriangle, Wrench, LogIn, UserCircle } from "lucide-react";
 import { SystemSetupForm, type SystemConfigData } from '@/components/dashboard/system-setup-form';
+import { SolarJourneyChoiceForm } from '@/components/dashboard/solar-journey-choice-form';
+import { NewToSolarDashboardContent } from '@/components/dashboard/new-to-solar-dashboard-content';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 
-// Skeleton placeholder for the dashboard
+const DASHBOARD_STATE_KEY_PREFIX = 'homeownerDashboardState_';
+
+type DashboardStatus =
+  | 'loading'
+  | 'needs_auth'
+  | 'invalid_role'
+  | 'needs_choice'
+  | 'existing_setup_pending'
+  | 'existing_configured'
+  | 'new_to_solar';
+
 function DashboardLoadingSkeleton() {
   return (
     <div className="space-y-8">
@@ -75,10 +87,7 @@ function DashboardLoadingSkeleton() {
   );
 }
 
-// Actual Dashboard Content
 function ActualDashboardContent() {
-  // In a real app, this data would eventually come from the configured system data
-  // or live data. For now, it uses the same mock data.
   const stats = [
     { title: "Current Generation", value: "3.2 kW", icon: <Zap className="w-6 h-6 text-primary" />, change: "+5%", changeType: "positive" as "positive" | "negative" },
     { title: "Today's Energy", value: "15.7 kWh", icon: <Zap className="w-6 h-6 text-primary" />, change: "+12%", changeType: "positive" as "positive" | "negative" },
@@ -91,7 +100,7 @@ function ActualDashboardContent() {
       <div className="text-center">
         <h1 className="text-4xl font-headline tracking-tight text-accent">Performance Dashboard</h1>
         <p className="mt-2 text-lg text-foreground/70">
-          Monitor your solar system&apos;s real-time performance and environmental impact.
+          Monitor your solar system&apos;s real-time performance and environmental impact. (Demo Data)
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -110,7 +119,7 @@ function ActualDashboardContent() {
         <Card className="lg:col-span-2 shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><BarChartBig className="w-6 h-6 mr-2 text-primary" />Energy Generation Overview</CardTitle>
-            <CardDescription>Past 7 days energy production (kWh)</CardDescription>
+            <CardDescription>Past 7 days energy production (kWh) (Demo Data)</CardDescription>
           </CardHeader>
           <CardContent>
             <PerformanceChart />
@@ -121,7 +130,7 @@ function ActualDashboardContent() {
        <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline flex items-center"><Bell className="w-6 h-6 mr-2 text-primary" />Notifications & Alerts</CardTitle>
-          <CardDescription>Recent system events and recommendations.</CardDescription>
+          <CardDescription>Recent system events and recommendations. (Demo Data)</CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="space-y-3">
@@ -157,12 +166,10 @@ function ActualDashboardContent() {
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = React.useState<FirebaseUser | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = React.useState<MockUser | null>(null);
-  const [isConfigured, setIsConfigured] = React.useState<boolean>(false); // Default to false: show form
-  const [isLoading, setIsLoading] = React.useState(true); // Unified loading state
+  const [dashboardStatus, setDashboardStatus] = React.useState<DashboardStatus>('loading');
   const { toast } = useToast();
 
   React.useEffect(() => {
-    setIsLoading(true); // Start loading when effect runs
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       if (user && user.email) {
@@ -170,61 +177,82 @@ export default function DashboardPage() {
         setCurrentUserProfile(profile);
 
         if (profile && profile.role === 'homeowner') {
-          // Only try to load from localStorage if it's a homeowner
-          if (typeof window !== 'undefined') { // Ensure client-side for localStorage
+          if (typeof window !== 'undefined') {
             try {
-              const storedConfigStatus = localStorage.getItem(`dashboardConfigured_${user.uid}`);
-              setIsConfigured(storedConfigStatus === 'true'); // This will be false if null or not 'true'
+              const storedState = localStorage.getItem(`${DASHBOARD_STATE_KEY_PREFIX}${user.uid}`) as DashboardStatus | null;
+              if (storedState === 'existing_configured') {
+                setDashboardStatus('existing_configured');
+              } else if (storedState === 'new_to_solar') {
+                setDashboardStatus('new_to_solar');
+              } else if (storedState === 'existing_setup_pending') {
+                 setDashboardStatus('existing_setup_pending');
+              } else {
+                setDashboardStatus('needs_choice');
+              }
             } catch (error) {
-              console.error("Error accessing localStorage for dashboard config:", error);
-              setIsConfigured(false); // Fallback safely
+              console.error("Error accessing localStorage for dashboard state:", error);
+              setDashboardStatus('needs_choice'); // Fallback safely
             }
           } else {
-            setIsConfigured(false); // Should not really happen in client component effect
+             setDashboardStatus('needs_choice'); // Should not happen in client component effect
           }
         } else {
-          // Not a homeowner, or profile issue.
-          // isConfigured remains false (or its current state), they'll be caught by role check below.
-           setIsConfigured(false); // Explicitly set for clarity if not homeowner
+          setDashboardStatus('invalid_role');
         }
       } else {
-        // Logged out
         setCurrentUserProfile(null);
-        setIsConfigured(false);
+        setDashboardStatus('needs_auth');
       }
-      setIsLoading(false); // Finish all loading (auth, profile, config check)
     });
     return () => unsubscribe();
-  }, []); // Runs once on mount
+  }, []);
 
-  const handleConfigurationComplete = (data: SystemConfigData) => {
-    if (currentUser) {
-      if (typeof window !== 'undefined') { // Ensure client-side for localStorage
-        try {
-          localStorage.setItem(`dashboardConfigured_${currentUser.uid}`, 'true');
-          localStorage.setItem(`dashboardSystemData_${currentUser.uid}`, JSON.stringify(data));
-          setIsConfigured(true);
-          toast({
-            title: "System Configured!",
-            description: "Your dashboard is now set up.",
-          });
-        } catch (error) {
-          console.error("Error saving dashboard configuration:", error);
-          toast({
-            title: "Configuration Error",
-            description: "Could not save your system configuration.",
-            variant: "destructive",
-          });
+  const handleSolarJourneyChoice = (choice: 'existing' | 'new_to_solar') => {
+    if (currentUser && typeof window !== 'undefined') {
+      try {
+        if (choice === 'existing') {
+          localStorage.setItem(`${DASHBOARD_STATE_KEY_PREFIX}${currentUser.uid}`, 'existing_setup_pending');
+          setDashboardStatus('existing_setup_pending');
+          toast({ title: "Great!", description: "Please tell us about your solar system." });
+        } else { // new_to_solar
+          localStorage.setItem(`${DASHBOARD_STATE_KEY_PREFIX}${currentUser.uid}`, 'new_to_solar');
+          setDashboardStatus('new_to_solar');
+          toast({ title: "Welcome!", description: "Let's explore your solar options." });
         }
+      } catch (error) {
+        console.error("Error saving solar journey choice:", error);
+        toast({ title: "Error", description: "Could not save your choice.", variant: "destructive" });
       }
     }
   };
 
-  if (isLoading) {
+  const handleConfigurationComplete = (data: SystemConfigData) => {
+    if (currentUser && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`${DASHBOARD_STATE_KEY_PREFIX}${currentUser.uid}`, 'existing_configured');
+        // Optionally, save system data too, though not strictly part of status
+        localStorage.setItem(`dashboardSystemData_${currentUser.uid}`, JSON.stringify(data));
+        setDashboardStatus('existing_configured');
+        toast({
+          title: "System Configured!",
+          description: "Your dashboard is now set up.",
+        });
+      } catch (error) {
+        console.error("Error saving dashboard configuration:", error);
+        toast({
+          title: "Configuration Error",
+          description: "Could not save your system configuration.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  if (dashboardStatus === 'loading') {
     return <DashboardLoadingSkeleton />;
   }
 
-  if (!currentUser) {
+  if (dashboardStatus === 'needs_auth') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)] text-center p-6">
         <LogIn className="w-16 h-16 text-primary mb-6" />
@@ -239,7 +267,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!currentUserProfile || currentUserProfile.role !== 'homeowner') {
+  if (dashboardStatus === 'invalid_role' || !currentUserProfile || currentUserProfile.role !== 'homeowner') {
      return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)] text-center p-6">
         <UserCircle className="w-16 h-16 text-destructive mb-6" />
@@ -255,9 +283,22 @@ export default function DashboardPage() {
   }
 
   // At this point, user is a logged-in homeowner
-  if (!isConfigured) {
-    return <SystemSetupForm onConfigSubmit={handleConfigurationComplete} userProfile={currentUserProfile} />;
+  if (dashboardStatus === 'needs_choice') {
+    return <SolarJourneyChoiceForm onChoiceMade={handleSolarJourneyChoice} userName={currentUserProfile?.fullName} />;
   }
 
-  return <ActualDashboardContent />;
+  if (dashboardStatus === 'existing_setup_pending') {
+    return <SystemSetupForm onConfigSubmit={handleConfigurationComplete} userProfile={currentUserProfile} />;
+  }
+  
+  if (dashboardStatus === 'new_to_solar') {
+    return <NewToSolarDashboardContent />;
+  }
+
+  if (dashboardStatus === 'existing_configured') {
+    return <ActualDashboardContent />;
+  }
+
+  // Fallback for any unexpected status
+  return <DashboardLoadingSkeleton />; 
 }
