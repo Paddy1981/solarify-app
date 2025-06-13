@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
-import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone } from 'lucide-react';
+import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone, Settings } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
@@ -19,6 +19,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -54,6 +55,7 @@ const navLinksAuthenticated: NavLinkItem[] = [
       { href: '/homeowner/energy-needs', label: 'Energy Needs Calculator', icon: Calculator },
       { href: '/homeowner/savings-estimator', label: 'Savings Estimator', icon: BarChartBig },
       { href: '/homeowner/rfq', label: 'Generate RFQ', icon: FileText },
+      { href: '/settings', label: 'Settings', icon: Settings },
     ],
   },
   {
@@ -64,6 +66,7 @@ const navLinksAuthenticated: NavLinkItem[] = [
         { href: '/installer/dashboard', label: 'Dashboard', icon: HomeIcon },
         { href: '/installer/portfolio', label: 'My Portfolio', icon: Briefcase }, 
         { href: '/installer/rfqs', label: 'View RFQs', icon: FileText },
+        { href: '/settings', label: 'Settings', icon: Settings },
     ]
   },
   {
@@ -74,6 +77,7 @@ const navLinksAuthenticated: NavLinkItem[] = [
         { href: '/supplier/dashboard', label: 'Dashboard', icon: HomeIcon },
         { href: '/supplier/store', label: 'Manage Storefront', icon: StoreIcon }, 
         { href: '/supplier/store/add-product', label: 'Add Product', icon: PackagePlus },
+        { href: '/settings', label: 'Settings', icon: Settings },
     ]
   },
 ];
@@ -120,8 +124,6 @@ export function Header() {
       newLinks = [...navLinksBase]; 
 
       if (currentUser && userRole && !isLoadingAuth) {
-        // Removed the direct "My Dashboard" link creation here
-
         const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
         if (roleSpecificMenu) {
           const alreadyHasRoleMenu = newLinks.some(link => link.label === roleSpecificMenu.label && link.role === roleSpecificMenu.role);
@@ -235,12 +237,17 @@ function DesktopDropdownMenu({ link }: { link: NavLinkItem }) {
         {link.label} <ChevronDown className="h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent>
-        {link.subLinks.map((subLink) => (
-          <DropdownMenuItem key={subLink.label} asChild>
-            <Link href={subLink.href} className="flex items-center gap-2">
-              {subLink.icon && <subLink.icon className="h-4 w-4 text-muted-foreground" />} {subLink.label}
-            </Link>
-          </DropdownMenuItem>
+        {link.subLinks.map((subLink, index) => (
+          <React.Fragment key={subLink.label}>
+            <DropdownMenuItem asChild>
+              <Link href={subLink.href} className="flex items-center gap-2">
+                {subLink.icon && <subLink.icon className="h-4 w-4 text-muted-foreground" />} {subLink.label}
+              </Link>
+            </DropdownMenuItem>
+            {subLink.label === "Generate RFQ" && link.label === "For Homeowners" && <DropdownMenuSeparator />}
+            {subLink.label === "View RFQs" && link.label === "For Installers" && <DropdownMenuSeparator />}
+             {subLink.label === "Add Product" && link.label === "For Suppliers" && <DropdownMenuSeparator />}
+          </React.Fragment>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -378,3 +385,4 @@ function AuthButtons({
   );
 }
 
+    
