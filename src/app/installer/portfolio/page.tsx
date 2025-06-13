@@ -1,8 +1,10 @@
+
 import { ProjectCard } from "@/components/installer/project-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, PlusCircle, UserCircle, MapPin, Star } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 const sampleProjects = [
   {
@@ -90,8 +92,10 @@ export default function InstallerPortfolioPage() {
 
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-headline tracking-tight">Completed Projects</h2>
-        <Button variant="outline">
-          <PlusCircle className="w-5 h-5 mr-2" /> Add New Project
+        <Button variant="outline" asChild>
+          <Link href="/installer/portfolio/add-project">
+            <PlusCircle className="w-5 h-5 mr-2" /> Add New Project
+          </Link>
         </Button>
       </div>
 
@@ -110,8 +114,10 @@ export default function InstallerPortfolioPage() {
             <CardDescription>Start building your portfolio by adding your completed solar installations.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button>
-              <PlusCircle className="w-5 h-5 mr-2" /> Add Your First Project
+            <Button asChild>
+              <Link href="/installer/portfolio/add-project">
+                <PlusCircle className="w-5 h-5 mr-2" /> Add Your First Project
+              </Link>
             </Button>
           </CardContent>
         </Card>
