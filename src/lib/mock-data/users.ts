@@ -44,7 +44,6 @@ const southIndianLastNames = [
 const sampleLocations = ["Chennai, India", "Bangalore, India", "Hyderabad, India", "Kochi, India", "Mumbai, India", "Delhi, India", "Pune, India", "Kolkata, India"];
 const sampleCurrencies = ["INR", "USD", "EUR"];
 
-// Extend the NodeJS.Global interface to include our custom property
 declare global {
   // eslint-disable-next-line no-var
   var _mockUsers: MockUser[] | undefined;
@@ -96,19 +95,15 @@ const generateRandomUser = (role: UserRole, index: number): MockUser => {
   return commonProfile;
 };
 
-// Initialize mockUsers on the global object if it doesn't exist
 if (!global._mockUsers) {
   console.log("Initializing global._mockUsers for the first time.");
   global._mockUsers = [];
-  // Generate 10 homeowners
   for (let i = 1; i <= 10; i++) {
     global._mockUsers.push(generateRandomUser("homeowner", i));
   }
-  // Generate 10 installers
   for (let i = 1; i <= 10; i++) {
     global._mockUsers.push(generateRandomUser("installer", i));
   }
-  // Generate 10 suppliers
   for (let i = 1; i <= 10; i++) {
     global._mockUsers.push(generateRandomUser("supplier", i));
   }
@@ -117,19 +112,118 @@ if (!global._mockUsers) {
 
 export const mockUsers: MockUser[] = global._mockUsers;
 
-// Helper functions
-export const getMockUserById = (id: string): MockUser | undefined => {
-  // console.log(`getMockUserById: Searching for ID '${id}' in ${global._mockUsers?.length || 0} users.`);
-  return global._mockUsers?.find(user => user.id === id);
+export const getMockUserByEmail = (email: string): MockUser | undefined => {
+  const lowerEmail = email.toLowerCase();
+  let userFromStorage: MockUser | undefined = undefined;
+
+  if (typeof window !== 'undefined') {
+    try {
+      const storedProfile = localStorage.getItem(`userProfile_${lowerEmail}`);
+      if (storedProfile) {
+        userFromStorage = JSON.parse(storedProfile) as MockUser;
+        // Ensure this user is also in the current global._mockUsers for consistency.
+        // This helps getMockUserById if global_mockUsers was reset and this user logged in.
+        if (global._mockUsers && userFromStorage) {
+          const existsInGlobal = global._mockUsers.some(u => u.id === userFromStorage!.id);
+          if (!existsInGlobal) {
+            // Check if an object with the same email but different ID exists to avoid email collision with different UIDs
+            const existingUserWithSameEmail = global._mockUsers.find(u => u.email.toLowerCase() === lowerEmail);
+            if (!existingUserWithSameEmail) {
+                 global._mockUsers.push(userFromStorage);
+                 console.log("Added user from localStorage to global._mockUsers:", userFromStorage.email);
+            } else if (existingUserWithSameEmail.id !== userFromStorage.id) {
+                console.warn(`User with email ${lowerEmail} from localStorage has ID ${userFromStorage.id}, but global _mockUsers has ID ${existingUserWithSameEmail.id}. Not adding from localStorage to prevent ID conflict for the same email.`);
+            }
+          }
+        }
+        return userFromStorage;
+      }
+    } catch (e) {
+      console.error("Error reading/parsing user profile from localStorage for email:", lowerEmail, e);
+      // localStorage.removeItem(`userProfile_${lowerEmail}`); // Optional: remove corrupted data
+    }
+  }
+
+  // Fallback to global._mockUsers if not found in localStorage or if server-side
+  const userFromGlobal = global._mockUsers?.find(u => u.email.toLowerCase() === lowerEmail);
+  return userFromGlobal;
 };
 
-export const getMockUserByEmail = (email: string): MockUser | undefined => {
-  const user = global._mockUsers?.find(user => user.email.toLowerCase() === email.toLowerCase());
-  // console.log(`getMockUserByEmail: Searching for email '${email}'. Found:`, user ? JSON.stringify(user) : 'Not found');
+
+export const getMockUserById = (id: string): MockUser | undefined => {
+  // Primarily relies on global._mockUsers.
+  // For users created via signup, their profile might be re-added to global._mockUsers
+  // by getMockUserByEmail if they log in.
+  let user = global._mockUsers?.find(u => u.id === id);
+
+  // As an additional fallback, if not in global, try to find any user profile in localStorage
+  // that has this ID. This is less direct than by email key but can help in some edge cases.
+  // This part is more complex as it involves iterating localStorage keys or having a known set of user IDs.
+  // For simplicity, we'll keep getMockUserById primarily focused on global._mockUsers.
+  // The logic in getMockUserByEmail that re-adds to global._mockUsers is the main mechanism for consistency.
+  if (!user && typeof window !== 'undefined') {
+    // This is a secondary, less efficient check.
+    // Only really useful if getMockUserByEmail hasn't been called for this user yet in the session.
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('userProfile_')) {
+        try {
+          const storedProfile = localStorage.getItem(key);
+          if (storedProfile) {
+            const parsedProfile = JSON.parse(storedProfile) as MockUser;
+            if (parsedProfile.id === id) {
+              // Found by ID. Ensure it's in global for next time.
+               if (global._mockUsers && !global._mockUsers.some(u => u.id === parsedProfile.id)) {
+                 global._mockUsers.push(parsedProfile);
+                 console.log("Added user (found by ID in localStorage) to global._mockUsers:", parsedProfile.email);
+               }
+              return parsedProfile;
+            }
+          }
+        } catch(e) {
+          console.error("Error checking localStorage for user by ID:", id, e);
+        }
+      }
+    }
+  }
   return user;
 };
 
+
 export const getMockUsersByRole = (role: UserRole): MockUser[] => {
-  // console.log(`getMockUsersByRole: Searching for role '${role}' in ${global._mockUsers?.length || 0} users.`);
-  return global._mockUsers?.filter(user => user.role === role) || [];
+  // Ensure localStorage users of this role are considered, especially if global_mockUsers was reset.
+  // This is non-trivial to merge efficiently without duplicates if global_mockUsers still has some defaults.
+  // For now, rely on getMockUserByEmail/ById having populated global._mockUsers from localStorage if relevant users logged in.
+  let usersFromGlobal = global._mockUsers?.filter(user => user.role === role) || [];
+
+  if (typeof window !== 'undefined') {
+    const allLocalStorageUsers: MockUser[] = [];
+     for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('userProfile_')) {
+        try {
+          const storedProfile = localStorage.getItem(key);
+          if (storedProfile) {
+            const parsedProfile = JSON.parse(storedProfile) as MockUser;
+            if (parsedProfile.role === role) {
+              allLocalStorageUsers.push(parsedProfile);
+            }
+          }
+        } catch(e) { /* ignore parse errors */ }
+      }
+    }
+    // Merge, giving precedence to users from localStorage if IDs match or adding if new
+    const combinedUsers = [...usersFromGlobal];
+    allLocalStorageUsers.forEach(lsUser => {
+      const indexInGlobal = combinedUsers.findIndex(gUser => gUser.id === lsUser.id);
+      if (indexInGlobal !== -1) {
+        combinedUsers[indexInGlobal] = lsUser; // Update with localStorage version
+      } else {
+        combinedUsers.push(lsUser); // Add new from localStorage
+      }
+    });
+    return combinedUsers;
+  }
+
+  return usersFromGlobal;
 };

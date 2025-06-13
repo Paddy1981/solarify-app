@@ -58,7 +58,7 @@ export default function SignupPage() {
       const newUserProfile: MockUser = {
         id: userCredential.user.uid,
         fullName: data.fullName,
-        email: data.email,
+        email: data.email, // Use the email from the form data for consistency
         role: data.role,
         location: data.location,
         currency: data.currency,
@@ -71,13 +71,24 @@ export default function SignupPage() {
         storeRating: data.role === 'supplier' ? 0 : undefined,
       };
 
-      mockUsers.push(newUserProfile);
-      console.log("New user profile added to in-memory mockUsers:", JSON.stringify(newUserProfile));
-      console.log("Current in-memory mockUsers count (from global):", global._mockUsers?.length);
-      
-      const foundUser = global._mockUsers?.find(u => u.email === newUserProfile.email);
-      console.log("Verification: Found new user in global._mockUsers by email:", foundUser ? JSON.stringify(foundUser) : "NOT FOUND IN GLOBAL AFTER PUSH");
+      // Persist to localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`userProfile_${newUserProfile.email.toLowerCase()}`, JSON.stringify(newUserProfile));
+          console.log("New user profile saved to localStorage for email:", newUserProfile.email.toLowerCase());
+        } catch (e) {
+          console.error("Error saving user profile to localStorage:", e);
+        }
+      }
 
+      // Still add to global in-memory mockUsers for current session consistency
+      // Note: `mockUsers` directly references `global._mockUsers`
+      if (global._mockUsers && !global._mockUsers.find(u => u.id === newUserProfile.id)) {
+        global._mockUsers.push(newUserProfile);
+      }
+      
+      console.log("New user profile potentially added to in-memory mockUsers. Current count:", global._mockUsers?.length);
+      
       toast({
         title: "Account Created!",
         description: "Your Solarify account has been successfully created. You can now log in.",
