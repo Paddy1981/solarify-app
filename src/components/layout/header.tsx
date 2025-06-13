@@ -31,8 +31,8 @@ import {
 const navLinksBase = [
   { href: '/', label: 'Home', icon: HomeIcon },
   { href: '/promotions', label: 'Promotions', icon: Megaphone },
-  { href: '/installer/portfolio', label: 'Project Showcase', icon: Award },
-  { href: '/supplier/store', label: 'Shop Products', icon: ShoppingBag }, 
+  { href: '/installer/portfolio', label: 'Showcase', icon: Award }, // Renamed
+  { href: '/supplier/store', label: 'Shop', icon: ShoppingBag }, // Renamed
 ];
 
 const navLinksAuthenticated = [
@@ -53,7 +53,7 @@ const navLinksAuthenticated = [
     icon: Briefcase,
     subLinks: [
         { href: '/installer/dashboard', label: 'Dashboard', icon: HomeIcon },
-        { href: '/installer/portfolio', label: 'My Portfolio', icon: Briefcase }, // Keep for direct access
+        { href: '/installer/portfolio', label: 'My Portfolio', icon: Briefcase }, 
         { href: '/installer/rfqs', label: 'View RFQs', icon: FileText },
     ]
   },
@@ -104,14 +104,14 @@ export function Header() {
 
   if (onAuthPages) {
     // Show only minimal links on login/signup pages
-    displayedNavLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop Products');
+    displayedNavLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
   } else if (currentUser && userRole) {
     // User is logged in and has a role
     const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
     const baseLinksFiltered = navLinksBase.filter(baseLink => {
-      // Avoid duplicating "My Portfolio" if "Project Showcase" (same link) is already in base
+      // Avoid duplicating "My Portfolio" if "Showcase" (same link) is already in base
       if (baseLink.href === '/installer/portfolio' && roleSpecificMenu?.subLinks?.some(sl => sl.href === '/installer/portfolio')) {
-        return true; // Keep Project Showcase if it is also in the role specific menu as "My Portfolio"
+        return true; 
       }
       return true;
     });
@@ -297,3 +297,4 @@ function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: 
     </div>
   );
 }
+
