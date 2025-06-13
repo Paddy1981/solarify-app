@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { mockUsers, type MockUser } from "@/lib/mock-data/users"; // Import mockUsers
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,20 +62,37 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       console.log("User created in Firebase Auth:", userCredential.user);
       
-      // TODO: Store user role, full name, location, and currency in Firestore or Realtime Database
-      // associated with userCredential.user.uid
-      console.log("User Profile Data to Store:", {
-        uid: userCredential.user.uid,
+      // Create a profile for the new user
+      const newUserProfile: MockUser = {
+        id: userCredential.user.uid, // Use Firebase UID as the primary ID
         fullName: data.fullName,
-        email: data.email, // Email is already stored in Auth, but good to have in profile
+        email: data.email,
         role: data.role,
         location: data.location,
         currency: data.currency,
-      });
+        avatarUrl: `https://placehold.co/100x100.png?text=${data.fullName[0]?.toUpperCase() || 'U'}`,
+        memberSince: new Date().toISOString().split("T")[0],
+        // Add role-specific fields if needed, or leave them undefined
+        companyName: data.role === 'installer' || data.role === 'supplier' ? `${data.fullName}'s Company` : undefined,
+        specialties: data.role === 'installer' ? ['Residential Solar'] : undefined,
+        productsOffered: data.role === 'supplier' ? ['Solar Panels'] : undefined,
+        projectCount: data.role === 'installer' ? 0 : undefined,
+        storeRating: data.role === 'supplier' ? 0 : undefined,
+      };
+
+      // IMPORTANT: This adds the user to the IN-MEMORY mockUsers array.
+      // This is for demonstration and will NOT persist if the server restarts
+      // or in a scaled environment. A real database (like Firestore) is needed for persistence.
+      mockUsers.push(newUserProfile);
+      console.log("New user profile added to in-memory mockUsers:", newUserProfile);
+      console.log("Current in-memory mockUsers count:", mockUsers.length);
+      // You can verify by trying to find this user in mockUsers by email:
+      // console.log("Finding new user in mockUsers by email:", mockUsers.find(u => u.email === newUserProfile.email));
+
 
       toast({
         title: "Account Created!",
-        description: "Your Solarify account has been successfully created.",
+        description: "Your Solarify account has been successfully created. You can now log in.",
       });
       router.push("/login");
     } catch (error: any) {

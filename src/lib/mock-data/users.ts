@@ -49,7 +49,9 @@ const generateRandomUser = (role: UserRole, index: number): MockUser => {
   const lastName = southIndianLastNames[Math.floor(Math.random() * southIndianLastNames.length)];
   const fullName = `${firstName} ${lastName}`;
   const emailDomain = role === "homeowner" ? "home.example.com" : (role === "installer" ? "install.example.com" : "supply.example.com");
-  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${String(index).padStart(3, '0')}@${emailDomain}`;
+  // Ensure consistent email generation based on full name for predictability
+  const baseEmail = `${firstName.toLowerCase().replace(/ /g, '.')}.${lastName.toLowerCase().replace(/ /g, '.')}`;
+  const email = `${baseEmail}${String(index).padStart(3, '0')}@${emailDomain}`;
   const id = `${role}-user-${String(index).padStart(3, '0')}`;
   const memberSinceDate = new Date(2020 + Math.floor(Math.random()*4), Math.floor(Math.random()*12), Math.floor(Math.random()*28)+1);
   const mockPassword = "Solarify!123"; // Default password for all mock users
