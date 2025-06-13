@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ListOrdered } from 'lucide-react';
+import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ListOrdered, ShoppingBag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -26,16 +26,20 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const navLinks = [
+const navLinksBase = [
   { href: '/', label: 'Home', icon: HomeIcon },
+  { href: '/supplier/store', label: 'Shop Products', icon: ShoppingBag }, // Main shop link
+];
+
+const navLinksAuthenticated = [
   {
     label: 'For Homeowners',
     icon: Users,
     subLinks: [
+      { href: '/homeowner/dashboard', label: 'Dashboard', icon: BarChartBig },
       { href: '/homeowner/energy-needs', label: 'Energy Needs Calculator', icon: Calculator },
       { href: '/homeowner/savings-estimator', label: 'Savings Estimator', icon: BarChartBig },
       { href: '/homeowner/rfq', label: 'Generate RFQ', icon: FileText },
-      { href: '/homeowner/dashboard', label: 'Performance Dashboard', icon: BarChartBig },
     ],
   },
   {
@@ -52,19 +56,34 @@ const navLinks = [
     icon: StoreIcon,
     subLinks: [
         { href: '/supplier/dashboard', label: 'Dashboard', icon: HomeIcon },
-        { href: '/supplier/store', label: 'Manage Store', icon: StoreIcon },
+        { href: '/supplier/store', label: 'Manage Storefront', icon: StoreIcon }, // This is their product list
         { href: '/supplier/store/add-product', label: 'Add Product', icon: PackagePlus },
     ]
   },
 ];
 
+
 export function Header() {
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setIsLoadingAuth(false);
+    });
+    return () => unsubscribe(); 
+  }, []);
+
+  const combinedNavLinks = currentUser ? [...navLinksBase, ...navLinksAuthenticated] : navLinksBase;
+
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Logo />
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-          {navLinks.map((link) =>
+          {combinedNavLinks.map((link) =>
             link.subLinks ? (
               <DesktopDropdownMenu key={link.label} link={link} />
             ) : (
@@ -79,7 +98,7 @@ export function Header() {
           )}
         </nav>
         <div className="hidden md:flex items-center space-x-2">
-          <AuthButtons />
+          <AuthButtons isLoadingAuth={isLoadingAuth} currentUser={currentUser} />
         </div>
         <div className="md:hidden">
           <Sheet>
@@ -91,7 +110,7 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <nav className="flex flex-col space-y-4 mt-6">
-                {navLinks.map((link) =>
+                {combinedNavLinks.map((link) =>
                   link.subLinks ? (
                     <MobileAccordionMenu key={link.label} link={link} />
                   ) : (
@@ -106,7 +125,7 @@ export function Header() {
                   )
                 )}
                 <div className="mt-auto pt-4 border-t">
-                  <AuthButtons column />
+                  <AuthButtons column isLoadingAuth={isLoadingAuth} currentUser={currentUser} />
                 </div>
               </nav>
             </SheetContent>
@@ -118,7 +137,7 @@ export function Header() {
 }
 
 
-function DesktopDropdownMenu({ link }: { link: typeof navLinks[0] & { subLinks: NonNullable<typeof navLinks[0]['subLinks']> }}) {
+function DesktopDropdownMenu({ link }: { link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> }}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1 transition-colors hover:text-primary outline-none">
@@ -138,7 +157,7 @@ function DesktopDropdownMenu({ link }: { link: typeof navLinks[0] & { subLinks: 
 }
 
 
-function MobileAccordionMenu({ link }: { link: typeof navLinks[0] & { subLinks: NonNullable<typeof navLinks[0]['subLinks']> }}) {
+function MobileAccordionMenu({ link }: { link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> }}) {
   return (
     <Accordion type="single" collapsible className="w-full">
       <AccordionItem value={link.label} className="border-b-0">
@@ -163,25 +182,15 @@ function MobileAccordionMenu({ link }: { link: typeof navLinks[0] & { subLinks: 
 }
 
 
-function AuthButtons({ column = false }: { column?: boolean }) {
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: boolean, isLoadingAuth: boolean, currentUser: FirebaseUser | null }) {
   const router = useRouter();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      setIsLoadingAuth(false);
-    });
-    return () => unsubscribe(); // Cleanup subscription on unmount
-  }, []);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
-      router.push('/login'); // Redirect to login page after logout
+      router.push('/login'); 
     } catch (error) {
       console.error("Logout error:", error);
       toast({ title: "Logout Failed", description: "Could not log you out. Please try again.", variant: "destructive" });
@@ -189,7 +198,6 @@ function AuthButtons({ column = false }: { column?: boolean }) {
   };
 
   if (isLoadingAuth) {
-    // Simple loading state to prevent flicker
     return (
       <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
         <Button variant="ghost" disabled className={column ? 'w-full justify-start' : ''}>
