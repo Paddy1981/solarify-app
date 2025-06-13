@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getMockUserByEmail } from "@/lib/mock-data/users"; // Import the new helper
+import { getMockUserByEmail } from "@/lib/mock-data/users";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(1, { message: "Password is required." }), // Firebase handles password complexity on login
+  password: z.string().min(1, { message: "Password is required." }), 
 });
 
 type LoginFormData = z.infer<typeof loginFormSchema>;
@@ -42,27 +42,39 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      console.log("User logged in:", userCredential.user);
+      const firebaseUserEmail = userCredential.user.email; // Get email from Firebase user object
+      
+      console.log("Firebase Auth successful for email:", firebaseUserEmail || data.email);
       
       toast({
         title: "Login Successful!",
-        description: "Welcome back to Solarify.",
+        description: "Welcome back to Solarify. Checking your role...",
       });
 
-      // Fetch user role from mock data (replace with actual data store in real app)
+      // Fetch user role from mock data using the email from form data, as Firebase email might be null if not verified or other cases
       const userProfile = getMockUserByEmail(data.email);
 
       if (userProfile) {
+        console.log("User profile found in mock data:", JSON.stringify(userProfile));
         if (userProfile.role === "installer") {
+          console.log("User role is 'installer'. Redirecting to /installer/dashboard.");
           router.push("/installer/dashboard");
         } else if (userProfile.role === "homeowner") {
+          console.log("User role is 'homeowner'. Redirecting to /homeowner/dashboard.");
           router.push("/homeowner/dashboard");
         } else {
-          router.push("/"); // Default for other roles or if role not defined
+          console.log(`User role is '${userProfile.role}'. Redirecting to homepage.`);
+          router.push("/");
         }
       } else {
-        console.warn("User profile not found in mock data for email:", data.email);
-        router.push("/"); // Fallback if profile not found
+        console.warn(`User profile NOT found in mock data for email: '${data.email}'. Redirecting to homepage.`);
+        toast({
+          title: "Profile Role Undetermined",
+          description: "Login was successful, but we couldn't determine your specific role from our records. Taking you to the homepage.",
+          variant: "default",
+          duration: 7000,
+        });
+        router.push("/"); 
       }
 
     } catch (error: any) {
