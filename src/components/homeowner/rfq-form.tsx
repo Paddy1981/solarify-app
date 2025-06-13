@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm, type SubmitHandler, Controller } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -54,8 +54,16 @@ export function RFQForm() {
   const form = useForm<RFQFormData>({
     resolver: zodResolver(rfqFormSchema),
     defaultValues: {
-      ...rfqFormSchema.parse({}), // use schema defaults
-      // selectedInstallerIds will be initialized by default([]) from schema
+      name: prefilledData.name,
+      email: prefilledData.email,
+      phone: prefilledData.phone,
+      address: prefilledData.address,
+      estimatedSystemSizeKW: prefilledData.estimatedSystemSizeKW,
+      monthlyConsumptionKWh: prefilledData.monthlyConsumptionKWh,
+      additionalNotes: undefined, // Optional, Zod default won't apply if undefined and not set explicitly
+      includeMonitoring: true, // Explicitly use Zod default or intended default
+      includeBatteryStorage: false, // Explicitly use Zod default or intended default
+      selectedInstallerIds: [], // Initialize as empty array. Validation will occur on submit/interaction.
     },
   });
 
@@ -73,7 +81,7 @@ export function RFQForm() {
       title: "RFQ Generated!",
       description: `Your Request for Quotation has been created and notifications simulated to ${data.selectedInstallerIds.length} installer(s).`,
     });
-    // reset(); // Optionally reset form
+    // form.reset(); // Optionally reset form
   };
 
   return (
