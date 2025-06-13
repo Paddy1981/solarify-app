@@ -6,13 +6,15 @@ import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { getMockUserByEmail, type MockUser } from '@/lib/mock-data/users';
+import { getRFQsByHomeownerId, type RFQ } from '@/lib/mock-data/rfqs';
 
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { EnvironmentalImpactCard } from "@/components/dashboard/environmental-impact-card";
+import { HomeownerRfqStatusCard } from '@/components/dashboard/homeowner-rfq-status-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChartBig, Zap, Leaf, DollarSign, CheckCircle2, Bell, Info, AlertTriangle, Wrench, LogIn, UserCircle, Signal, RadioTower } from "lucide-react";
+import { BarChartBig, Zap, Leaf, DollarSign, CheckCircle2, Bell, Info, AlertTriangle, Wrench, LogIn, UserCircle, Signal, RadioTower, FileText, PlusCircle } from "lucide-react";
 import { SystemSetupForm, type SystemConfigData } from '@/components/dashboard/system-setup-form';
 import { SolarJourneyChoiceForm } from '@/components/dashboard/solar-journey-choice-form';
 import { NewToSolarDashboardContent } from '@/components/dashboard/new-to-solar-dashboard-content';
@@ -87,7 +89,19 @@ function DashboardLoadingSkeleton() {
   );
 }
 
-function ActualDashboardContent() {
+interface ActualDashboardContentProps {
+  homeownerId: string | null;
+}
+
+function ActualDashboardContent({ homeownerId }: ActualDashboardContentProps) {
+  const [userRFQs, setUserRFQs] = React.useState<RFQ[]>([]);
+
+  React.useEffect(() => {
+    if (homeownerId) {
+      setUserRFQs(getRFQsByHomeownerId(homeownerId));
+    }
+  }, [homeownerId]);
+
   const stats = [
     { title: "Current Generation", value: "3.2 kW", icon: <Zap className="w-6 h-6 text-primary" />, change: "+5%", changeType: "positive" as "positive" | "negative" },
     { title: "Today's Energy", value: "15.7 kWh", icon: <Zap className="w-6 h-6 text-primary" />, change: "+12%", changeType: "positive" as "positive" | "negative" },
@@ -127,6 +141,33 @@ function ActualDashboardContent() {
         </Card>
         <EnvironmentalImpactCard />
       </div>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="font-headline flex items-center"><FileText className="w-6 h-6 mr-2 text-primary" />My Requests for Quotation</CardTitle>
+          <CardDescription>Track the status of your RFQs and view received quotes.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {userRFQs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {userRFQs.map(rfq => (
+                <HomeownerRfqStatusCard key={rfq.id} rfq={rfq} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">You haven&apos;t generated any RFQs yet.</p>
+              <Button asChild>
+                <Link href="/homeowner/rfq">
+                  <PlusCircle className="w-4 h-4 mr-2" /> Create New RFQ
+                </Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
        <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline flex items-center"><Bell className="w-6 h-6 mr-2 text-primary" />Notifications & Alerts</CardTitle>
@@ -160,7 +201,6 @@ function ActualDashboardContent() {
         </CardContent>
       </Card>
 
-      {/* New "Coming Soon" Card for Live Solar Performance Tracking */}
       <Card className="shadow-xl border-2 border-primary/30 bg-primary/5">
         <CardHeader>
           <CardTitle className="font-headline text-2xl flex items-center text-accent">
@@ -220,10 +260,10 @@ export default function DashboardPage() {
               }
             } catch (error) {
               console.error("Error accessing localStorage for dashboard state:", error);
-              setDashboardStatus('needs_choice'); // Fallback safely
+              setDashboardStatus('needs_choice'); 
             }
           } else {
-             setDashboardStatus('needs_choice'); // Should not happen in client component effect
+             setDashboardStatus('needs_choice'); 
           }
         } else {
           setDashboardStatus('invalid_role');
@@ -259,7 +299,6 @@ export default function DashboardPage() {
     if (currentUser && typeof window !== 'undefined') {
       try {
         localStorage.setItem(`${DASHBOARD_STATE_KEY_PREFIX}${currentUser.uid}`, 'existing_configured');
-        // Optionally, save system data too, though not strictly part of status
         localStorage.setItem(`dashboardSystemData_${currentUser.uid}`, JSON.stringify(data));
         setDashboardStatus('existing_configured');
         toast({
@@ -311,7 +350,6 @@ export default function DashboardPage() {
     );
   }
 
-  // At this point, user is a logged-in homeowner
   if (dashboardStatus === 'needs_choice') {
     return <SolarJourneyChoiceForm onChoiceMade={handleSolarJourneyChoice} userName={currentUserProfile?.fullName} />;
   }
@@ -325,9 +363,8 @@ export default function DashboardPage() {
   }
 
   if (dashboardStatus === 'existing_configured') {
-    return <ActualDashboardContent />;
+    return <ActualDashboardContent homeownerId={currentUser ? currentUser.uid : null} />;
   }
 
-  // Fallback for any unexpected status
   return <DashboardLoadingSkeleton />; 
 }

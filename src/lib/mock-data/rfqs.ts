@@ -38,10 +38,26 @@ export const sampleRFQs: RFQ[] = [
     includeBatteryStorage: true,
     dateCreated: "2024-07-10",
     selectedInstallerIds: ["installer-user-001", "installer-user-002"], // Mock installer IDs
-    status: "Pending",
+    status: "Responded",
   },
   {
     id: "rfq-002",
+    homeownerId: "homeowner-user-001", // Second RFQ for homeowner-user-001
+    name: "Aarav Menon",
+    email: "aarav.menon@example.com",
+    phone: "555-001-0001",
+    address: "101 Sunshine Ave, Sunville, CA 90210",
+    estimatedSystemSizeKW: 3.0,
+    monthlyConsumptionKWh: 450,
+    additionalNotes: "Small shed installation, looking for budget options.",
+    includeMonitoring: false,
+    includeBatteryStorage: false,
+    dateCreated: "2024-07-28",
+    selectedInstallerIds: ["installer-user-003"],
+    status: "Pending",
+  },
+  {
+    id: "rfq-003",
     homeownerId: "homeowner-user-002",
     name: "Priya Rao",
     email: "priya.rao@example.com",
@@ -57,7 +73,7 @@ export const sampleRFQs: RFQ[] = [
     status: "Responded",
   },
   {
-    id: "rfq-003",
+    id: "rfq-004",
     homeownerId: "homeowner-user-003",
     name: "Vikram Iyer",
     email: "vikram.iyer@example.com",
@@ -70,10 +86,15 @@ export const sampleRFQs: RFQ[] = [
     includeBatteryStorage: true,
     dateCreated: "2024-07-20",
     selectedInstallerIds: ["installer-user-002"],
-    status: "Pending",
+    status: "Closed",
   },
 ];
 
 export const getRFQById = (id: string): RFQ | undefined => {
   return sampleRFQs.find(rfq => rfq.id === id);
 };
+
+export function getRFQsByHomeownerId(homeownerId: string): RFQ[] {
+  if (!homeownerId) return [];
+  return sampleRFQs.filter(rfq => rfq.homeownerId === homeownerId);
+}
