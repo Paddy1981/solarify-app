@@ -5,6 +5,7 @@ export interface MockUser {
   id: string;
   fullName: string;
   email: string;
+  password?: string; // Added for form testing
   role: UserRole;
   avatarUrl?: string;
   address?: string;
@@ -46,12 +47,13 @@ const generateRandomUser = (role: UserRole, index: number): MockUser => {
   const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${index}@${emailDomain}`;
   const id = `${role}-user-${String(index).padStart(3, '0')}`;
   const memberSinceDate = new Date(2020 + Math.floor(Math.random()*4), Math.floor(Math.random()*12), Math.floor(Math.random()*28)+1);
-
+  const mockPassword = "Solarify!123"; // Default password for all mock users
 
   const commonProfile: MockUser = {
     id,
     fullName,
     email,
+    password: mockPassword,
     role,
     avatarUrl: `https://placehold.co/100x100.png?text=${firstName[0]}${lastName[0]}`,
     address: `${100 + index} Main St, ${["Chennai", "Bangalore", "Hyderabad", "Kochi"][index % 4]}, India`,
