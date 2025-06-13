@@ -12,7 +12,7 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import { EnvironmentalImpactCard } from "@/components/dashboard/environmental-impact-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChartBig, Zap, Leaf, DollarSign, CheckCircle2, Bell, Info, AlertTriangle, Wrench, LogIn, UserCircle } from "lucide-react";
+import { BarChartBig, Zap, Leaf, DollarSign, CheckCircle2, Bell, Info, AlertTriangle, Wrench, LogIn, UserCircle, Signal, RadioTower } from "lucide-react";
 import { SystemSetupForm, type SystemConfigData } from '@/components/dashboard/system-setup-form';
 import { SolarJourneyChoiceForm } from '@/components/dashboard/solar-journey-choice-form';
 import { NewToSolarDashboardContent } from '@/components/dashboard/new-to-solar-dashboard-content';
@@ -159,6 +159,35 @@ function ActualDashboardContent() {
            <Button variant="outline" className="mt-4 w-full md:w-auto">View All Notifications</Button>
         </CardContent>
       </Card>
+
+      {/* New "Coming Soon" Card for Live Solar Performance Tracking */}
+      <Card className="shadow-xl border-2 border-primary/30 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="font-headline text-2xl flex items-center text-accent">
+            <Signal className="w-7 h-7 mr-3 text-primary" />
+            Coming Soon: Live Solar Performance Tracking
+          </CardTitle>
+          <CardDescription className="text-foreground/80">
+            Get ready to monitor your solar system&apos;s performance in real-time with our upcoming IoT integration!
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-foreground/70">
+            We&apos;re diligently working on integrating smart IoT-enabled solar tracking devices with Solarify. Soon, you&apos;ll be able to:
+          </p>
+          <ul className="list-disc list-inside space-y-1.5 text-foreground/70 pl-5">
+            <li>View live Solar Generation (kW) and Daily Energy produced (kWh).</li>
+            <li>Track your real-time CO₂ Savings and Car Miles Avoided.</li>
+            <li>Securely pair your compatible solar monitoring devices with your Solarify account.</li>
+            <li>Customize data refresh intervals, performance alerts, and reporting preferences.</li>
+          </ul>
+          <div className="flex items-center gap-2 text-accent font-semibold pt-2">
+             <RadioTower className="w-5 h-5"/> 
+             <p>Stay tuned for updates on this exciting new feature!</p>
+          </div>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
