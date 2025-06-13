@@ -1,16 +1,16 @@
-
-"use client"; // Required for useEffect, useState
+"use client"; 
 
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ListOrdered, ShoppingBag } from 'lucide-react';
+import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ListOrdered, ShoppingBag, ShoppingCart as CartIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/context/cart-context';
 
 import {
   DropdownMenu,
@@ -28,7 +28,7 @@ import {
 
 const navLinksBase = [
   { href: '/', label: 'Home', icon: HomeIcon },
-  { href: '/supplier/store', label: 'Shop Products', icon: ShoppingBag }, // Main shop link
+  { href: '/supplier/store', label: 'Shop Products', icon: ShoppingBag }, 
 ];
 
 const navLinksAuthenticated = [
@@ -56,7 +56,7 @@ const navLinksAuthenticated = [
     icon: StoreIcon,
     subLinks: [
         { href: '/supplier/dashboard', label: 'Dashboard', icon: HomeIcon },
-        { href: '/supplier/store', label: 'Manage Storefront', icon: StoreIcon }, // This is their product list
+        { href: '/supplier/store', label: 'Manage Storefront', icon: StoreIcon }, 
         { href: '/supplier/store/add-product', label: 'Add Product', icon: PackagePlus },
     ]
   },
@@ -66,14 +66,20 @@ const navLinksAuthenticated = [
 export function Header() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-
+  const { getItemCount } = useCart(); 
+  const [mounted, setMounted] = useState(false);
+  
   useEffect(() => {
+    setMounted(true);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setIsLoadingAuth(false);
     });
     return () => unsubscribe(); 
   }, []);
+  
+  const cartItemCount = mounted ? getItemCount() : 0;
+
 
   const combinedNavLinks = currentUser ? [...navLinksBase, ...navLinksAuthenticated] : navLinksBase;
 
@@ -82,7 +88,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Logo />
-        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+        <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
           {combinedNavLinks.map((link) =>
             link.subLinks ? (
               <DesktopDropdownMenu key={link.label} link={link} />
@@ -97,10 +103,34 @@ export function Header() {
             )
           )}
         </nav>
-        <div className="hidden md:flex items-center space-x-2">
-          <AuthButtons isLoadingAuth={isLoadingAuth} currentUser={currentUser} />
+        <div className="flex items-center space-x-2">
+          <Button variant="ghost" size="icon" asChild className="relative hidden md:inline-flex">
+            <Link href="/cart">
+              <CartIcon className="h-5 w-5" />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                  {cartItemCount}
+                </span>
+              )}
+              <span className="sr-only">View Cart</span>
+            </Link>
+          </Button>
+          <div className="hidden md:flex items-center space-x-2">
+             <AuthButtons isLoadingAuth={isLoadingAuth} currentUser={currentUser} />
+          </div>
         </div>
-        <div className="md:hidden">
+        <div className="md:hidden flex items-center space-x-2">
+           <Button variant="ghost" size="icon" asChild className="relative">
+            <Link href="/cart">
+              <CartIcon className="h-5 w-5" />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                  {cartItemCount}
+                </span>
+              )}
+              <span className="sr-only">View Cart</span>
+            </Link>
+          </Button>
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -140,7 +170,7 @@ export function Header() {
 function DesktopDropdownMenu({ link }: { link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> }}) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-1 transition-colors hover:text-primary outline-none">
+      <DropdownMenuTrigger className="flex items-center gap-1 transition-colors hover:text-primary outline-none text-sm font-medium">
         {link.label} <ChevronDown className="h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent>
@@ -200,7 +230,7 @@ function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: 
   if (isLoadingAuth) {
     return (
       <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
-        <Button variant="ghost" disabled className={column ? 'w-full justify-start' : ''}>
+        <Button variant="ghost" disabled className={`${column ? 'w-full justify-start' : ''} text-sm`}>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading...
         </Button>
       </div>
@@ -209,7 +239,7 @@ function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: 
 
   if (currentUser) {
     return (
-      <Button variant="outline" onClick={handleLogout} className={column ? 'w-full' : ''}>
+      <Button variant="outline" onClick={handleLogout} className={`${column ? 'w-full' : ''} text-sm`}>
         <LogOut className="mr-2 h-4 w-4" /> Logout
       </Button>
     );
@@ -217,10 +247,10 @@ function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: 
 
   return (
     <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
-      <Button variant="ghost" asChild className={column ? 'w-full justify-start' : ''}>
+      <Button variant="ghost" asChild className={`${column ? 'w-full justify-start' : ''} text-sm`}>
         <Link href="/login"><LogIn className="mr-2 h-4 w-4" /> Login</Link>
       </Button>
-      <Button asChild className={`bg-accent text-accent-foreground hover:bg-accent/90 ${column ? 'w-full' : ''}`}>
+      <Button asChild className={`bg-accent text-accent-foreground hover:bg-accent/90 ${column ? 'w-full' : ''} text-sm`}>
         <Link href="/signup"><UserPlus className="mr-2 h-4 w-4" /> Sign Up</Link>
       </Button>
     </div>
