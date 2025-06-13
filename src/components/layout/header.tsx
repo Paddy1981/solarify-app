@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
@@ -31,8 +31,8 @@ import {
 const navLinksBase = [
   { href: '/', label: 'Home', icon: HomeIcon },
   { href: '/promotions', label: 'Promotions', icon: Megaphone },
-  { href: '/installer/portfolio', label: 'Showcase', icon: Award }, // Renamed
-  { href: '/supplier/store', label: 'Shop', icon: ShoppingBag }, // Renamed
+  { href: '/installer/portfolio', label: 'Showcase', icon: Award },
+  { href: '/supplier/store', label: 'Shop', icon: ShoppingBag },
 ];
 
 const navLinksAuthenticated = [
@@ -77,18 +77,16 @@ export function Header() {
   const { getItemCount } = useCart(); 
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   
   useEffect(() => {
     setMounted(true);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       if (user && user.email) {
-        // console.log("Header Auth: Firebase user found:", user.email);
         const profile = getMockUserByEmail(user.email);
-        // console.log("Header Auth: Profile from mock data:", profile);
         setUserRole(profile?.role || null);
       } else {
-        // console.log("Header Auth: No Firebase user or no email.");
         setUserRole(null);
       }
       setIsLoadingAuth(false);
@@ -103,27 +101,33 @@ export function Header() {
   let displayedNavLinks: Array<(typeof navLinksBase[0]) | (typeof navLinksAuthenticated[0])> = [];
 
   if (onAuthPages) {
-    // Show only minimal links on login/signup pages
     displayedNavLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
   } else if (currentUser && userRole) {
-    // User is logged in and has a role
     const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
-    const baseLinksFiltered = navLinksBase.filter(baseLink => {
-      // Avoid duplicating "My Portfolio" if "Showcase" (same link) is already in base
-      if (baseLink.href === '/installer/portfolio' && roleSpecificMenu?.subLinks?.some(sl => sl.href === '/installer/portfolio')) {
-        return true; 
-      }
-      return true;
-    });
-    displayedNavLinks = [...baseLinksFiltered];
+    displayedNavLinks = [...navLinksBase];
     if (roleSpecificMenu) {
-      displayedNavLinks.push(roleSpecificMenu);
+      // Check if roleSpecificMenu is already represented by a base link to avoid duplicates, or merge.
+      // For simplicity, if a role-specific top-level item exists, we'll assume it's distinct enough.
+      const isRoleMenuAlreadyInBase = navLinksBase.some(bl => bl.label === roleSpecificMenu.label && bl.href);
+      if (!isRoleMenuAlreadyInBase) {
+         displayedNavLinks.push(roleSpecificMenu);
+      } else {
+        // If a base link has the same label as a role menu, ensure sublinks are shown if user has that role
+        // This logic might need refinement based on exact desired behavior for overlaps.
+        // For now, if base and role menu share label, prioritize showing the role menu's sublinks.
+        const baseLinkIndex = displayedNavLinks.findIndex(dl => dl.label === roleSpecificMenu.label);
+        if (baseLinkIndex > -1 && (displayedNavLinks[baseLinkIndex] as any).subLinks) {
+          // Already a dropdown, assume it's fine or merge logic needed here
+        } else if (baseLinkIndex > -1) {
+           displayedNavLinks[baseLinkIndex] = roleSpecificMenu; // Replace base link with role-specific one
+        }
+      }
     }
   } else {
-    // Logged-out users see all base links
     displayedNavLinks = [...navLinksBase];
   }
 
+  const closeMobileSheet = () => setIsMobileSheetOpen(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -172,7 +176,7 @@ export function Header() {
               <span className="sr-only">View Cart</span>
             </Link>
           </Button>
-          <Sheet>
+          <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6" />
@@ -183,11 +187,12 @@ export function Header() {
               <nav className="flex flex-col space-y-4 mt-6">
                 {displayedNavLinks.map((link) =>
                   (link as typeof navLinksAuthenticated[0]).subLinks ? ( 
-                    <MobileAccordionMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} />
+                    <MobileAccordionMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} onLinkClick={closeMobileSheet} />
                   ) : (
                     <Link
                       key={link.label}
                       href={link.href!}
+                      onClick={closeMobileSheet}
                       className="flex items-center gap-2 rounded-md p-2 text-lg font-medium hover:bg-accent hover:text-accent-foreground"
                     >
                       {(link.icon) && <link.icon className="h-5 w-5" />}
@@ -196,7 +201,7 @@ export function Header() {
                   )
                 )}
                 <div className="mt-auto pt-4 border-t">
-                  <AuthButtons column isLoadingAuth={isLoadingAuth} currentUser={currentUser} />
+                  <AuthButtons column isLoadingAuth={isLoadingAuth} currentUser={currentUser} onAuthAction={closeMobileSheet} />
                 </div>
               </nav>
             </SheetContent>
@@ -212,6 +217,7 @@ function DesktopDropdownMenu({ link }: { link: typeof navLinksAuthenticated[0] &
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1 transition-colors hover:text-primary outline-none text-sm font-medium">
+        {link.icon && <link.icon className="h-4 w-4 mr-1" />}
         {link.label} <ChevronDown className="h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent>
@@ -228,7 +234,13 @@ function DesktopDropdownMenu({ link }: { link: typeof navLinksAuthenticated[0] &
 }
 
 
-function MobileAccordionMenu({ link }: { link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> }}) {
+function MobileAccordionMenu({ 
+  link,
+  onLinkClick 
+}: { 
+  link: typeof navLinksAuthenticated[0] & { subLinks: NonNullable<typeof navLinksAuthenticated[0]['subLinks']> };
+  onLinkClick: () => void;
+}) {
   return (
     <Accordion type="single" collapsible className="w-full">
       <AccordionItem value={link.label} className="border-b-0">
@@ -240,6 +252,7 @@ function MobileAccordionMenu({ link }: { link: typeof navLinksAuthenticated[0] &
             <Link
               key={subLink.label}
               href={subLink.href}
+              onClick={onLinkClick}
               className="flex items-center gap-2 rounded-md p-2 text-base font-medium hover:bg-accent hover:text-accent-foreground mt-1"
             >
               {subLink.icon && <subLink.icon className="h-5 w-5" />}
@@ -253,7 +266,17 @@ function MobileAccordionMenu({ link }: { link: typeof navLinksAuthenticated[0] &
 }
 
 
-function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: boolean, isLoadingAuth: boolean, currentUser: FirebaseUser | null }) {
+function AuthButtons({ 
+  column = false, 
+  isLoadingAuth, 
+  currentUser,
+  onAuthAction 
+}: { 
+  column?: boolean, 
+  isLoadingAuth: boolean, 
+  currentUser: FirebaseUser | null,
+  onAuthAction?: () => void;
+}) {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -261,12 +284,24 @@ function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: 
     try {
       await signOut(auth);
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
+      onAuthAction?.(); // Close sheet if on mobile
       router.push('/login'); 
     } catch (error) {
       console.error("Logout error:", error);
       toast({ title: "Logout Failed", description: "Could not log you out. Please try again.", variant: "destructive" });
     }
   };
+
+  const handleLoginClick = () => {
+    onAuthAction?.();
+    router.push('/login');
+  };
+
+  const handleSignupClick = () => {
+    onAuthAction?.();
+    router.push('/signup');
+  };
+
 
   if (isLoadingAuth) {
     return (
@@ -288,13 +323,14 @@ function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: 
 
   return (
     <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
-      <Button variant="ghost" asChild className={`${column ? 'w-full justify-start' : ''} text-sm`}>
-        <Link href="/login"><LogIn className="mr-2 h-4 w-4" /> Login</Link>
+      <Button variant="ghost" onClick={handleLoginClick} className={`${column ? 'w-full justify-start' : ''} text-sm`}>
+        <LogIn className="mr-2 h-4 w-4" /> Login
       </Button>
-      <Button asChild className={`bg-accent text-accent-foreground hover:bg-accent/90 ${column ? 'w-full' : ''} text-sm`}>
-        <Link href="/signup"><UserPlus className="mr-2 h-4 w-4" /> Sign Up</Link>
+      <Button onClick={handleSignupClick} className={`bg-accent text-accent-foreground hover:bg-accent/90 ${column ? 'w-full' : ''} text-sm`}>
+        <UserPlus className="mr-2 h-4 w-4" /> Sign Up
       </Button>
     </div>
   );
 }
 
+    
