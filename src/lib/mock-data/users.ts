@@ -49,7 +49,7 @@ const generateRandomUser = (role: UserRole, index: number): MockUser => {
   const lastName = southIndianLastNames[Math.floor(Math.random() * southIndianLastNames.length)];
   const fullName = `${firstName} ${lastName}`;
   const emailDomain = role === "homeowner" ? "home.example.com" : (role === "installer" ? "install.example.com" : "supply.example.com");
-  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${index}@${emailDomain}`;
+  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${String(index).padStart(3, '0')}@${emailDomain}`;
   const id = `${role}-user-${String(index).padStart(3, '0')}`;
   const memberSinceDate = new Date(2020 + Math.floor(Math.random()*4), Math.floor(Math.random()*12), Math.floor(Math.random()*28)+1);
   const mockPassword = "Solarify!123"; // Default password for all mock users
@@ -110,6 +110,10 @@ for (let i = 1; i <= 10; i++) {
 // Existing helper functions
 export const getMockUserById = (id: string): MockUser | undefined => {
   return mockUsers.find(user => user.id === id);
+};
+
+export const getMockUserByEmail = (email: string): MockUser | undefined => {
+  return mockUsers.find(user => user.email.toLowerCase() === email.toLowerCase());
 };
 
 export const getMockUsersByRole = (role: UserRole): MockUser[] => {

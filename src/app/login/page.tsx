@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { getMockUserByEmail } from "@/lib/mock-data/users"; // Import the new helper
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,8 +48,23 @@ export default function LoginPage() {
         title: "Login Successful!",
         description: "Welcome back to Solarify.",
       });
-      // TODO: Redirect based on user role after fetching it
-      router.push("/"); 
+
+      // Fetch user role from mock data (replace with actual data store in real app)
+      const userProfile = getMockUserByEmail(data.email);
+
+      if (userProfile) {
+        if (userProfile.role === "installer") {
+          router.push("/installer/dashboard");
+        } else if (userProfile.role === "homeowner") {
+          router.push("/homeowner/dashboard");
+        } else {
+          router.push("/"); // Default for other roles or if role not defined
+        }
+      } else {
+        console.warn("User profile not found in mock data for email:", data.email);
+        router.push("/"); // Fallback if profile not found
+      }
+
     } catch (error: any) {
       console.error("Login error:", error);
       let errorMessage = "An unexpected error occurred. Please try again.";
