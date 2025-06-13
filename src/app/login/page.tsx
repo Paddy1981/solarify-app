@@ -42,7 +42,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      const firebaseUserEmail = userCredential.user.email; // Get email from Firebase user object
+      const firebaseUserEmail = userCredential.user.email; 
       
       console.log("Firebase Auth successful for email:", firebaseUserEmail || data.email);
       
@@ -51,7 +51,6 @@ export default function LoginPage() {
         description: "Welcome back to Solarify. Checking your role...",
       });
 
-      // Fetch user role from mock data using the email from form data, as Firebase email might be null if not verified or other cases
       const userProfile = getMockUserByEmail(data.email);
 
       if (userProfile) {
@@ -62,6 +61,9 @@ export default function LoginPage() {
         } else if (userProfile.role === "homeowner") {
           console.log("User role is 'homeowner'. Redirecting to /homeowner/dashboard.");
           router.push("/homeowner/dashboard");
+        } else if (userProfile.role === "supplier") {
+          console.log("User role is 'supplier'. Redirecting to /supplier/dashboard.");
+          router.push("/supplier/dashboard");
         } else {
           console.log(`User role is '${userProfile.role}'. Redirecting to homepage.`);
           router.push("/");

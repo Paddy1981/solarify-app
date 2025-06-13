@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2 } from 'lucide-react';
+import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ListOrdered } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -47,7 +47,15 @@ const navLinks = [
         { href: '/installer/rfqs', label: 'View RFQs', icon: FileText },
     ]
   },
-  { href: '/supplier/store', label: 'Supplier Store', icon: StoreIcon },
+  {
+    label: 'For Suppliers',
+    icon: StoreIcon,
+    subLinks: [
+        { href: '/supplier/dashboard', label: 'Dashboard', icon: HomeIcon },
+        { href: '/supplier/store', label: 'Manage Store', icon: StoreIcon },
+        { href: '/supplier/store/add-product', label: 'Add Product', icon: PackagePlus },
+    ]
+  },
 ];
 
 export function Header() {
