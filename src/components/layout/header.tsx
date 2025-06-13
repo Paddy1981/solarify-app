@@ -120,38 +120,7 @@ export function Header() {
       newLinks = [...navLinksBase]; 
 
       if (currentUser && userRole && !isLoadingAuth) {
-        let dashboardPath = '/';
-        let DashboardIcon: LucideIcon = HomeIcon; 
-
-        switch (userRole) {
-          case 'homeowner':
-            dashboardPath = '/homeowner/dashboard';
-            DashboardIcon = BarChartBig;
-            break;
-          case 'installer':
-            dashboardPath = '/installer/dashboard';
-            DashboardIcon = HomeIcon; 
-            break;
-          case 'supplier':
-            dashboardPath = '/supplier/dashboard';
-            DashboardIcon = HomeIcon; 
-            break;
-        }
-
-        if (dashboardPath !== '/') {
-          const myDashboardLink: NavLinkItem = { href: dashboardPath, label: 'My Dashboard', icon: DashboardIcon };
-          
-          const alreadyHasMyDashboard = newLinks.some(link => link.label === 'My Dashboard');
-
-          if (!alreadyHasMyDashboard) {
-            const homeIndex = newLinks.findIndex(link => link.label === 'Home');
-            if (homeIndex !== -1) {
-              newLinks.splice(homeIndex + 1, 0, myDashboardLink);
-            } else {
-              newLinks.unshift(myDashboardLink);
-            }
-          }
-        }
+        // Removed the direct "My Dashboard" link creation here
 
         const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
         if (roleSpecificMenu) {
