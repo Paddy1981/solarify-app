@@ -13,6 +13,9 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { currencyOptions, getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies";
+import { auth } from "@/lib/firebase";
+import type { User as FirebaseUser } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 
 const commonAppliancesData: { value: string; label: string; defaultWattage: number }[] = [
   { value: "refrigerator", label: "Refrigerator (Energy Star)", defaultWattage: 150 },
@@ -105,6 +108,29 @@ const getDefaultNewAppliance = (): ApplianceDefaultValue => {
 export function EnergyCalculatorForm() {
   const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(getDefaultCurrency());
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      try {
+        const storedResultKey = `energyCalcResult_${currentUser.uid}`;
+        const storedResult = localStorage.getItem(storedResultKey);
+        if (storedResult) {
+          setCalculationResult(JSON.parse(storedResult));
+        }
+      } catch (error) {
+        console.error("Error loading energy calculation from localStorage:", error);
+      }
+    }
+  }, [currentUser]);
+
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -129,16 +155,14 @@ export function EnergyCalculatorForm() {
   const onSubmit: SubmitHandler<FormData> = (data) => {
     let totalDailyWattHours = 0;
     data.appliances.forEach(appliance => {
-      totalDailyWattHours += appliance.wattage * appliance.hoursPerDay * appliance.quantity;
+      totalDailyWattHours += (appliance.wattage || 0) * (appliance.hoursPerDay || 0) * (appliance.quantity || 1);
     });
 
     const dailyConsumptionKWh = totalDailyWattHours / 1000;
     const monthlyConsumptionKWh = dailyConsumptionKWh * 30;
-    // Standard assumption: 4-5 peak sun hours per day. Using 4 for a slightly conservative estimate.
-    // Adding a 25% buffer for system losses, efficiency, and future needs.
-    const suggestedSystemSizeKW = (dailyConsumptionKWh / 4) * 1.25;
+    const suggestedSystemSizeKW = (dailyConsumptionKWh / 4) * 1.25; // 4 peak sun hours, 25% buffer
 
-    const panelWattages = [450, 500, 550]; // Common panel wattages
+    const panelWattages = [450, 500, 550];
     const solarPanelOptions = panelWattages.map(wattage => {
         const numPanels = Math.ceil((suggestedSystemSizeKW * 1000) / wattage);
         return `Approx. ${numPanels} x ${wattage}W panels (Total: ${(numPanels * wattage / 1000).toFixed(1)} kW)`;
@@ -147,7 +171,6 @@ export function EnergyCalculatorForm() {
     const inverterSizeKW = parseFloat(suggestedSystemSizeKW.toFixed(1));
     const inverterRecommendation = `A ~${inverterSizeKW} kW Grid-Tie Inverter is recommended. Consider a Hybrid Inverter if adding batteries.`;
 
-    // Simplified battery recommendation: 1.5x daily consumption
     const recommendedBatteryKWh = parseFloat((dailyConsumptionKWh * 1.5).toFixed(1));
     const batteryRecommendation = `For backup & self-consumption, a ~${recommendedBatteryKWh} kWh battery system is suggested. (Based on ${dailyConsumptionKWh.toFixed(1)} kWh daily usage).`;
 
@@ -159,8 +182,7 @@ export function EnergyCalculatorForm() {
         { icon: <Cable className="w-5 h-5 text-accent"/>, name: "Cables & Accessories", quantity: "1 lot", details: "PV cabling, connectors, etc." }
     ];
 
-
-    setCalculationResult({
+    const newCalculationResult: CalculationResult = {
       dailyConsumptionKWh: parseFloat(dailyConsumptionKWh.toFixed(2)),
       monthlyConsumptionKWh: parseFloat(monthlyConsumptionKWh.toFixed(2)),
       suggestedSystemSizeKW: parseFloat(suggestedSystemSizeKW.toFixed(2)),
@@ -168,7 +190,16 @@ export function EnergyCalculatorForm() {
       solarPanelOptions,
       inverterRecommendation,
       batteryRecommendation,
-    });
+    };
+    setCalculationResult(newCalculationResult);
+
+    if (currentUser) {
+      try {
+        localStorage.setItem(`energyCalcResult_${currentUser.uid}`, JSON.stringify(newCalculationResult));
+      } catch (error) {
+        console.error("Error saving energy calculation to localStorage:", error);
+      }
+    }
   };
 
   return (
@@ -465,3 +496,4 @@ export function EnergyCalculatorForm() {
     </>
   );
 }
+
