@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -63,12 +64,12 @@ You will receive information about a homeowner's current electricity bill, the c
 
 Consider factors such as the location's solar irradiance, the impact of roof orientation and shading on energy production, and typical electricity prices in the area. Also, prompt the user about additional data that may influence the estimate, such as potential government incentives or changes in electricity prices.
 
-Current Electricity Bill: ${'{{currentElectricityBill}}'}
-Solar Panel Cost: ${'{{solarPanelCost}}'}
-Average Monthly Consumption: ${'{{averageMonthlyConsumptionKWh}}'} kWh
-Location: ${'{{location}}'}
-Roof Orientation: ${'{{roofOrientation}}'}
-Roof Shading: ${'{{roofShading}}'}
+Current Electricity Bill: {{{currentElectricityBill}}}
+Solar Panel Cost: {{{solarPanelCost}}}
+Average Monthly Consumption: {{{averageMonthlyConsumptionKWh}}} kWh
+Location: {{{location}}}
+Roof Orientation: {{{roofOrientation}}}
+Roof Shading: {{{roofShading}}}
 
 Estimate the following:
 - Estimated Savings Per Year (dollars):
@@ -90,3 +91,4 @@ const savingsPotentialEstimatorFlow = ai.defineFlow(
     return output!;
   }
 );
+

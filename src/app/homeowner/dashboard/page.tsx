@@ -1,8 +1,10 @@
+
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { EnvironmentalImpactCard } from "@/components/dashboard/environmental-impact-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChartBig, Zap, Leaf, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BarChartBig, Zap, Leaf, DollarSign, CheckCircle2, Bell, Info, AlertTriangle, Wrench } from "lucide-react";
 
 export default function DashboardPage() {
   const stats = [
@@ -84,6 +86,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-// Dummy icons used in stats, replace if needed
-import { CheckCircle2, Bell, Info, AlertTriangle, Wrench } from 'lucide-react';
