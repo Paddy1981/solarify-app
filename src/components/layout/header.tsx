@@ -5,14 +5,14 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon } from 'lucide-react';
+import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/context/cart-context';
-import { getMockUserByEmail, type UserRole } from '@/lib/mock-data/users'; // Added getMockUserByEmail and UserRole
+import { getMockUserByEmail, type UserRole } from '@/lib/mock-data/users'; 
 
 import {
   DropdownMenu,
@@ -30,6 +30,7 @@ import {
 
 const navLinksBase = [
   { href: '/', label: 'Home', icon: HomeIcon },
+  { href: '/installer/portfolio', label: 'Project Showcase', icon: Award },
   { href: '/supplier/store', label: 'Shop Products', icon: ShoppingBag }, 
 ];
 
@@ -51,7 +52,7 @@ const navLinksAuthenticated = [
     icon: Briefcase,
     subLinks: [
         { href: '/installer/dashboard', label: 'Dashboard', icon: HomeIcon },
-        { href: '/installer/portfolio', label: 'Project Portfolio', icon: Briefcase },
+        { href: '/installer/portfolio', label: 'My Portfolio', icon: Briefcase },
         { href: '/installer/rfqs', label: 'View RFQs', icon: FileText },
     ]
   },
@@ -94,13 +95,22 @@ export function Header() {
   const cartItemCount = mounted ? getItemCount() : 0;
 
   const onAuthPages = pathname === '/login' || pathname === '/signup';
-  let displayedNavLinks: Array<typeof navLinksBase[0] | typeof navLinksAuthenticated[0]> = [...navLinksBase];
+  let displayedNavLinks: Array<(typeof navLinksBase[0]) | (typeof navLinksAuthenticated[0])> = [...navLinksBase];
 
   if (currentUser && !onAuthPages && userRole) {
     const roleSpecificLinks = navLinksAuthenticated.filter(link => link.role === userRole);
-    displayedNavLinks = [...navLinksBase, ...roleSpecificLinks];
-  } else if (onAuthPages) {
-    displayedNavLinks = [...navLinksBase]; // Only show base links on login/signup pages
+    // For logged-in users, remove the generic "Project Showcase" if they have "My Portfolio" under their role
+    // This avoids duplication.
+    const baseLinksFiltered = navLinksBase.filter(bl => {
+      if (bl.label === 'Project Showcase' && roleSpecificLinks.some(rs => rs.subLinks?.some(sl => sl.href === bl.href))) {
+        return false;
+      }
+      return true;
+    });
+    displayedNavLinks = [...baseLinksFiltered, ...roleSpecificLinks];
+  } else {
+    // Logged-out users or users on auth pages see all base links.
+    displayedNavLinks = [...navLinksBase];
   }
 
 
@@ -110,7 +120,7 @@ export function Header() {
         <Logo />
         <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
           {displayedNavLinks.map((link) =>
-            (link as typeof navLinksAuthenticated[0]).subLinks ? ( // Type assertion to check for subLinks
+            (link as typeof navLinksAuthenticated[0]).subLinks ? ( 
               <DesktopDropdownMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} />
             ) : (
               <Link
@@ -161,7 +171,7 @@ export function Header() {
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <nav className="flex flex-col space-y-4 mt-6">
                 {displayedNavLinks.map((link) =>
-                  (link as typeof navLinksAuthenticated[0]).subLinks ? ( // Type assertion
+                  (link as typeof navLinksAuthenticated[0]).subLinks ? ( 
                     <MobileAccordionMenu key={link.label} link={link as typeof navLinksAuthenticated[0]} />
                   ) : (
                     <Link
@@ -169,7 +179,7 @@ export function Header() {
                       href={link.href!}
                       className="flex items-center gap-2 rounded-md p-2 text-lg font-medium hover:bg-accent hover:text-accent-foreground"
                     >
-                      <link.icon className="h-5 w-5" />
+                      {(link.icon) && <link.icon className="h-5 w-5" />}
                       {link.label}
                     </Link>
                   )
