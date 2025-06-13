@@ -4,7 +4,7 @@
 // For now, we'll use some mock data or placeholders.
 
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Briefcase, ListChecks, UserCircle, Settings, BarChartHorizontalBig } from "lucide-react";
 import Image from "next/image";
