@@ -35,9 +35,9 @@ const commonAppliancesData: { value: string; label: string; defaultWattage: numb
 const applianceSchema = z.object({
   applianceType: z.string().min(1, "Please select an appliance type."),
   customName: z.string().optional(),
-  wattage: z.coerce.number({ invalid_type_error: "Must be a number" }).min(1, "Wattage must be positive"),
+  wattage: z.coerce.number({ invalid_type_error: "Must be a number" }).min(1, "Wattage must be positive").optional(),
   quantity: z.coerce.number({ invalid_type_error: "Must be a number" }).int().min(1, "Quantity must be at least 1").default(1),
-  hoursPerDay: z.coerce.number({ invalid_type_error: "Must be a number" }).min(0).max(24, "Hours must be between 0 and 24"),
+  hoursPerDay: z.coerce.number({ invalid_type_error: "Must be a number" }).min(0).max(24, "Hours must be between 0 and 24").optional(),
 }).refine(
   (data) => {
     if (data.applianceType === "other") {
@@ -69,7 +69,7 @@ type ApplianceDefaultValue = {
 };
 
 interface EquipmentItem {
-    icon?: React.ReactNode;
+    iconName?: string; // Changed from React.ReactNode to string
     name: string;
     quantity: string;
     details: string;
@@ -105,6 +105,19 @@ const getDefaultNewAppliance = (): ApplianceDefaultValue => {
   };
 };
 
+const renderEquipmentIcon = (iconName?: string): React.ReactNode => {
+  if (!iconName) return null;
+  const commonProps = { className: "w-5 h-5 text-accent" };
+  switch (iconName) {
+    case "Layers": return <Layers {...commonProps} />;
+    case "RadioTower": return <RadioTower {...commonProps} />;
+    case "BatteryCharging": return <BatteryCharging {...commonProps} />;
+    case "Wrench": return <Wrench {...commonProps} />;
+    case "Cable": return <Cable {...commonProps} />;
+    default: return null;
+  }
+};
+
 export function EnergyCalculatorForm() {
   const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(getDefaultCurrency());
@@ -127,6 +140,7 @@ export function EnergyCalculatorForm() {
         }
       } catch (error) {
         console.error("Error loading energy calculation from localStorage:", error);
+        localStorage.removeItem(`energyCalcResult_${currentUser.uid}`); // Clear potentially corrupted data
       }
     }
   }, [currentUser]);
@@ -149,7 +163,7 @@ export function EnergyCalculatorForm() {
   const watchedCurrencyValue = form.watch("selectedCurrencyValue");
   useEffect(() => {
     setSelectedCurrency(getCurrencyByCode(watchedCurrencyValue) || getDefaultCurrency());
-  }, [watchedCurrencyValue]);
+  }, [watchedCurrencyValue, setSelectedCurrency]);
 
 
   const onSubmit: SubmitHandler<FormData> = (data) => {
@@ -175,11 +189,11 @@ export function EnergyCalculatorForm() {
     const batteryRecommendation = `For backup & self-consumption, a ~${recommendedBatteryKWh} kWh battery system is suggested. (Based on ${dailyConsumptionKWh.toFixed(1)} kWh daily usage).`;
 
     const itemizedEquipmentList: EquipmentItem[] = [
-        { icon: <Layers className="w-5 h-5 text-accent"/>, name: `Solar Panels (${panelWattages.join('/')}W range)`, quantity: `${Math.ceil(suggestedSystemSizeKW*1000/550)}-${Math.ceil(suggestedSystemSizeKW*1000/450)} units`, details: `Total ~${inverterSizeKW} kW capacity` },
-        { icon: <RadioTower className="w-5 h-5 text-accent"/>, name: "Inverter", quantity: "1 unit", details: `~${inverterSizeKW} kW, Grid-Tie or Hybrid` },
-        { icon: <BatteryCharging className="w-5 h-5 text-accent"/>, name: "Battery Storage", quantity: "1 unit (Optional)", details: `~${recommendedBatteryKWh} kWh Lithium-ion` },
-        { icon: <Wrench className="w-5 h-5 text-accent"/>, name: "Mounting System", quantity: "1 set", details: "Standard roof-mount kit" },
-        { icon: <Cable className="w-5 h-5 text-accent"/>, name: "Cables & Accessories", quantity: "1 lot", details: "PV cabling, connectors, etc." }
+        { iconName: "Layers", name: `Solar Panels (${panelWattages.join('/')}W range)`, quantity: `${Math.ceil(suggestedSystemSizeKW*1000/550)}-${Math.ceil(suggestedSystemSizeKW*1000/450)} units`, details: `Total ~${inverterSizeKW} kW capacity` },
+        { iconName: "RadioTower", name: "Inverter", quantity: "1 unit", details: `~${inverterSizeKW} kW, Grid-Tie or Hybrid` },
+        { iconName: "BatteryCharging", name: "Battery Storage", quantity: "1 unit (Optional)", details: `~${recommendedBatteryKWh} kWh Lithium-ion` },
+        { iconName: "Wrench", name: "Mounting System", quantity: "1 set", details: "Standard roof-mount kit" },
+        { iconName: "Cable", name: "Cables & Accessories", quantity: "1 lot", details: "PV cabling, connectors, etc." }
     ];
 
     const newCalculationResult: CalculationResult = {
@@ -446,7 +460,7 @@ export function EnergyCalculatorForm() {
                     {calculationResult.itemizedEquipmentList.map(item => (
                         <Card key={item.name} className="bg-background/70 shadow">
                             <CardHeader className="flex flex-row items-start gap-3 space-y-0 p-4">
-                                {item.icon && <div className="mt-1">{item.icon}</div>}
+                                {item.iconName && <div className="mt-1">{renderEquipmentIcon(item.iconName)}</div>}
                                 <div className="flex-1">
                                     <CardTitle className="text-md font-semibold">{item.name}</CardTitle>
                                     <CardDescription className="text-sm">
