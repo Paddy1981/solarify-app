@@ -18,11 +18,22 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
+const currencyOptions = [
+  { value: "USD", label: "USD - US Dollar" },
+  { value: "EUR", label: "EUR - Euro" },
+  { value: "GBP", label: "GBP - British Pound" },
+  { value: "INR", label: "INR - Indian Rupee" },
+  { value: "CAD", label: "CAD - Canadian Dollar" },
+  { value: "AUD", label: "AUD - Australian Dollar" },
+];
+
 const signupFormSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   role: z.enum(["homeowner", "installer", "supplier"], { required_error: "Please select a role." }),
+  location: z.string().min(3, { message: "Location must be at least 3 characters (e.g., City, Country)." }),
+  currency: z.string().min(1, { message: "Please select your preferred currency." }),
 });
 
 type SignupFormData = z.infer<typeof signupFormSchema>;
@@ -39,6 +50,8 @@ export default function SignupPage() {
       email: "",
       password: "",
       role: undefined,
+      location: "",
+      currency: "",
     },
   });
 
@@ -46,8 +59,18 @@ export default function SignupPage() {
     setIsSubmitting(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      console.log("User created:", userCredential.user);
-      // TODO: Store user role and full name in Firestore or Realtime Database associated with user.uid
+      console.log("User created in Firebase Auth:", userCredential.user);
+      
+      // TODO: Store user role, full name, location, and currency in Firestore or Realtime Database
+      // associated with userCredential.user.uid
+      console.log("User Profile Data to Store:", {
+        uid: userCredential.user.uid,
+        fullName: data.fullName,
+        email: data.email, // Email is already stored in Auth, but good to have in profile
+        role: data.role,
+        location: data.location,
+        currency: data.currency,
+      });
 
       toast({
         title: "Account Created!",
@@ -143,6 +166,41 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location (City, Country)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., San Francisco, USA" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preferred Currency</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {currencyOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
@@ -153,7 +211,7 @@ export default function SignupPage() {
                   "Sign Up"
                 )}
               </Button>
-              <Button variant="outline" className="w-full mt-2" disabled={isSubmitting} type="button"> {/* Added type="button" for non-submit google button */}
+              <Button variant="outline" className="w-full mt-2" disabled={isSubmitting} type="button">
                 Sign Up with Google
               </Button>
             </CardContent>

@@ -8,7 +8,7 @@ export interface MockUser {
   password?: string; // Added for form testing
   role: UserRole;
   avatarUrl?: string;
-  address?: string;
+  address?: string; // This might be more specific than the general location
   phone?: string;
   companyName?: string; // For installers and suppliers
   specialties?: string[]; // For installers
@@ -16,6 +16,8 @@ export interface MockUser {
   projectCount?: number; // For installers
   storeRating?: number; // For suppliers
   memberSince?: string; // Common for all
+  location?: string; // e.g., "City, Country"
+  currency?: string; // e.g., "USD", "INR"
 }
 
 const southIndianFirstNames = [
@@ -39,6 +41,9 @@ const southIndianLastNames = [
   "Naidu", "Setty", "Acharya", "Prakash", "Anand", "Mohan", "Nathan", "Shetty", "Kamath", "Pai"
 ];
 
+const sampleLocations = ["Chennai, India", "Bangalore, India", "Hyderabad, India", "Kochi, India", "Mumbai, India", "Delhi, India", "Pune, India", "Kolkata, India"];
+const sampleCurrencies = ["INR", "USD", "EUR"];
+
 const generateRandomUser = (role: UserRole, index: number): MockUser => {
   const firstName = southIndianFirstNames[Math.floor(Math.random() * southIndianFirstNames.length)];
   const lastName = southIndianLastNames[Math.floor(Math.random() * southIndianLastNames.length)];
@@ -56,9 +61,11 @@ const generateRandomUser = (role: UserRole, index: number): MockUser => {
     password: mockPassword,
     role,
     avatarUrl: `https://placehold.co/100x100.png?text=${firstName[0]}${lastName[0]}`,
-    address: `${100 + index} Main St, ${["Chennai", "Bangalore", "Hyderabad", "Kochi"][index % 4]}, India`,
+    address: `${100 + index} Main St, ${sampleLocations[index % sampleLocations.length].split(',')[0]}, India`, // More specific address
     phone: `91-9${String(Math.floor(Math.random() * 1000000000)).padStart(9, '0')}`,
     memberSince: memberSinceDate.toISOString().split('T')[0],
+    location: sampleLocations[index % sampleLocations.length],
+    currency: sampleCurrencies[index % sampleCurrencies.length],
   };
 
   if (role === "installer") {
