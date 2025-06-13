@@ -18,7 +18,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-headline tracking-tight text-primary">Performance Dashboard</h1>
+        <h1 className="text-4xl font-headline tracking-tight text-accent">Performance Dashboard</h1>
         <p className="mt-2 text-lg text-foreground/70">
           Monitor your solar system&apos;s real-time performance and environmental impact.
         </p>
@@ -26,17 +26,17 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map(stat => (
-          <StatsCard 
-            key={stat.title} 
-            title={stat.title} 
-            value={stat.value} 
+          <StatsCard
+            key={stat.title}
+            title={stat.title}
+            value={stat.value}
             icon={stat.icon}
             change={stat.change}
             changeType={stat.changeType}
           />
         ))}
       </div>
-      
+
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 shadow-lg">
           <CardHeader>

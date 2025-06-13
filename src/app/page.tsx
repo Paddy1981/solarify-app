@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Sun, Users, Briefcase, StoreIcon, ArrowRight, CheckCircle2, FileText, BarChartBig } from "lucide-react";
@@ -54,7 +55,7 @@ export default function HomePage() {
     <div className="flex flex-col items-center">
       <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-br from-primary/10 via-background to-background">
         <div className="container px-4 md:px-6 text-center">
-          <h1 className="text-4xl font-headline tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl text-primary">
+          <h1 className="text-4xl font-headline tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl text-accent">
             Solarify
           </h1>
           <p className="mt-4 max-w-[700px] mx-auto text-foreground/80 md:text-xl">
@@ -117,7 +118,7 @@ export default function HomePage() {
           />
           <div className="flex flex-col justify-center space-y-4">
             <div className="space-y-2">
-              <div className="inline-block rounded-lg bg-primary/20 px-3 py-1 text-sm text-primary font-medium">
+              <div className="inline-block rounded-lg bg-primary px-3 py-1 text-sm text-primary-foreground font-medium">
                 Empower Your Home
               </div>
               <h2 className="text-3xl font-headline tracking-tighter sm:text-5xl">

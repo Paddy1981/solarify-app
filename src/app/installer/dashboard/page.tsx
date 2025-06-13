@@ -25,12 +25,12 @@ export default function InstallerDashboardPage() {
     <div className="space-y-8">
       <Card className="shadow-xl overflow-hidden">
         <div className="relative h-32 bg-gradient-to-r from-primary via-primary/70 to-accent">
-           <Image 
-            src="https://placehold.co/1200x200.png" 
+           <Image
+            src="https://placehold.co/1200x200.png"
             alt="Installer dashboard cover"
             data-ai-hint="abstract energy"
-            layout="fill" 
-            objectFit="cover" 
+            layout="fill"
+            objectFit="cover"
             className="opacity-20"
           />
         </div>
@@ -45,7 +45,7 @@ export default function InstallerDashboardPage() {
               className="rounded-full border-4 border-background shadow-lg"
             />
             <div className="mt-3 sm:mt-0 text-center sm:text-left">
-              <h1 className="text-2xl font-headline tracking-tight text-primary">{mockInstaller.companyName}</h1>
+              <h1 className="text-2xl font-headline tracking-tight text-accent">{mockInstaller.companyName}</h1>
               <p className="text-sm text-muted-foreground">{mockInstaller.tagline}</p>
             </div>
              <Button variant="outline" size="sm" className="mt-3 sm:mt-0 sm:ml-auto">
@@ -54,7 +54,7 @@ export default function InstallerDashboardPage() {
           </div>
         </CardContent>
       </Card>
-      
+
       <div className="text-center mb-8">
         <h2 className="text-3xl font-headline tracking-tight">Installer Dashboard</h2>
         <p className="mt-1 text-lg text-foreground/70">
@@ -93,7 +93,7 @@ export default function InstallerDashboardPage() {
             </Button>
           </CardFooter>
         </Card>
-        
+
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><BarChartHorizontalBig className="w-6 h-6 mr-2 text-primary"/> Performance & Analytics</CardTitle>

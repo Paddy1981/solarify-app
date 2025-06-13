@@ -74,7 +74,7 @@ export default function InstallerPortfolioPage() {
       }
       setIsLoadingAuth(false);
     });
-    return () => unsubscribe(); 
+    return () => unsubscribe();
   }, []);
 
   const isInstaller = currentUser && userRole === 'installer';
@@ -83,12 +83,12 @@ export default function InstallerPortfolioPage() {
     <div className="space-y-8">
       <Card className="shadow-xl overflow-hidden">
         <div className="relative h-48 bg-gradient-to-r from-primary via-primary/70 to-accent">
-          <Image 
-            src="https://placehold.co/1200x300.png" 
+          <Image
+            src="https://placehold.co/1200x300.png"
             alt="Installer cover photo"
-            data-ai-hint="solar company" 
-            layout="fill" 
-            objectFit="cover" 
+            data-ai-hint="solar company"
+            layout="fill"
+            objectFit="cover"
             className="opacity-30"
           />
         </div>
@@ -103,7 +103,7 @@ export default function InstallerPortfolioPage() {
                     className="rounded-full border-4 border-background shadow-lg"
                 />
                 <div className="mt-4 md:mt-0 text-center md:text-left">
-                    <h1 className="text-3xl font-headline tracking-tight text-primary">{featuredInstallerProfile.name}</h1>
+                    <h1 className="text-3xl font-headline tracking-tight text-accent">{featuredInstallerProfile.name}</h1>
                     <p className="text-muted-foreground">{featuredInstallerProfile.tagline}</p>
                     <div className="flex items-center justify-center md:justify-start space-x-2 text-sm text-muted-foreground mt-1">
                         <MapPin className="w-4 h-4 text-accent" /> <span>{featuredInstallerProfile.location}</span>
@@ -160,4 +160,3 @@ export default function InstallerPortfolioPage() {
     </div>
   );
 }
-

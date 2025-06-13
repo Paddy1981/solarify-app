@@ -85,7 +85,7 @@ export function RFQForm({ homeownerDetails }: RFQFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div>
-          <h3 className="text-xl font-semibold font-headline text-primary mb-1">Your Details</h3>
+          <h3 className="text-xl font-semibold font-headline text-accent mb-1">Your Details</h3>
           <p className="text-sm text-muted-foreground mb-4">(Automatically pre-filled from your profile)</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField control={form.control} name="name" render={({ field }) => ( <FormItem> <FormLabel>Full Name</FormLabel> <FormControl><Input {...field} readOnly className="bg-muted/50 border-muted" /></FormControl> <FormMessage /> </FormItem> )} />
@@ -96,14 +96,14 @@ export function RFQForm({ homeownerDetails }: RFQFormProps) {
         </div>
 
         <div>
-          <h3 className="text-xl font-semibold font-headline text-primary mb-1">Solar Requirements</h3>
+          <h3 className="text-xl font-semibold font-headline text-accent mb-1">Solar Requirements</h3>
           <p className="text-sm text-muted-foreground mb-4">(Enter your estimated needs)</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField control={form.control} name="estimatedSystemSizeKW" render={({ field }) => ( <FormItem> <FormLabel>Estimated System Size (kW)</FormLabel> <FormControl><Input type="number" step="0.1" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl> <FormMessage /> </FormItem> )} />
             <FormField control={form.control} name="monthlyConsumptionKWh" render={({ field }) => ( <FormItem> <FormLabel>Avg. Monthly Consumption (kWh)</FormLabel> <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl> <FormMessage /> </FormItem> )} />
           </div>
         </div>
-        
+
         <div className="space-y-4">
             <FormField control={form.control} name="includeMonitoring" render={({ field }) => (
                 <FormItem className="flex flex-row items-center space-x-3 space-y-0">
@@ -125,7 +125,7 @@ export function RFQForm({ homeownerDetails }: RFQFormProps) {
           render={({ field }) => (
             <FormItem>
               <div className="mb-2">
-                <FormLabel className="text-xl font-semibold font-headline text-primary flex items-center"><Users className="w-5 h-5 mr-2"/>Select Installers</FormLabel>
+                <FormLabel className="text-xl font-semibold font-headline text-accent flex items-center"><Users className="w-5 h-5 mr-2"/>Select Installers</FormLabel>
                 <FormDescription className="mt-1">
                   Choose 1 to 3 installers to send your RFQ. These would ideally be filtered by your location.
                 </FormDescription>

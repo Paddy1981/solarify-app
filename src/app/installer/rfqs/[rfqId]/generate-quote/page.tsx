@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 import { getRFQById, type RFQ } from "@/lib/mock-data/rfqs";
-import { getMockUserById, type MockUser } from "@/lib/mock-data/users"; 
+import { getMockUserById, type MockUser } from "@/lib/mock-data/users";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,7 +119,7 @@ export default function GenerateQuotePage() {
       form.setValue(`lineItems.${index}.total`, parseFloat(lineTotal.toFixed(2)), { shouldValidate: false });
       newSubtotal += lineTotal;
     });
-    
+
     const taxAmount = (newSubtotal * (watchedTaxRate || 0)) / 100;
     const totalAmount = newSubtotal + taxAmount;
 
@@ -164,7 +164,7 @@ export default function GenerateQuotePage() {
               </div>
               <CardTitle className="text-3xl font-headline">Generate Quote</CardTitle>
               <CardDescription>
-                Create a detailed quote for RFQ ID: <span className="font-semibold text-primary">{rfqId}</span>
+                Create a detailed quote for RFQ ID: <span className="font-semibold text-accent">{rfqId}</span>
               </CardDescription>
             </CardHeader>
 
@@ -196,11 +196,11 @@ export default function GenerateQuotePage() {
                   </FormItem>
                 )} />
               </div>
-              
+
               <Separator className="my-6"/>
 
               <div>
-                <h3 className="text-xl font-semibold font-headline text-primary mb-1">Line Items</h3>
+                <h3 className="text-xl font-semibold font-headline text-accent mb-1">Line Items</h3>
                 <FormDescription className="mb-4">Add products, services, and their costs.</FormDescription>
                 {fields.map((field, index) => (
                   <div key={field.id} className="p-4 border rounded-md mb-4 shadow-sm bg-muted/30 relative">
@@ -292,7 +292,7 @@ export default function GenerateQuotePage() {
                         </div>
                         <span className="font-medium">${form.getValues("taxAmount").toFixed(2)}</span>
                     </div>
-                     <div className="flex justify-between text-lg font-bold text-primary border-t pt-1 mt-1">
+                     <div className="flex justify-between text-lg font-bold text-accent border-t pt-1 mt-1">
                         <span>Total Amount:</span>
                         <span>${form.getValues("totalAmount").toFixed(2)}</span>
                     </div>
@@ -317,4 +317,3 @@ export default function GenerateQuotePage() {
     </div>
   );
 }
-

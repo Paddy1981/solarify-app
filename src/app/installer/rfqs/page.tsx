@@ -6,19 +6,19 @@ import { ListChecks, Inbox } from "lucide-react";
 import { getMockUserById, type MockUser } from "@/lib/mock-data/users";
 
 // In a real app, currentInstallerId would come from authentication context
-const MOCK_CURRENT_INSTALLER_ID = "installer-user-001"; 
+const MOCK_CURRENT_INSTALLER_ID = "installer-user-001";
 
 export default function InstallerRFQsPage() {
   const currentInstaller = getMockUserById(MOCK_CURRENT_INSTALLER_ID);
 
-  const relevantRFQs = sampleRFQs.filter(rfq => 
+  const relevantRFQs = sampleRFQs.filter(rfq =>
     rfq.selectedInstallerIds.includes(MOCK_CURRENT_INSTALLER_ID)
   );
 
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-headline tracking-tight text-primary flex items-center justify-center">
+        <h1 className="text-4xl font-headline tracking-tight text-accent flex items-center justify-center">
           <ListChecks className="w-10 h-10 mr-3" /> Incoming Requests for Quotation
         </h1>
         <p className="mt-2 text-lg text-foreground/70">

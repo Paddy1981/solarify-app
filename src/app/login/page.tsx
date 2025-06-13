@@ -20,7 +20,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(1, { message: "Password is required." }), 
+  password: z.string().min(1, { message: "Password is required." }),
 });
 
 type LoginFormData = z.infer<typeof loginFormSchema>;
@@ -43,10 +43,10 @@ export default function LoginPage() {
     console.log("Login attempt with email:", data.email);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      const firebaseUserEmail = userCredential.user.email; 
-      
+      const firebaseUserEmail = userCredential.user.email;
+
       console.log("Firebase Auth successful for email:", firebaseUserEmail || data.email);
-      
+
       toast({
         title: "Login Successful!",
         description: "Welcome back to Solarify. Checking your role...",
@@ -79,7 +79,7 @@ export default function LoginPage() {
           variant: "default",
           duration: 7000,
         });
-        router.push("/"); 
+        router.push("/");
       }
 
     } catch (error: any) {
@@ -153,7 +153,7 @@ export default function LoginPage() {
         <CardFooter className="text-center text-sm">
           <p>
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="font-medium text-primary hover:underline">
+            <Link href="/signup" className="font-medium text-accent hover:underline">
               Sign up
             </Link>
           </p>

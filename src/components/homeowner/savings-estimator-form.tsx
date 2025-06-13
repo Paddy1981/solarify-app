@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
@@ -116,20 +117,20 @@ export function SavingsEstimatorForm() {
       {state.data && (
         <Card className="mt-8 shadow-md bg-primary/10">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline text-center text-primary">Estimated Solar Potential</CardTitle>
+            <CardTitle className="text-2xl font-headline text-center text-accent">Estimated Solar Potential</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-lg">
             <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
               <span className="font-medium">Estimated Annual Savings:</span>
-              <span className="font-bold text-primary">${state.data.estimatedSavingsPerYear.toLocaleString()}</span>
+              <span className="font-bold text-accent">${state.data.estimatedSavingsPerYear.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
               <span className="font-medium">Payback Period:</span>
-              <span className="font-bold text-primary">{state.data.paybackPeriodYears.toFixed(1)} years</span>
+              <span className="font-bold text-accent">{state.data.paybackPeriodYears.toFixed(1)} years</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
               <span className="font-medium">Return on Investment (ROI):</span>
-              <span className="font-bold text-primary">{state.data.roiPercentage.toFixed(1)}%</span>
+              <span className="font-bold text-accent">{state.data.roiPercentage.toFixed(1)}%</span>
             </div>
             {state.data.promptUserAboutData && (
               <Alert variant="default" className="mt-4 bg-accent/10 border-accent/50">

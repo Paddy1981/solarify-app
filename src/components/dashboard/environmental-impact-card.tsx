@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Leaf, TreePine, Car } from "lucide-react";
 
@@ -23,7 +24,7 @@ export function EnvironmentalImpactCard() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{impact.label}</p>
-                <p className="text-2xl font-bold font-headline text-primary">{impact.value}</p>
+                <p className="text-2xl font-bold font-headline text-accent">{impact.value}</p>
               </div>
             </div>
           </div>

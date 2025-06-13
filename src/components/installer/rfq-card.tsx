@@ -27,7 +27,7 @@ export function RfqCard({ rfq }: RfqCardProps) {
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
       <CardHeader>
         <div className="flex items-center justify-between">
-            <CardTitle className="font-headline text-xl text-primary">RFQ from: {rfq.name}</CardTitle>
+            <CardTitle className="font-headline text-xl text-accent">RFQ from: {rfq.name}</CardTitle>
             <FileText className="w-6 h-6 text-accent" />
         </div>
         <CardDescription>Received on: {formattedDate}</CardDescription>

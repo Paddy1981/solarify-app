@@ -62,7 +62,7 @@ export default function SignupPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       console.log("User created in Firebase Auth:", userCredential.user.uid, userCredential.user.email);
-      
+
       const newUserProfile: MockUser = {
         id: userCredential.user.uid,
         fullName: data.fullName,
@@ -235,7 +235,7 @@ export default function SignupPage() {
         <CardFooter className="text-center text-sm">
           <p>
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">
+            <Link href="/login" className="font-medium text-accent hover:underline">
               Log in
             </Link>
           </p>

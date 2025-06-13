@@ -9,9 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, ShoppingCart, CreditCard, Info, MinusCircle, PlusCircle } from 'lucide-react'; // Changed AlertTriangle to Info
+import { Trash2, ShoppingCart, CreditCard, Info, MinusCircle, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // Added Alert components
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function CartPage() {
   const { items, removeItem, updateItemQuantity, getCartTotal, clearCart, getItemCount } = useCart();
@@ -19,8 +19,7 @@ export default function CartPage() {
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      // If quantity input is manually set to 0 or less, treat as remove
-      updateItemQuantity(productId, 0); 
+      updateItemQuantity(productId, 0);
     } else {
       updateItemQuantity(productId, newQuantity);
     }
@@ -32,7 +31,7 @@ export default function CartPage() {
       description: "This is where the payment and order processing would begin.",
     });
   };
-  
+
   const cartTotal = getCartTotal();
   const estimatedTax = cartTotal * 0.08; // Simulate 8% tax
   const orderTotal = cartTotal + estimatedTax;
@@ -81,25 +80,25 @@ export default function CartPage() {
                   <TableRow key={item.id}>
                     <TableCell className="hidden md:table-cell pr-0">
                       <Image
-                        src={item.imageUrl || 'https://placehold.co/64x64.png'} // Use item.imageUrl
+                        src={item.imageUrl || 'https://placehold.co/64x64.png'}
                         alt={item.name}
-                        data-ai-hint={item.imageHint || "product"} // Use item.imageHint
+                        data-ai-hint={item.imageHint || "product"}
                         width={64}
                         height={64}
                         className="rounded-md object-cover border"
                       />
                     </TableCell>
                     <TableCell>
-                      <Link href={`/products/${item.id}`} className="font-medium hover:text-primary transition-colors">
+                      <Link href={`/products/${item.id}`} className="font-medium hover:text-accent transition-colors">
                         {item.name}
                       </Link>
                       <p className="text-xs text-muted-foreground">{item.category}</p>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center space-x-1 sm:space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-7 w-7"
                           onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
                         >
@@ -115,9 +114,9 @@ export default function CartPage() {
                           className="w-12 sm:w-16 h-8 text-center px-1"
                           min="1"
                         />
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-7 w-7"
                           onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
                         >
@@ -137,7 +136,7 @@ export default function CartPage() {
               </TableBody>
             </Table>
           </div>
-          
+
           <Separator className="my-6" />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -145,8 +144,8 @@ export default function CartPage() {
                 <Button variant="outline" onClick={clearCart} className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
                     <Trash2 className="mr-2 h-4 w-4" /> Clear Entire Cart
                 </Button>
-                <Alert variant="default" className="bg-muted/30"> {/* Ensure Alert components are imported */}
-                  <Info className="h-5 w-5 text-accent" /> {/* Changed icon to Info */}
+                <Alert variant="default" className="bg-muted/30">
+                  <Info className="h-5 w-5 text-accent" />
                   <AlertTitle className="font-medium">Please Note</AlertTitle>
                   <AlertDescription>
                     Shipping costs and final taxes are estimates and will be calculated at checkout. All sales are simulated.
@@ -155,7 +154,7 @@ export default function CartPage() {
             </div>
 
             <div className="space-y-3 p-4 bg-muted/30 rounded-lg shadow-sm">
-              <h3 className="text-lg font-semibold font-headline text-primary">Order Summary</h3>
+              <h3 className="text-lg font-semibold font-headline text-accent">Order Summary</h3>
               <div className="flex justify-between text-sm">
                 <span>Subtotal ({currentItemCount} item{currentItemCount === 1 ? '' : 's'}):</span>
                 <span className="font-medium">${cartTotal.toFixed(2)}</span>
@@ -165,7 +164,7 @@ export default function CartPage() {
                 <span className="font-medium">${estimatedTax.toFixed(2)}</span>
               </div>
               <Separator />
-              <div className="flex justify-between text-xl font-bold text-primary pt-1">
+              <div className="flex justify-between text-xl font-bold text-accent pt-1">
                 <span>Order Total:</span>
                 <span>${orderTotal.toFixed(2)}</span>
               </div>
@@ -186,4 +185,3 @@ export default function CartPage() {
     </div>
   );
 }
-

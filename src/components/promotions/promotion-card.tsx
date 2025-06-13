@@ -22,7 +22,7 @@ export function PromotionCard({ post }: PromotionCardProps) {
   } catch (e) {
     // if date is invalid, use original
   }
-  
+
   let validUntilFormatted = post.validUntil;
   if (post.validUntil) {
     try {
@@ -56,7 +56,7 @@ export function PromotionCard({ post }: PromotionCardProps) {
             </CardDescription>
           </div>
         </div>
-        <h3 className="text-xl font-semibold text-primary line-clamp-2 h-14">{post.title}</h3>
+        <h3 className="text-xl font-semibold text-accent line-clamp-2 h-14">{post.title}</h3>
       </CardHeader>
       <CardContent className="flex-grow space-y-3">
         <p className="text-sm text-muted-foreground line-clamp-3">{post.content}</p>

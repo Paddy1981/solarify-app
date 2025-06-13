@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams } from "next/navigation";
@@ -17,8 +18,8 @@ export default function ProductDetailPage() {
   const params = useParams();
   const { toast } = useToast();
   const productId = params.productId as string;
-  const [product, setProduct] = useState<Product | null | undefined>(undefined); 
-  const { addItem } = useCart(); 
+  const [product, setProduct] = useState<Product | null | undefined>(undefined);
+  const { addItem } = useCart();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product || !mounted) return;
-    addItem(product, 1); 
+    addItem(product, 1);
     toast({
       title: "Added to Cart",
       description: `${product.name} has been added to your cart.`,
@@ -81,7 +82,7 @@ export default function ProductDetailPage() {
           </div>
           <div className="flex flex-col">
             <CardHeader className="pb-4">
-              <CardTitle className="text-3xl lg:text-4xl font-headline text-primary">{product.name}</CardTitle>
+              <CardTitle className="text-3xl lg:text-4xl font-headline text-accent">{product.name}</CardTitle>
               <div className="flex items-center gap-2 mt-2">
                 <Layers className="w-5 h-5 text-muted-foreground" />
                 <Badge variant="secondary">{product.category}</Badge>
@@ -111,9 +112,9 @@ export default function ProductDetailPage() {
               )}
             </CardContent>
             <CardFooter className="bg-muted/30 p-6 border-t">
-              <Button 
-                size="lg" 
-                className="w-full bg-accent text-accent-foreground hover:bg-accent/90" 
+              <Button
+                size="lg"
+                className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
                 onClick={handleAddToCart}
                 disabled={product.stock === 0 || !mounted}
               >

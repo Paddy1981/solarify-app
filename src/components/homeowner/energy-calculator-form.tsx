@@ -205,7 +205,7 @@ export function EnergyCalculatorForm() {
                         <Trash2 className="h-5 w-5" />
                       </Button>
                     ) : (
-                      <div className="hidden md:block h-10"></div> 
+                      <div className="hidden md:block h-10"></div>
                     )}
                   </div>
                 </div>
@@ -233,10 +233,10 @@ export function EnergyCalculatorForm() {
                   <FormItem>
                       <FormLabel className="text-lg font-medium font-headline">Current Monthly Electricity Bill (Optional)</FormLabel>
                       <FormControl>
-                          <Input 
-                              type="number" 
-                              step="0.01" 
-                              placeholder="Enter your average monthly bill in $" 
+                          <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="Enter your average monthly bill in $"
                               {...field}
                               onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
                               value={field.value ?? ""}
@@ -246,7 +246,7 @@ export function EnergyCalculatorForm() {
                   </FormItem>
               )}
           />
-          
+
           <Button type="submit" size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
             <Lightbulb className="mr-2 h-5 w-5" /> Calculate Energy Needs
           </Button>
@@ -256,20 +256,20 @@ export function EnergyCalculatorForm() {
       {calculationResult && (
         <Card className="mt-8 shadow-md bg-primary/10">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline text-center text-primary">Calculation Results</CardTitle>
+            <CardTitle className="text-2xl font-headline text-center text-accent">Calculation Results</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-lg">
             <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
               <span className="font-medium">Daily Energy Consumption:</span>
-              <span className="font-bold text-primary">{calculationResult.dailyConsumptionKWh} kWh</span>
+              <span className="font-bold text-accent">{calculationResult.dailyConsumptionKWh} kWh</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
               <span className="font-medium">Monthly Energy Consumption (approx.):</span>
-              <span className="font-bold text-primary">{calculationResult.monthlyConsumptionKWh} kWh</span>
+              <span className="font-bold text-accent">{calculationResult.monthlyConsumptionKWh} kWh</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
               <span className="font-medium">Suggested Solar System Size:</span>
-              <span className="font-bold text-primary">{calculationResult.suggestedSystemSizeKW} kW</span>
+              <span className="font-bold text-accent">{calculationResult.suggestedSystemSizeKW} kW</span>
             </div>
           </CardContent>
           <CardFooter>
