@@ -7,8 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, PlusCircle, Lightbulb } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Trash2, PlusCircle, Lightbulb, ListChecks, Layers, RadioTower, BatteryCharging, Wrench, Cable } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -33,6 +33,7 @@ const applianceSchema = z.object({
   applianceType: z.string().min(1, "Please select an appliance type."),
   customName: z.string().optional(),
   wattage: z.coerce.number({ invalid_type_error: "Must be a number" }).min(1, "Wattage must be positive"),
+  quantity: z.coerce.number({ invalid_type_error: "Must be a number" }).int().min(1, "Quantity must be at least 1").default(1),
   hoursPerDay: z.coerce.number({ invalid_type_error: "Must be a number" }).min(0).max(24, "Hours must be between 0 and 24"),
 }).refine(
   (data) => {
@@ -59,31 +60,45 @@ type FormData = z.infer<typeof formSchema>;
 type ApplianceDefaultValue = {
   applianceType: string;
   customName?: string;
-  wattage?: number; 
-  hoursPerDay?: number; 
+  wattage?: number;
+  quantity?: number;
+  hoursPerDay?: number;
 };
+
+interface EquipmentItem {
+    icon?: React.ReactNode;
+    name: string;
+    quantity: string;
+    details: string;
+}
 
 interface CalculationResult {
   dailyConsumptionKWh: number;
   monthlyConsumptionKWh: number;
   suggestedSystemSizeKW: number;
+  itemizedEquipmentList: EquipmentItem[];
+  solarPanelOptions: string[];
+  inverterRecommendation: string;
+  batteryRecommendation: string;
 }
 
 const getDefaultNewAppliance = (): ApplianceDefaultValue => {
   const firstAppliance = commonAppliancesData.find(a => a.value !== 'other');
   if (firstAppliance) {
-    return { 
-      applianceType: firstAppliance.value, 
-      customName: "", 
-      wattage: firstAppliance.defaultWattage, 
-      hoursPerDay: undefined 
+    return {
+      applianceType: firstAppliance.value,
+      customName: "",
+      wattage: firstAppliance.defaultWattage,
+      quantity: 1,
+      hoursPerDay: undefined
     };
   }
-  return { 
-    applianceType: "other", 
-    customName: "", 
-    wattage: undefined, 
-    hoursPerDay: undefined 
+  return {
+    applianceType: "other",
+    customName: "",
+    wattage: undefined,
+    quantity: 1,
+    hoursPerDay: undefined
   };
 };
 
@@ -104,27 +119,55 @@ export function EnergyCalculatorForm() {
     control: form.control,
     name: "appliances",
   });
-  
+
   const watchedCurrencyValue = form.watch("selectedCurrencyValue");
   useEffect(() => {
     setSelectedCurrency(getCurrencyByCode(watchedCurrencyValue) || getDefaultCurrency());
-  }, [watchedCurrencyValue, form]);
+  }, [watchedCurrencyValue]);
 
 
   const onSubmit: SubmitHandler<FormData> = (data) => {
     let totalDailyWattHours = 0;
     data.appliances.forEach(appliance => {
-      totalDailyWattHours += appliance.wattage * appliance.hoursPerDay;
+      totalDailyWattHours += appliance.wattage * appliance.hoursPerDay * appliance.quantity;
     });
 
     const dailyConsumptionKWh = totalDailyWattHours / 1000;
     const monthlyConsumptionKWh = dailyConsumptionKWh * 30;
-    const suggestedSystemSizeKW = (dailyConsumptionKWh / 4) * 1.25; 
+    // Standard assumption: 4-5 peak sun hours per day. Using 4 for a slightly conservative estimate.
+    // Adding a 25% buffer for system losses, efficiency, and future needs.
+    const suggestedSystemSizeKW = (dailyConsumptionKWh / 4) * 1.25;
+
+    const panelWattages = [450, 500, 550]; // Common panel wattages
+    const solarPanelOptions = panelWattages.map(wattage => {
+        const numPanels = Math.ceil((suggestedSystemSizeKW * 1000) / wattage);
+        return `Approx. ${numPanels} x ${wattage}W panels (Total: ${(numPanels * wattage / 1000).toFixed(1)} kW)`;
+    });
+
+    const inverterSizeKW = parseFloat(suggestedSystemSizeKW.toFixed(1));
+    const inverterRecommendation = `A ~${inverterSizeKW} kW Grid-Tie Inverter is recommended. Consider a Hybrid Inverter if adding batteries.`;
+
+    // Simplified battery recommendation: 1.5x daily consumption
+    const recommendedBatteryKWh = parseFloat((dailyConsumptionKWh * 1.5).toFixed(1));
+    const batteryRecommendation = `For backup & self-consumption, a ~${recommendedBatteryKWh} kWh battery system is suggested. (Based on ${dailyConsumptionKWh.toFixed(1)} kWh daily usage).`;
+
+    const itemizedEquipmentList: EquipmentItem[] = [
+        { icon: <Layers className="w-5 h-5 text-accent"/>, name: `Solar Panels (${panelWattages.join('/')}W range)`, quantity: `${Math.ceil(suggestedSystemSizeKW*1000/550)}-${Math.ceil(suggestedSystemSizeKW*1000/450)} units`, details: `Total ~${inverterSizeKW} kW capacity` },
+        { icon: <RadioTower className="w-5 h-5 text-accent"/>, name: "Inverter", quantity: "1 unit", details: `~${inverterSizeKW} kW, Grid-Tie or Hybrid` },
+        { icon: <BatteryCharging className="w-5 h-5 text-accent"/>, name: "Battery Storage", quantity: "1 unit (Optional)", details: `~${recommendedBatteryKWh} kWh Lithium-ion` },
+        { icon: <Wrench className="w-5 h-5 text-accent"/>, name: "Mounting System", quantity: "1 set", details: "Standard roof-mount kit" },
+        { icon: <Cable className="w-5 h-5 text-accent"/>, name: "Cables & Accessories", quantity: "1 lot", details: "PV cabling, connectors, etc." }
+    ];
+
 
     setCalculationResult({
       dailyConsumptionKWh: parseFloat(dailyConsumptionKWh.toFixed(2)),
       monthlyConsumptionKWh: parseFloat(monthlyConsumptionKWh.toFixed(2)),
       suggestedSystemSizeKW: parseFloat(suggestedSystemSizeKW.toFixed(2)),
+      itemizedEquipmentList,
+      solarPanelOptions,
+      inverterRecommendation,
+      batteryRecommendation,
     });
   };
 
@@ -193,7 +236,26 @@ export function EnergyCalculatorForm() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-4 items-end mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-x-4 gap-y-4 items-end mt-4">
+                     <FormField
+                      control={form.control}
+                      name={`appliances.${index}.quantity`}
+                      render={({ field: controllerField }) => (
+                        <FormItem>
+                          <FormLabel>Quantity</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="e.g., 1"
+                              {...controllerField}
+                              value={controllerField.value ?? ""}
+                              onChange={e => controllerField.onChange(parseInt(e.target.value) || 1)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name={`appliances.${index}.wattage`}
@@ -201,10 +263,10 @@ export function EnergyCalculatorForm() {
                         <FormItem>
                           <FormLabel>Wattage (W)</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="e.g., 150" 
-                              {...controllerField} 
+                            <Input
+                              type="number"
+                              placeholder="e.g., 150"
+                              {...controllerField}
                               value={controllerField.value ?? ""}
                               onChange={e => controllerField.onChange(e.target.value)}
                             />
@@ -220,11 +282,11 @@ export function EnergyCalculatorForm() {
                         <FormItem>
                           <FormLabel>Hours/Day</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.1" 
-                              placeholder="e.g., 8" 
-                              {...controllerField} 
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 8"
+                              {...controllerField}
                               value={controllerField.value ?? ""}
                               onChange={e => controllerField.onChange(e.target.value)}
                             />
@@ -245,7 +307,7 @@ export function EnergyCalculatorForm() {
                         <Trash2 className="h-5 w-5" />
                       </Button>
                     ) : (
-                      <div className="hidden md:block h-10"></div> // Placeholder for alignment
+                      <div className="hidden md:block h-10"></div>
                     )}
                   </div>
                 </div>
@@ -265,7 +327,7 @@ export function EnergyCalculatorForm() {
           </div>
 
           <Separator />
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
                 control={form.control}
@@ -319,7 +381,7 @@ export function EnergyCalculatorForm() {
 
 
           <Button type="submit" size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-            <Lightbulb className="mr-2 h-5 w-5" /> Calculate Energy Needs
+            <Lightbulb className="mr-2 h-5 w-5" /> Calculate Energy Needs & System
           </Button>
         </form>
       </Form>
@@ -327,25 +389,75 @@ export function EnergyCalculatorForm() {
       {calculationResult && (
         <Card className="mt-8 shadow-md bg-primary/10">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline text-center text-accent">Calculation Results</CardTitle>
+            <CardTitle className="text-2xl font-headline text-center text-accent">Solar System Estimation</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-lg">
-            <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
-              <span className="font-medium">Daily Energy Consumption:</span>
-              <span className="font-bold text-accent">{calculationResult.dailyConsumptionKWh} kWh</span>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-lg">
+                <div className="p-3 bg-background rounded-md shadow-sm">
+                    <p className="font-medium">Daily Energy Consumption:</p>
+                    <p className="font-bold text-accent text-xl">{calculationResult.dailyConsumptionKWh} kWh</p>
+                </div>
+                <div className="p-3 bg-background rounded-md shadow-sm">
+                    <p className="font-medium">Monthly Consumption (approx.):</p>
+                    <p className="font-bold text-accent text-xl">{calculationResult.monthlyConsumptionKWh} kWh</p>
+                </div>
             </div>
-            <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
-              <span className="font-medium">Monthly Energy Consumption (approx.):</span>
-              <span className="font-bold text-accent">{calculationResult.monthlyConsumptionKWh} kWh</span>
+             <div className="p-4 bg-background rounded-md shadow-sm">
+                <p className="font-medium text-lg">Suggested Solar System Size:</p>
+                <p className="font-bold text-accent text-2xl">{calculationResult.suggestedSystemSizeKW} kW</p>
             </div>
-            <div className="flex justify-between items-center p-3 bg-background rounded-md shadow-sm">
-              <span className="font-medium">Suggested Solar System Size:</span>
-              <span className="font-bold text-accent">{calculationResult.suggestedSystemSizeKW} kW</span>
+
+            <Separator className="my-4"/>
+
+            <div>
+                <h4 className="text-xl font-headline text-accent mb-3 flex items-center"><ListChecks className="w-6 h-6 mr-2"/>Estimated Equipment List</h4>
+                <div className="space-y-3">
+                    {calculationResult.itemizedEquipmentList.map(item => (
+                        <Card key={item.name} className="bg-background/70 shadow">
+                            <CardHeader className="flex flex-row items-start gap-3 space-y-0 p-4">
+                                {item.icon && <div className="mt-1">{item.icon}</div>}
+                                <div className="flex-1">
+                                    <CardTitle className="text-md font-semibold">{item.name}</CardTitle>
+                                    <CardDescription className="text-sm">
+                                        <strong>Quantity:</strong> {item.quantity} <br/>
+                                        <strong>Details:</strong> {item.details}
+                                    </CardDescription>
+                                </div>
+                            </CardHeader>
+                        </Card>
+                    ))}
+                </div>
             </div>
+
+            <Separator className="my-4"/>
+            
+            <div>
+                <h4 className="text-xl font-headline text-accent mb-2">Solar Panel Options</h4>
+                <ul className="list-disc list-inside space-y-1 pl-2 text-muted-foreground">
+                    {calculationResult.solarPanelOptions.map((option, idx) => (
+                        <li key={idx} className="text-sm">{option}</li>
+                    ))}
+                </ul>
+            </div>
+
+            <Separator className="my-4"/>
+
+            <div>
+                <h4 className="text-xl font-headline text-accent mb-2">Inverter Recommendation</h4>
+                <p className="text-sm text-muted-foreground">{calculationResult.inverterRecommendation}</p>
+            </div>
+            
+            <Separator className="my-4"/>
+
+            <div>
+                <h4 className="text-xl font-headline text-accent mb-2">Battery Recommendation</h4>
+                <p className="text-sm text-muted-foreground">{calculationResult.batteryRecommendation}</p>
+            </div>
+
           </CardContent>
           <CardFooter>
              <p className="text-sm text-muted-foreground text-center w-full">
-              Note: This is a simplified estimation. Actual system size may vary based on location, roof characteristics, and specific energy goals.
+              Note: This is a simplified estimation. Actual system components and sizes may vary based on detailed site assessment, location, roof characteristics, specific energy goals, and local regulations. Consult with a professional solar installer.
             </p>
           </CardFooter>
         </Card>
@@ -353,4 +465,3 @@ export function EnergyCalculatorForm() {
     </>
   );
 }
-
