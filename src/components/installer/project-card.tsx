@@ -1,7 +1,11 @@
+
+"use client";
+
 import Image from "next/image";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MapPin, CalendarDays, Zap } from "lucide-react";
+import { useState, useEffect } from 'react';
 
 interface Project {
   id: string;
@@ -19,6 +23,17 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
+  const [formattedDate, setFormattedDate] = useState(project.dateCompleted);
+
+  useEffect(() => {
+    try {
+      setFormattedDate(new Date(project.dateCompleted).toLocaleDateString());
+    } catch (e) {
+      // Keep the original string if date is invalid
+      setFormattedDate(project.dateCompleted);
+    }
+  }, [project.dateCompleted]);
+
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
       <div className="relative w-full h-48">
@@ -41,7 +56,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </div>
         <div className="flex items-center text-muted-foreground">
           <CalendarDays className="w-4 h-4 mr-2 text-accent" />
-          <span>Completed: {new Date(project.dateCompleted).toLocaleDateString()}</span>
+          <span>Completed: {formattedDate}</span>
         </div>
         <div className="flex items-center text-muted-foreground">
           <Zap className="w-4 h-4 mr-2 text-accent" />

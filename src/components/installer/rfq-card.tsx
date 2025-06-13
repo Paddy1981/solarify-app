@@ -6,12 +6,23 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { User, CalendarDays, Zap, FileText, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from 'react';
 
 interface RfqCardProps {
   rfq: RFQ;
 }
 
 export function RfqCard({ rfq }: RfqCardProps) {
+  const [formattedDate, setFormattedDate] = useState(rfq.dateCreated);
+
+  useEffect(() => {
+    try {
+      setFormattedDate(new Date(rfq.dateCreated).toLocaleDateString());
+    } catch (e) {
+      setFormattedDate(rfq.dateCreated);
+    }
+  }, [rfq.dateCreated]);
+
   return (
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
       <CardHeader>
@@ -19,7 +30,7 @@ export function RfqCard({ rfq }: RfqCardProps) {
             <CardTitle className="font-headline text-xl text-primary">RFQ from: {rfq.name}</CardTitle>
             <FileText className="w-6 h-6 text-accent" />
         </div>
-        <CardDescription>Received on: {new Date(rfq.dateCreated).toLocaleDateString()}</CardDescription>
+        <CardDescription>Received on: {formattedDate}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm flex-grow">
         <div className="flex items-center text-muted-foreground">
