@@ -108,7 +108,7 @@ export default function HomePage() {
 
       <section id="upcoming-features" className="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
         <div className="container px-4 md:px-6">
-          <div className="text-center mb-12">
+          <div className="text-left mb-12">
             <div className="inline-block rounded-lg bg-primary px-3 py-1 text-sm text-primary-foreground font-medium font-headline">
               The Future is Bright
             </div>
