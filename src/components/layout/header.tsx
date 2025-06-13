@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Sun, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award } from 'lucide-react';
+import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
+import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/context/cart-context';
 import { getMockUserByEmail, type UserRole } from '@/lib/mock-data/users'; 
@@ -30,6 +30,7 @@ import {
 
 const navLinksBase = [
   { href: '/', label: 'Home', icon: HomeIcon },
+  { href: '/promotions', label: 'Promotions', icon: Megaphone },
   { href: '/installer/portfolio', label: 'Project Showcase', icon: Award },
   { href: '/supplier/store', label: 'Shop Products', icon: ShoppingBag }, 
 ];
@@ -52,7 +53,7 @@ const navLinksAuthenticated = [
     icon: Briefcase,
     subLinks: [
         { href: '/installer/dashboard', label: 'Dashboard', icon: HomeIcon },
-        { href: '/installer/portfolio', label: 'My Portfolio', icon: Briefcase },
+        { href: '/installer/portfolio', label: 'My Portfolio', icon: Briefcase }, // Keep for direct access
         { href: '/installer/rfqs', label: 'View RFQs', icon: FileText },
     ]
   },
@@ -82,9 +83,12 @@ export function Header() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       if (user && user.email) {
+        // console.log("Header Auth: Firebase user found:", user.email);
         const profile = getMockUserByEmail(user.email);
+        // console.log("Header Auth: Profile from mock data:", profile);
         setUserRole(profile?.role || null);
       } else {
+        // console.log("Header Auth: No Firebase user or no email.");
         setUserRole(null);
       }
       setIsLoadingAuth(false);
@@ -95,21 +99,28 @@ export function Header() {
   const cartItemCount = mounted ? getItemCount() : 0;
 
   const onAuthPages = pathname === '/login' || pathname === '/signup';
-  let displayedNavLinks: Array<(typeof navLinksBase[0]) | (typeof navLinksAuthenticated[0])> = [...navLinksBase];
+  
+  let displayedNavLinks: Array<(typeof navLinksBase[0]) | (typeof navLinksAuthenticated[0])> = [];
 
-  if (currentUser && !onAuthPages && userRole) {
-    const roleSpecificLinks = navLinksAuthenticated.filter(link => link.role === userRole);
-    // For logged-in users, remove the generic "Project Showcase" if they have "My Portfolio" under their role
-    // This avoids duplication.
-    const baseLinksFiltered = navLinksBase.filter(bl => {
-      if (bl.label === 'Project Showcase' && roleSpecificLinks.some(rs => rs.subLinks?.some(sl => sl.href === bl.href))) {
-        return false;
+  if (onAuthPages) {
+    // Show only minimal links on login/signup pages
+    displayedNavLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop Products');
+  } else if (currentUser && userRole) {
+    // User is logged in and has a role
+    const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
+    const baseLinksFiltered = navLinksBase.filter(baseLink => {
+      // Avoid duplicating "My Portfolio" if "Project Showcase" (same link) is already in base
+      if (baseLink.href === '/installer/portfolio' && roleSpecificMenu?.subLinks?.some(sl => sl.href === '/installer/portfolio')) {
+        return true; // Keep Project Showcase if it is also in the role specific menu as "My Portfolio"
       }
       return true;
     });
-    displayedNavLinks = [...baseLinksFiltered, ...roleSpecificLinks];
+    displayedNavLinks = [...baseLinksFiltered];
+    if (roleSpecificMenu) {
+      displayedNavLinks.push(roleSpecificMenu);
+    }
   } else {
-    // Logged-out users or users on auth pages see all base links.
+    // Logged-out users see all base links
     displayedNavLinks = [...navLinksBase];
   }
 
@@ -207,7 +218,7 @@ function DesktopDropdownMenu({ link }: { link: typeof navLinksAuthenticated[0] &
         {link.subLinks.map((subLink) => (
           <DropdownMenuItem key={subLink.label} asChild>
             <Link href={subLink.href} className="flex items-center gap-2">
-              <subLink.icon className="h-4 w-4 text-muted-foreground" /> {subLink.label}
+              {subLink.icon && <subLink.icon className="h-4 w-4 text-muted-foreground" />} {subLink.label}
             </Link>
           </DropdownMenuItem>
         ))}
@@ -222,7 +233,7 @@ function MobileAccordionMenu({ link }: { link: typeof navLinksAuthenticated[0] &
     <Accordion type="single" collapsible className="w-full">
       <AccordionItem value={link.label} className="border-b-0">
         <AccordionTrigger className="flex items-center gap-2 rounded-md p-2 text-lg font-medium hover:bg-accent hover:text-accent-foreground hover:no-underline">
-           <link.icon className="h-5 w-5" /> {link.label}
+           {link.icon && <link.icon className="h-5 w-5" />} {link.label}
         </AccordionTrigger>
         <AccordionContent className="pl-4">
           {link.subLinks.map((subLink) => (
@@ -231,7 +242,7 @@ function MobileAccordionMenu({ link }: { link: typeof navLinksAuthenticated[0] &
               href={subLink.href}
               className="flex items-center gap-2 rounded-md p-2 text-base font-medium hover:bg-accent hover:text-accent-foreground mt-1"
             >
-              <subLink.icon className="h-5 w-5" />
+              {subLink.icon && <subLink.icon className="h-5 w-5" />}
               {subLink.label}
             </Link>
           ))}
@@ -286,4 +297,3 @@ function AuthButtons({ column = false, isLoadingAuth, currentUser }: { column?: 
     </div>
   );
 }
-
