@@ -109,10 +109,10 @@ export default function HomePage() {
       <section id="upcoming-features" className="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
         <div className="container px-4 md:px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-headline tracking-tighter sm:text-4xl md:text-5xl">
+            <div className="inline-block rounded-lg bg-primary px-3 py-1 text-sm text-primary-foreground font-medium font-headline">
               The Future is Bright: What's Coming to Solarify
-            </h2>
-            <p className="mt-2 max-w-[900px] mx-auto text-foreground/70 md:text-lg">
+            </div>
+            <p className="mt-4 max-w-[900px] mx-auto text-foreground/70 md:text-lg">
               We're constantly innovating to bring you the best solar experience. Get ready for these exciting new features designed to put even more power in your hands!
             </p>
           </div>
