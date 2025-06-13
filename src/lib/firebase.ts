@@ -1,5 +1,7 @@
+
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getDatabase } from "firebase/database"; // Import getDatabase
 // import { getFirestore } from "firebase/firestore"; // You can uncomment this when you need Firestore
 // import { getStorage } from "firebase/storage"; // You can uncomment this when you need Storage
 
@@ -22,7 +24,8 @@ if (getApps().length === 0) {
 }
 
 const auth = getAuth(app);
-// const db = getFirestore(app); // Initialize Firestore when needed
+const db = getDatabase(app); // Initialize Realtime Database
+// const firestoreDb = getFirestore(app); // Initialize Firestore when needed
 // const storage = getStorage(app); // Initialize Storage when needed
 
-export { app, auth /*, db, storage */ };
+export { app, auth, db /*, firestoreDb, storage */ };

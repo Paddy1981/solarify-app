@@ -5,6 +5,8 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
+import { db } from "@/lib/firebase"; // Import Firebase Realtime Database
+import { ref, push, serverTimestamp } from "firebase/database"; // Import Realtime Database functions
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -51,16 +53,35 @@ export default function ContactPage() {
 
   const onSubmit: SubmitHandler<ContactFormData> = async (data) => {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log("Contact Form Data:", data);
-    
-    toast({
-      title: "Message Sent (Simulated)",
-      description: "Thank you for contacting us! We'll get back to you if a response is needed.",
-    });
-    form.reset();
-    setIsSubmitting(false);
+    try {
+      // Add a timestamp to the data
+      const messageData = {
+        ...data,
+        timestamp: serverTimestamp(), // Firebase server timestamp
+        status: "new", // You can add a status field
+      };
+
+      // Push data to Firebase Realtime Database under 'contactMessages' node
+      const messagesRef = ref(db, 'contactMessages');
+      await push(messagesRef, messageData);
+      
+      console.log("Contact Form Data sent to Firebase:", messageData);
+      
+      toast({
+        title: "Message Sent!",
+        description: "Thank you for contacting us! Your message has been received.",
+      });
+      form.reset();
+    } catch (error) {
+      console.error("Error sending message to Firebase:", error);
+      toast({
+        title: "Error Sending Message",
+        description: "There was a problem sending your message. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
