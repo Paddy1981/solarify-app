@@ -44,17 +44,22 @@ const southIndianLastNames = [
 const sampleLocations = ["Chennai, India", "Bangalore, India", "Hyderabad, India", "Kochi, India", "Mumbai, India", "Delhi, India", "Pune, India", "Kolkata, India"];
 const sampleCurrencies = ["INR", "USD", "EUR"];
 
+// Extend the NodeJS.Global interface to include our custom property
+declare global {
+  // eslint-disable-next-line no-var
+  var _mockUsers: MockUser[] | undefined;
+}
+
 const generateRandomUser = (role: UserRole, index: number): MockUser => {
   const firstName = southIndianFirstNames[Math.floor(Math.random() * southIndianFirstNames.length)];
   const lastName = southIndianLastNames[Math.floor(Math.random() * southIndianLastNames.length)];
   const fullName = `${firstName} ${lastName}`;
   const emailDomain = role === "homeowner" ? "home.example.com" : (role === "installer" ? "install.example.com" : "supply.example.com");
-  // Ensure consistent email generation based on full name for predictability
   const baseEmail = `${firstName.toLowerCase().replace(/ /g, '.')}.${lastName.toLowerCase().replace(/ /g, '.')}`;
   const email = `${baseEmail}${String(index).padStart(3, '0')}@${emailDomain}`;
   const id = `${role}-user-${String(index).padStart(3, '0')}`;
   const memberSinceDate = new Date(2020 + Math.floor(Math.random()*4), Math.floor(Math.random()*12), Math.floor(Math.random()*28)+1);
-  const mockPassword = "Solarify!123"; // Default password for all mock users
+  const mockPassword = "Solarify!123";
 
   const commonProfile: MockUser = {
     id,
@@ -63,7 +68,7 @@ const generateRandomUser = (role: UserRole, index: number): MockUser => {
     password: mockPassword,
     role,
     avatarUrl: `https://placehold.co/100x100.png?text=${firstName[0]}${lastName[0]}`,
-    address: `${100 + index} Main St, ${sampleLocations[index % sampleLocations.length].split(',')[0]}, India`, // More specific address
+    address: `${100 + index} Main St, ${sampleLocations[index % sampleLocations.length].split(',')[0]}, India`,
     phone: `91-9${String(Math.floor(Math.random() * 1000000000)).padStart(9, '0')}`,
     memberSince: memberSinceDate.toISOString().split('T')[0],
     location: sampleLocations[index % sampleLocations.length],
@@ -91,33 +96,40 @@ const generateRandomUser = (role: UserRole, index: number): MockUser => {
   return commonProfile;
 };
 
-export const mockUsers: MockUser[] = [];
-
-// Generate 10 homeowners
-for (let i = 1; i <= 10; i++) {
-  mockUsers.push(generateRandomUser("homeowner", i));
+// Initialize mockUsers on the global object if it doesn't exist
+if (!global._mockUsers) {
+  console.log("Initializing global._mockUsers for the first time.");
+  global._mockUsers = [];
+  // Generate 10 homeowners
+  for (let i = 1; i <= 10; i++) {
+    global._mockUsers.push(generateRandomUser("homeowner", i));
+  }
+  // Generate 10 installers
+  for (let i = 1; i <= 10; i++) {
+    global._mockUsers.push(generateRandomUser("installer", i));
+  }
+  // Generate 10 suppliers
+  for (let i = 1; i <= 10; i++) {
+    global._mockUsers.push(generateRandomUser("supplier", i));
+  }
+  console.log(`Initial global._mockUsers count: ${global._mockUsers.length}`);
 }
 
-// Generate 10 installers
-for (let i = 1; i <= 10; i++) {
-  mockUsers.push(generateRandomUser("installer", i));
-}
+export const mockUsers: MockUser[] = global._mockUsers;
 
-// Generate 10 suppliers
-for (let i = 1; i <= 10; i++) {
-  mockUsers.push(generateRandomUser("supplier", i));
-}
-
-
-// Existing helper functions
+// Helper functions
 export const getMockUserById = (id: string): MockUser | undefined => {
-  return mockUsers.find(user => user.id === id);
+  // console.log(`getMockUserById: Searching for ID '${id}' in ${global._mockUsers?.length || 0} users.`);
+  return global._mockUsers?.find(user => user.id === id);
 };
 
 export const getMockUserByEmail = (email: string): MockUser | undefined => {
-  return mockUsers.find(user => user.email.toLowerCase() === email.toLowerCase());
+  const user = global._mockUsers?.find(user => user.email.toLowerCase() === email.toLowerCase());
+  // console.log(`getMockUserByEmail: Searching for email '${email}'. Found:`, user ? JSON.stringify(user) : 'Not found');
+  return user;
 };
 
 export const getMockUsersByRole = (role: UserRole): MockUser[] => {
-  return mockUsers.filter(user => user.role === role);
+  // console.log(`getMockUsersByRole: Searching for role '${role}' in ${global._mockUsers?.length || 0} users.`);
+  return global._mockUsers?.filter(user => user.role === role) || [];
 };

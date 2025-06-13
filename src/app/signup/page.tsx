@@ -58,13 +58,13 @@ export default function SignupPage() {
 
   const onSubmit: SubmitHandler<SignupFormData> = async (data) => {
     setIsSubmitting(true);
+    console.log("Signup attempt with data:", data);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      console.log("User created in Firebase Auth:", userCredential.user);
+      console.log("User created in Firebase Auth:", userCredential.user.uid, userCredential.user.email);
       
-      // Create a profile for the new user
       const newUserProfile: MockUser = {
-        id: userCredential.user.uid, // Use Firebase UID as the primary ID
+        id: userCredential.user.uid,
         fullName: data.fullName,
         email: data.email,
         role: data.role,
@@ -72,7 +72,6 @@ export default function SignupPage() {
         currency: data.currency,
         avatarUrl: `https://placehold.co/100x100.png?text=${data.fullName[0]?.toUpperCase() || 'U'}`,
         memberSince: new Date().toISOString().split("T")[0],
-        // Add role-specific fields if needed, or leave them undefined
         companyName: data.role === 'installer' || data.role === 'supplier' ? `${data.fullName}'s Company` : undefined,
         specialties: data.role === 'installer' ? ['Residential Solar'] : undefined,
         productsOffered: data.role === 'supplier' ? ['Solar Panels'] : undefined,
@@ -80,15 +79,13 @@ export default function SignupPage() {
         storeRating: data.role === 'supplier' ? 0 : undefined,
       };
 
-      // IMPORTANT: This adds the user to the IN-MEMORY mockUsers array.
-      // This is for demonstration and will NOT persist if the server restarts
-      // or in a scaled environment. A real database (like Firestore) is needed for persistence.
+      // This now pushes to global._mockUsers via the mockUsers export
       mockUsers.push(newUserProfile);
-      console.log("New user profile added to in-memory mockUsers:", newUserProfile);
-      console.log("Current in-memory mockUsers count:", mockUsers.length);
-      // You can verify by trying to find this user in mockUsers by email:
-      // console.log("Finding new user in mockUsers by email:", mockUsers.find(u => u.email === newUserProfile.email));
-
+      console.log("New user profile added to in-memory mockUsers:", JSON.stringify(newUserProfile));
+      console.log("Current in-memory mockUsers count (from global):", global._mockUsers?.length);
+      // To verify, you can try to find this new user in global._mockUsers
+      const foundUser = global._mockUsers?.find(u => u.email === newUserProfile.email);
+      console.log("Verification: Found new user in global._mockUsers by email:", foundUser ? JSON.stringify(foundUser) : "NOT FOUND IN GLOBAL AFTER PUSH");
 
       toast({
         title: "Account Created!",
@@ -96,7 +93,7 @@ export default function SignupPage() {
       });
       router.push("/login");
     } catch (error: any) {
-      console.error("Signup error:", error);
+      console.error("Signup error:", error.code, error.message);
       let errorMessage = "An unexpected error occurred. Please try again.";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "This email address is already in use.";

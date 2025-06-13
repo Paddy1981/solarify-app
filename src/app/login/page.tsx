@@ -40,6 +40,7 @@ export default function LoginPage() {
 
   const onSubmit: SubmitHandler<LoginFormData> = async (data) => {
     setIsSubmitting(true);
+    console.log("Login attempt with email:", data.email);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
       const firebaseUserEmail = userCredential.user.email; 
@@ -51,6 +52,7 @@ export default function LoginPage() {
         description: "Welcome back to Solarify. Checking your role...",
       });
 
+      // Attempt to get user profile from our mock data (now potentially from global._mockUsers)
       const userProfile = getMockUserByEmail(data.email);
 
       if (userProfile) {
@@ -69,7 +71,8 @@ export default function LoginPage() {
           router.push("/");
         }
       } else {
-        console.warn(`User profile NOT found in mock data for email: '${data.email}'. Redirecting to homepage.`);
+        // This case should be less common now if signup correctly populates global._mockUsers
+        console.warn(`User profile NOT found in mock data for email: '${data.email}'. global._mockUsers count: ${global._mockUsers?.length}. Redirecting to homepage.`);
         toast({
           title: "Profile Role Undetermined",
           description: "Login was successful, but we couldn't determine your specific role from our records. Taking you to the homepage.",
@@ -80,7 +83,7 @@ export default function LoginPage() {
       }
 
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Login error:", error.code, error.message);
       let errorMessage = "An unexpected error occurred. Please try again.";
       if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
         errorMessage = "Invalid email or password. Please try again.";
