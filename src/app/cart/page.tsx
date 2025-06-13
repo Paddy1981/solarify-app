@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -8,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, ShoppingCart, CreditCard, AlertTriangle, MinusCircle, PlusCircle } from 'lucide-react';
+import { Trash2, ShoppingCart, CreditCard, Info, MinusCircle, PlusCircle } from 'lucide-react'; // Changed AlertTriangle to Info
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // Added Alert components
 
 export default function CartPage() {
   const { items, removeItem, updateItemQuantity, getCartTotal, clearCart, getItemCount } = useCart();
@@ -17,7 +19,6 @@ export default function CartPage() {
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      // Instead of removing directly, let's make sure user uses trash icon or quantity becomes 0
       // If quantity input is manually set to 0 or less, treat as remove
       updateItemQuantity(productId, 0); 
     } else {
@@ -80,9 +81,9 @@ export default function CartPage() {
                   <TableRow key={item.id}>
                     <TableCell className="hidden md:table-cell pr-0">
                       <Image
-                        src={item.imageUrl || 'https://placehold.co/64x64.png'}
+                        src={item.imageUrl || 'https://placehold.co/64x64.png'} // Use item.imageUrl
                         alt={item.name}
-                        data-ai-hint={item.imageHint || "product"}
+                        data-ai-hint={item.imageHint || "product"} // Use item.imageHint
                         width={64}
                         height={64}
                         className="rounded-md object-cover border"
@@ -144,8 +145,8 @@ export default function CartPage() {
                 <Button variant="outline" onClick={clearCart} className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
                     <Trash2 className="mr-2 h-4 w-4" /> Clear Entire Cart
                 </Button>
-                <Alert variant="default" className="bg-muted/30">
-                  <AlertTriangle className="h-5 w-5 text-accent" />
+                <Alert variant="default" className="bg-muted/30"> {/* Ensure Alert components are imported */}
+                  <Info className="h-5 w-5 text-accent" /> {/* Changed icon to Info */}
                   <AlertTitle className="font-medium">Please Note</AlertTitle>
                   <AlertDescription>
                     Shipping costs and final taxes are estimates and will be calculated at checkout. All sales are simulated.
@@ -185,3 +186,4 @@ export default function CartPage() {
     </div>
   );
 }
+
