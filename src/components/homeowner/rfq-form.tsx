@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Send, Users } from "lucide-react";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { getMockUsersByRole, type MockUser } from "@/lib/mock-data/users";
+import { Skeleton } from "@/components/ui/skeleton";
+
 
 // Placeholder: In a real app, this would come from energy needs calculation or user profile
 const prefilledData = {
@@ -45,8 +47,10 @@ type RFQFormData = z.infer<typeof rfqFormSchema>;
 export function RFQForm() {
   const { toast } = useToast();
   const [availableInstallers, setAvailableInstallers] = React.useState<MockUser[]>([]);
+  const [hasMounted, setHasMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setHasMounted(true);
     // In a real app, fetch installers based on homeowner's location
     setAvailableInstallers(getMockUsersByRole("installer"));
   }, []);
@@ -60,10 +64,10 @@ export function RFQForm() {
       address: prefilledData.address,
       estimatedSystemSizeKW: prefilledData.estimatedSystemSizeKW,
       monthlyConsumptionKWh: prefilledData.monthlyConsumptionKWh,
-      additionalNotes: undefined, // Optional, Zod default won't apply if undefined and not set explicitly
-      includeMonitoring: true, // Explicitly use Zod default or intended default
-      includeBatteryStorage: false, // Explicitly use Zod default or intended default
-      selectedInstallerIds: [], // Initialize as empty array. Validation will occur on submit/interaction.
+      additionalNotes: undefined,
+      includeMonitoring: true,
+      includeBatteryStorage: false,
+      selectedInstallerIds: [],
     },
   });
 
@@ -133,8 +137,23 @@ export function RFQForm() {
                   Choose 1 to 3 installers to send your RFQ. These would ideally be filtered by your location.
                 </FormDescription>
               </div>
-              <div className="space-y-3 max-h-60 overflow-y-auto border p-4 rounded-md bg-muted/30 shadow-sm">
-                {availableInstallers.length > 0 ? (
+              <div className="space-y-3 max-h-60 overflow-y-auto border p-4 rounded-md bg-muted/30 shadow-sm min-h-[100px]">
+                {!hasMounted ? (
+                  <>
+                    <div className="flex items-center space-x-2 p-2">
+                      <Skeleton className="h-4 w-4" />
+                      <Skeleton className="h-4 w-4/5" />
+                    </div>
+                    <div className="flex items-center space-x-2 p-2">
+                      <Skeleton className="h-4 w-4" />
+                      <Skeleton className="h-4 w-3/5" />
+                    </div>
+                    <div className="flex items-center space-x-2 p-2">
+                      <Skeleton className="h-4 w-4" />
+                      <Skeleton className="h-4 w-4/5" />
+                    </div>
+                  </>
+                ) : availableInstallers.length > 0 ? (
                   availableInstallers.map((installer) => {
                     const isChecked = field.value?.includes(installer.id);
                     // Disable checkbox if it's not checked AND we can't select more
@@ -148,7 +167,6 @@ export function RFQForm() {
                             onCheckedChange={(checkedState) => {
                               const currentArray = Array.isArray(field.value) ? field.value : [];
                               if (checkedState) {
-                                // This check for length is a safeguard; primary control is `isDisabled`
                                 if (currentArray.length < 3) {
                                   field.onChange([...currentArray, installer.id]);
                                 }
@@ -207,3 +225,4 @@ export function RFQForm() {
     </Form>
   );
 }
+
