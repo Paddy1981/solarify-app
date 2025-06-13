@@ -2,12 +2,12 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Logo } from '@/components/logo';
+import { Logo } from '@/components/layout/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone, Settings } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import React, { useEffect, useState } from 'react'; // Changed this line
+import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
@@ -387,5 +387,3 @@ function AuthButtons({
     </div>
   );
 }
-
-    

@@ -14,7 +14,7 @@ import { EnvironmentalImpactCard } from "@/components/dashboard/environmental-im
 import { HomeownerRfqStatusCard } from '@/components/dashboard/homeowner-rfq-status-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChartBig, Zap, Leaf, DollarSign, CheckCircle2, Bell, Info, AlertTriangle, Wrench, LogIn, UserCircle, Signal, RadioTower, FileText, PlusCircle } from "lucide-react";
+import { BarChartBig, Zap, DollarSign, CheckCircle2, Bell, Info, AlertTriangle, Wrench, LogIn, UserCircle, Signal, RadioTower, FileText, PlusCircle } from "lucide-react";
 import { SystemSetupForm, type SystemConfigData } from '@/components/dashboard/system-setup-form';
 import { SolarJourneyChoiceForm } from '@/components/dashboard/solar-journey-choice-form';
 import { NewToSolarDashboardContent } from '@/components/dashboard/new-to-solar-dashboard-content';
