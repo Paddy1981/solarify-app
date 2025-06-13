@@ -89,6 +89,7 @@ export function Header() {
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   
   const [currentNavLinks, setCurrentNavLinks] = useState<NavLinkItem[]>([]);
+  const onAuthPages = pathname === '/login' || pathname === '/signup';
 
   useEffect(() => {
     setMounted(true);
@@ -106,7 +107,6 @@ export function Header() {
   }, []);
   
   const cartItemCount = mounted ? getItemCount() : 0;
-  const onAuthPages = pathname === '/login' || pathname === '/signup';
 
 
   useEffect(() => {
@@ -117,10 +117,9 @@ export function Header() {
     if (onAuthPages) {
       newLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
     } else {
-      newLinks = [...navLinksBase]; // Start with all base links
+      newLinks = [...navLinksBase]; 
 
       if (currentUser && userRole && !isLoadingAuth) {
-        // Add "My Dashboard" link
         let dashboardPath = '/';
         let DashboardIcon: LucideIcon = HomeIcon; 
 
@@ -141,12 +140,11 @@ export function Header() {
 
         if (dashboardPath !== '/') {
           const myDashboardLink: NavLinkItem = { href: dashboardPath, label: 'My Dashboard', icon: DashboardIcon };
-          const homeIndex = newLinks.findIndex(link => link.label === 'Home');
           
-          // Avoid inserting duplicates if this effect re-runs with same conditions
           const alreadyHasMyDashboard = newLinks.some(link => link.label === 'My Dashboard');
 
           if (!alreadyHasMyDashboard) {
+            const homeIndex = newLinks.findIndex(link => link.label === 'Home');
             if (homeIndex !== -1) {
               newLinks.splice(homeIndex + 1, 0, myDashboardLink);
             } else {
@@ -155,10 +153,8 @@ export function Header() {
           }
         }
 
-        // Add role-specific dropdown menu
         const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
         if (roleSpecificMenu) {
-           // Avoid inserting duplicates
           const alreadyHasRoleMenu = newLinks.some(link => link.label === roleSpecificMenu.label && link.role === roleSpecificMenu.role);
           if (!alreadyHasRoleMenu) {
             newLinks.push(roleSpecificMenu);
@@ -412,3 +408,4 @@ function AuthButtons({
     </div>
   );
 }
+
