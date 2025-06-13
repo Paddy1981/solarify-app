@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Sun, Users, Briefcase, StoreIcon, ArrowRight, CheckCircle2, FileText, BarChartBig, SolarPanel, Home } from "lucide-react";
+import { Sun, Users, Briefcase, StoreIcon, ArrowRight, CheckCircle2, FileText, BarChartBig, SolarPanel, Home, Signal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -106,11 +106,57 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
+      <section id="upcoming-features" className="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
+        <div className="container px-4 md:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-headline tracking-tighter sm:text-4xl md:text-5xl">
+              The Future is Bright: What's Coming to Solarify
+            </h2>
+            <p className="mt-2 max-w-[900px] mx-auto text-foreground/70 md:text-lg">
+              We're constantly innovating to bring you the best solar experience. Get ready for these exciting new features designed to put even more power in your hands!
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div data-ai-hint="iot smart home" className="mx-auto aspect-video overflow-hidden rounded-xl sm:w-full bg-primary/5 flex items-center justify-center p-8 shadow-lg border border-primary/10">
+              <Signal className="w-3/4 h-3/4 text-primary/40" />
+            </div>
+            <div className="flex flex-col justify-center space-y-4">
+              <div className="inline-block rounded-lg bg-accent px-3 py-1 text-sm text-accent-foreground font-medium self-start">
+                Coming Soon
+              </div>
+              <h3 className="text-2xl md:text-3xl font-headline text-accent">
+                Live Solar Performance Tracking with IoT Integration
+              </h3>
+              <p className="text-foreground/80 text-lg">
+                Imagine seeing your solar system's performance unfold in real-time, right within your Solarify dashboard! We're working on integrating smart IoT-enabled solar monitoring devices to give you unparalleled insight.
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-foreground/70 pl-5 text-md">
+                <li>
+                  <strong>Live Data Stream:</strong> Monitor your Solar Generation (kW), Daily Energy produced (kWh), CO₂ Savings, and even Car Miles Avoided, all updated live.
+                </li>
+                <li>
+                  <strong>Seamless Device Pairing:</strong> Securely connect your compatible smart solar monitoring devices with your Solarify account with ease.
+                </li>
+                <li>
+                  <strong>Enhanced Dashboard Experience:</strong> Visualize your live and historical data through intuitive charts and summaries on your Homeowner Dashboard.
+                </li>
+                <li>
+                  <strong>Personalized Control (Future):</strong> Eventually, you'll be able to customize data refresh intervals, set up performance alerts, and tailor reporting preferences to your needs.
+                </li>
+              </ul>
+              <p className="font-semibold text-accent text-md pt-2">
+                Stay tuned for updates as we get closer to launching this powerful new feature!
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="w-full py-12 md:py-24 lg:py-32">
         <div className="container grid items-center gap-6 px-4 md:px-6 lg:grid-cols-2 lg:gap-12">
           <div
             data-ai-hint="solar panels roof"
-            className="mx-auto aspect-video overflow-hidden rounded-xl sm:w-full lg:order-last bg-primary/5 flex items-center justify-center p-8"
+            className="mx-auto aspect-video overflow-hidden rounded-xl sm:w-full lg:order-last bg-primary/5 flex items-center justify-center p-8 shadow-lg border border-primary/10"
           >
             <Home className="w-3/4 h-3/4 text-primary/30" />
           </div>
