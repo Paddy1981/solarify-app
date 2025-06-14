@@ -121,7 +121,6 @@ export function Header() {
     let newLinks: NavLinkItem[] = [];
 
     if (onAuthPages) {
-      // On login/signup, only show Home and Shop for general navigation, no role-specific menus
       newLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
     } else {
       newLinks = [...navLinksBase]; 
@@ -312,6 +311,7 @@ function AuthButtons({
   const router = useRouter();
   const { toast } = useToast();
   const [clientMounted, setClientMounted] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     setClientMounted(true);
@@ -350,6 +350,10 @@ function AuthButtons({
   }
 
   if (currentUser) {
+     // Don't show logout button on login/signup pages if already logged in (edge case, user might navigate there directly)
+    if (pathname === '/login' || pathname === '/signup') {
+      return null; 
+    }
     const buttonContent = (
       <>
         <LogOut className="mr-2 h-4 w-4" /> Logout
@@ -369,27 +373,37 @@ function AuthButtons({
     );
   }
 
-  if (column) {
+  // Show Login/Signup buttons if not logged in
+  if (column) { // For mobile sheet
     return (
       <div className="flex flex-col space-y-2 w-full">
-        <Button variant="ghost" onClick={handleLoginClick} className="w-full justify-start text-sm">
-          <LogIn className="mr-2 h-4 w-4" /> Login
-        </Button>
-        <Button onClick={handleSignupClick} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
-          <UserPlus className="mr-2 h-4 w-4" /> Sign Up
-        </Button>
+        {pathname !== '/login' && (
+          <Button variant="ghost" onClick={handleLoginClick} className="w-full justify-start text-sm">
+            <LogIn className="mr-2 h-4 w-4" /> Login
+          </Button>
+        )}
+        {pathname !== '/signup' && (
+          <Button onClick={handleSignupClick} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
+            <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+          </Button>
+        )}
       </div>
     );
   }
 
+  // For desktop header
   return (
     <div className="flex space-x-2">
-      <Button variant="ghost" onClick={handleLoginClick} className="text-sm">
-        <LogIn className="mr-2 h-4 w-4" /> Login
-      </Button>
-      <Button onClick={handleSignupClick} className="bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
-        <UserPlus className="mr-2 h-4 w-4" /> Sign Up
-      </Button>
+      {pathname !== '/login' && (
+        <Button variant="ghost" onClick={handleLoginClick} className="text-sm">
+          <LogIn className="mr-2 h-4 w-4" /> Login
+        </Button>
+      )}
+      {pathname !== '/signup' && (
+        <Button onClick={handleSignupClick} className="bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
+          <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+        </Button>
+      )}
     </div>
   );
 }

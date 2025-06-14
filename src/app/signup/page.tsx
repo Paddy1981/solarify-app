@@ -58,7 +58,7 @@ export default function SignupPage() {
       const newUserProfile: MockUser = {
         id: userCredential.user.uid,
         fullName: data.fullName,
-        email: data.email, // Use the email from the form data for consistency
+        email: data.email, 
         role: data.role,
         location: data.location,
         currency: data.currency,
@@ -71,7 +71,6 @@ export default function SignupPage() {
         storeRating: data.role === 'supplier' ? 0 : undefined,
       };
 
-      // Persist to localStorage
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(`userProfile_${newUserProfile.email.toLowerCase()}`, JSON.stringify(newUserProfile));
@@ -81,8 +80,6 @@ export default function SignupPage() {
         }
       }
 
-      // Still add to global in-memory mockUsers for current session consistency
-      // Note: `mockUsers` directly references `global._mockUsers`
       if (global._mockUsers && !global._mockUsers.find(u => u.id === newUserProfile.id)) {
         global._mockUsers.push(newUserProfile);
       }
