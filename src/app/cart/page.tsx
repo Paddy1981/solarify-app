@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCart } from '@/context/cart-context';
+import { useCart, type CartItem } from '@/context/cart-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Trash2, ShoppingCart, CreditCard, Info, MinusCircle, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { getCurrencyByCode, getDefaultCurrency, type Currency } from '@/lib/currencies';
 
 export default function CartPage() {
   const { items, removeItem, updateItemQuantity, getCartTotal, clearCart, getItemCount } = useCart();
@@ -19,7 +20,7 @@ export default function CartPage() {
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      updateItemQuantity(productId, 0);
+      updateItemQuantity(productId, 0); // This will filter it out
     } else {
       updateItemQuantity(productId, newQuantity);
     }
@@ -32,10 +33,25 @@ export default function CartPage() {
     });
   };
 
+  const getDisplayPrice = (item: CartItem): string => {
+    const currency = getCurrencyByCode(item.currencyCode) || getDefaultCurrency();
+    return `${currency.symbol}${item.priceValue.toFixed(2)}`;
+  };
+
+  const getLineTotalDisplay = (item: CartItem): string => {
+    const currency = getCurrencyByCode(item.currencyCode) || getDefaultCurrency();
+    return `${currency.symbol}${(item.priceValue * item.quantity).toFixed(2)}`;
+  };
+
   const cartTotal = getCartTotal();
   const estimatedTax = cartTotal * 0.08; // Simulate 8% tax
   const orderTotal = cartTotal + estimatedTax;
   const currentItemCount = getItemCount();
+
+  // Assuming all items in cart will share the first item's currency for summary display
+  // A more robust solution would involve currency conversion for totals.
+  const summaryCurrencySymbol = items.length > 0 ? (getCurrencyByCode(items[0].currencyCode) || getDefaultCurrency()).symbol : getDefaultCurrency().symbol;
+
 
   if (items.length === 0) {
     return (
@@ -124,8 +140,8 @@ export default function CartPage() {
                         </Button>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">${item.priceValue.toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-medium">${(item.priceValue * item.quantity).toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{getDisplayPrice(item)}</TableCell>
+                    <TableCell className="text-right font-medium">{getLineTotalDisplay(item)}</TableCell>
                     <TableCell className="text-center">
                       <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
                         <Trash2 className="w-4 h-4" />
@@ -148,7 +164,7 @@ export default function CartPage() {
                   <Info className="h-5 w-5 text-accent" />
                   <AlertTitle className="font-medium">Please Note</AlertTitle>
                   <AlertDescription>
-                    Shipping costs and final taxes are estimates and will be calculated at checkout. All sales are simulated.
+                    Shipping costs and final taxes are estimates and will be calculated at checkout. All sales are simulated. Cart total sums numerical price values and assumes a single currency for the summary.
                   </AlertDescription>
                 </Alert>
             </div>
@@ -157,16 +173,16 @@ export default function CartPage() {
               <h3 className="text-lg font-semibold font-headline text-accent">Order Summary</h3>
               <div className="flex justify-between text-sm">
                 <span>Subtotal ({currentItemCount} item{currentItemCount === 1 ? '' : 's'}):</span>
-                <span className="font-medium">${cartTotal.toFixed(2)}</span>
+                <span className="font-medium">{summaryCurrencySymbol}{cartTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Estimated Tax (8%):</span>
-                <span className="font-medium">${estimatedTax.toFixed(2)}</span>
+                <span className="font-medium">{summaryCurrencySymbol}{estimatedTax.toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-xl font-bold text-accent pt-1">
                 <span>Order Total:</span>
-                <span>${orderTotal.toFixed(2)}</span>
+                <span>{summaryCurrencySymbol}{orderTotal.toFixed(2)}</span>
               </div>
             </div>
           </div>

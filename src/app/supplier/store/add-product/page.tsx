@@ -8,10 +8,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { getMockUserByEmail, type MockUser } from "@/lib/mock-data/users";
-import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies"; 
+import { auth, db, serverTimestamp } from "@/lib/firebase";
+import { doc, getDoc, collection, addDoc } from "firebase/firestore";
+import type { MockUser } from "@/lib/mock-data/users"; // For supplier profile
+import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PackagePlus, Save, XCircle, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { PackagePlus, Save, XCircle, Image as ImageIcon, AlertTriangle, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const productCategories = [
@@ -34,7 +34,7 @@ const productCategories = [
 
 const productFormSchema = z.object({
   name: z.string().min(3, { message: "Product name must be at least 3 characters." }),
-  price: z.coerce.number().positive({ message: "Price must be a positive number." }),
+  priceValue: z.coerce.number().positive({ message: "Price must be a positive number." }),
   imageUrl: z.string().url({ message: "Please enter a valid image URL." }).optional().or(z.literal('')),
   imageHint: z.string().max(50, "Hint too long").optional().refine(val => !val || val.split(" ").length <= 2, { message: "Hint must be one or two words"}),
   stock: z.coerce.number().int().min(0, { message: "Stock quantity cannot be negative." }),
@@ -50,7 +50,7 @@ export default function AddProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [currentSupplier, setCurrentSupplier] = useState<MockUser | null>(null);
-  const [currency, setCurrency] = useState<Currency>(getDefaultCurrency());
+  const [supplierCurrency, setSupplierCurrency] = useState<Currency>(getDefaultCurrency());
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -60,16 +60,9 @@ export default function AddProductPage() {
         if (userDocSnap.exists() && userDocSnap.data()?.role === "supplier") {
           const supplierProfile = userDocSnap.data() as MockUser;
           setCurrentSupplier(supplierProfile);
-          setCurrency(getCurrencyByCode(supplierProfile.preferredCurrency) || getDefaultCurrency());
+          setSupplierCurrency(getCurrencyByCode(supplierProfile.preferredCurrency) || getDefaultCurrency());
         } else {
-           // Fallback or if role is not supplier
-          const profileFromMock = getMockUserByEmail(user.email || "");
-           if (profileFromMock && profileFromMock.role === "supplier") {
-            setCurrentSupplier(profileFromMock);
-            setCurrency(getCurrencyByCode(profileFromMock.preferredCurrency) || getDefaultCurrency());
-          } else {
-            setCurrentSupplier(null);
-          }
+          setCurrentSupplier(null);
         }
       } else {
         setCurrentSupplier(null);
@@ -83,7 +76,7 @@ export default function AddProductPage() {
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: "",
-      price: undefined, 
+      priceValue: undefined,
       imageUrl: "",
       imageHint: "",
       stock: 0,
@@ -94,18 +87,36 @@ export default function AddProductPage() {
 
   const onSubmit: SubmitHandler<ProductFormData> = async (data) => {
     if (!currentSupplier) {
-        toast({ title: "Error", description: "You must be logged in as a supplier.", variant: "destructive" });
+        toast({ title: "Authentication Error", description: "You must be logged in as a supplier to add products.", variant: "destructive" });
         return;
     }
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log("New Product Data:", data, "Supplier ID:", currentSupplier.id, "Currency:", currency.value);
-    
-    toast({
-      title: "Product Added (Simulated)",
-      description: `Product "${data.name}" has been successfully added to your catalog.`,
-    });
-    setIsSubmitting(false);
+    try {
+      const productData = {
+        ...data,
+        supplierId: currentSupplier.id,
+        supplierName: currentSupplier.companyName || currentSupplier.fullName,
+        currencyCode: supplierCurrency.value,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      const docRef = await addDoc(collection(db, "products"), productData);
+      toast({
+        title: "Product Added Successfully!",
+        description: `Product "${data.name}" has been added with ID: ${docRef.id}.`,
+      });
+      form.reset();
+      // router.push("/supplier/store"); // Optional: redirect after successful submission
+    } catch (error) {
+      console.error("Error adding product to Firestore:", error);
+      toast({
+        title: "Error Adding Product",
+        description: "There was a problem saving your product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoadingAuth) {
@@ -156,7 +167,6 @@ export default function AddProductPage() {
     );
   }
 
-
   return (
     <div className="max-w-2xl mx-auto">
       <Card className="shadow-xl">
@@ -166,7 +176,7 @@ export default function AddProductPage() {
           </div>
           <CardTitle className="text-3xl font-headline">Add New Product</CardTitle>
           <CardDescription>
-            Expand your catalog. Prices will be in your profile currency ({currency.value} - {currency.symbol}).
+            Expand your catalog. Prices will be in your profile currency ({supplierCurrency.value} - {supplierCurrency.symbol}).
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -201,21 +211,21 @@ export default function AddProductPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="price"
+                  name="priceValue"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Price</FormLabel>
                       <div className="relative">
                         <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground text-sm">
-                          {currency.symbol}
+                          {supplierCurrency.symbol}
                         </span>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="e.g., 299.99" 
-                            className="pl-8" 
-                            {...field} 
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="e.g., 299.99"
+                            className="pl-8"
+                            {...field}
                             onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
                             value={field.value ?? ""}
                           />
@@ -298,10 +308,7 @@ export default function AddProductPage() {
               <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Adding Product...
                   </>
                 ) : (

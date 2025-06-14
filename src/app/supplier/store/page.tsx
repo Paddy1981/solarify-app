@@ -1,13 +1,92 @@
 
+"use client";
+
+import { useEffect, useState } from "react";
+import { collection, getDocs, query, orderBy, type DocumentData } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Product } from "@/lib/mock-data/products";
+import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies";
+
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StoreIcon, Package, PlusCircle, Search, ArrowRight } from "lucide-react";
+import { StoreIcon, Package, Search, ArrowRight, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { sampleProducts, type Product } from "@/lib/mock-data/products"; // Import from new location
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SupplierStorePage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      try {
+        const productsCollectionRef = collection(db, "products");
+        const q = query(productsCollectionRef, orderBy("createdAt", "desc"));
+        const querySnapshot = await getDocs(q);
+        const fetchedProducts: Product[] = [];
+        querySnapshot.forEach((doc) => {
+          fetchedProducts.push({ id: doc.id, ...doc.data() } as Product);
+        });
+        setProducts(fetchedProducts);
+      } catch (error) {
+        console.error("Error fetching products from Firestore:", error);
+        // Optionally, set an error state and display a message to the user
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getDisplayPrice = (priceValue: number, currencyCode: string): string => {
+    const currency = getCurrencyByCode(currencyCode) || getDefaultCurrency();
+    return `${currency.symbol}${priceValue.toFixed(2)}`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-12 w-1/2" />
+        <Skeleton className="h-8 w-3/4" />
+        <Card className="shadow-lg">
+          <CardHeader>
+            <Skeleton className="h-6 w-1/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-10 w-1/3 mt-4" />
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="overflow-hidden shadow-md flex flex-col">
+                <Skeleton className="w-full h-48" />
+                <CardHeader className="pb-2 pt-4">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2 mt-1" />
+                </CardHeader>
+                <CardContent className="flex-grow py-2">
+                  <Skeleton className="h-8 w-1/3" />
+                  <Skeleton className="h-4 w-1/4 mt-1" />
+                </CardContent>
+                <CardFooter className="pt-2">
+                  <Skeleton className="h-10 w-full" />
+                </CardFooter>
+              </Card>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -17,10 +96,6 @@ export default function SupplierStorePage() {
             </h1>
             <p className="mt-1 text-lg text-foreground/70">Browse and discover solar products from our trusted suppliers.</p>
         </div>
-        {/* For Suppliers, the Add Product button is usually on their dashboard or a dedicated management page.
-            Keeping this public page focused on browsing.
-            Suppliers can navigate to /supplier/store/add-product via their dashboard.
-        */}
       </div>
 
       <Card className="shadow-lg">
@@ -29,21 +104,26 @@ export default function SupplierStorePage() {
             <CardDescription>Explore our catalog of solar panels, inverters, batteries, and more.</CardDescription>
             <div className="relative mt-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input placeholder="Search products..." className="pl-10 w-full md:w-1/3" />
+                <Input
+                  placeholder="Search products by name, category, or description..."
+                  className="pl-10 w-full md:w-2/3 lg:w-1/2"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </div>
         </CardHeader>
         <CardContent>
-          {sampleProducts.length > 0 ? (
+          {filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {sampleProducts.map((product) => (
+              {filteredProducts.map((product) => (
                 <Card key={product.id} className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col">
                   <div className="relative w-full h-48 bg-muted/30">
                     <Image
-                      src={product.imageUrl}
+                      src={product.imageUrl || 'https://placehold.co/300x200.png'} // Fallback placeholder
                       alt={product.name}
-                      data-ai-hint={product.imageHint}
+                      data-ai-hint={product.imageHint || "product item"}
                       layout="fill"
-                      objectFit="contain" // Changed to contain to see more of the product
+                      objectFit="contain"
                       className="p-2"
                     />
                   </div>
@@ -54,10 +134,11 @@ export default function SupplierStorePage() {
                     <p className="text-xs text-muted-foreground">{product.category}</p>
                   </CardHeader>
                   <CardContent className="flex-grow py-2">
-                    <p className="text-xl font-bold text-accent">{product.price}</p>
+                    <p className="text-xl font-bold text-accent">{getDisplayPrice(product.priceValue, product.currencyCode)}</p>
                     <p className={`text-sm ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {product.stock > 0 ? `Stock: ${product.stock} units` : "Out of Stock"}
                     </p>
+                     {product.supplierName && <p className="text-xs text-muted-foreground mt-1">Sold by: {product.supplierName}</p>}
                   </CardContent>
                   <CardFooter className="pt-2">
                     <Button variant="outline" className="w-full" asChild>
@@ -72,8 +153,12 @@ export default function SupplierStorePage() {
           ) : (
             <div className="text-center py-12">
                 <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold">No products listed yet.</h3>
-                <p className="text-muted-foreground">Check back soon for new product additions!</p>
+                <h3 className="text-xl font-semibold">
+                  {searchTerm ? "No products match your search." : "No products listed yet."}
+                </h3>
+                <p className="text-muted-foreground">
+                  {searchTerm ? "Try adjusting your search terms." : "Check back soon for new product additions!"}
+                </p>
             </div>
           )}
         </CardContent>

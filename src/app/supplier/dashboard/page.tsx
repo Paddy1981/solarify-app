@@ -4,13 +4,13 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StoreIcon, PackagePlus, ListOrdered, Settings, BarChartHorizontalBig, Factory, LogIn, UserCircle as AlertUserCircle } from "lucide-react";
+import { StoreIcon, PackagePlus, ListOrdered, Settings, BarChartHorizontalBig, Factory, LogIn, UserCircle as AlertUserCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import type { MockUser, UserRole } from '@/lib/mock-data/users';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import type { MockUser } from '@/lib/mock-data/users';
 import { Skeleton } from "@/components/ui/skeleton";
 
 function SupplierDashboardSkeleton() {
@@ -58,6 +58,7 @@ export default function SupplierDashboardPage() {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [supplierProfile, setSupplierProfile] = useState<MockUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [productCount, setProductCount] = useState<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -66,12 +67,19 @@ export default function SupplierDashboardPage() {
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists() && userDocSnap.data()?.role === 'supplier') {
-          setSupplierProfile(userDocSnap.data() as MockUser);
+          const profile = userDocSnap.data() as MockUser;
+          setSupplierProfile(profile);
+          // Fetch product count
+          const productsQuery = query(collection(db, "products"), where("supplierId", "==", profile.id));
+          const productsSnapshot = await getDocs(productsQuery);
+          setProductCount(productsSnapshot.size);
         } else {
-          setSupplierProfile(null); // Not a supplier or profile not found
+          setSupplierProfile(null);
+          setProductCount(0);
         }
       } else {
         setSupplierProfile(null);
+        setProductCount(0);
       }
       setIsLoading(false);
     });
@@ -112,7 +120,6 @@ export default function SupplierDashboardPage() {
     );
   }
 
-
   return (
     <div className="space-y-8">
       <Card className="shadow-xl overflow-hidden">
@@ -132,8 +139,8 @@ export default function SupplierDashboardPage() {
         </div>
         <CardContent className="relative pt-0 -mt-12">
           <div className="flex flex-col sm:flex-row items-center sm:items-end space-x-0 sm:space-x-4">
-            {supplierProfile.avatarUrl && supplierProfile.avatarUrl.startsWith('https://placehold.co') ? (
-                <div 
+            {supplierProfile.avatarUrl && supplierProfile.avatarUrl.startsWith('https://placehold.co') && !supplierProfile.avatarUrl.includes("?text=") ? (
+                <div
                   data-ai-hint="company logo factory"
                   className="w-24 h-24 rounded-full border-4 border-background shadow-lg bg-muted flex items-center justify-center"
                 >
@@ -146,7 +153,7 @@ export default function SupplierDashboardPage() {
                   data-ai-hint="company logo"
                   width={96}
                   height={96}
-                  className="rounded-full border-4 border-background shadow-lg"
+                  className="rounded-full border-4 border-background shadow-lg object-cover"
                 />
               )}
             <div className="mt-3 sm:mt-0 text-center sm:text-left">
@@ -177,7 +184,10 @@ export default function SupplierDashboardPage() {
             <CardDescription>View and manage your product listings, inventory, and pricing.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-accent">{supplierProfile.productsOffered?.length || 0} <span className="text-sm font-normal text-muted-foreground">Products Listed (mock)</span></p>
+            <p className="text-2xl font-bold text-accent">
+              {productCount === null ? <Loader2 className="h-6 w-6 animate-spin" /> : productCount}{' '}
+              <span className="text-sm font-normal text-muted-foreground">Products Listed</span>
+            </p>
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row gap-2">
             <Button asChild className="w-full sm:flex-1">
