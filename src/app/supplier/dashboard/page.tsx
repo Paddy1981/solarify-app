@@ -67,12 +67,17 @@ export default function SupplierDashboardPage() {
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists() && userDocSnap.data()?.role === 'supplier') {
-          const profile = userDocSnap.data() as MockUser;
+          const profile = { id: userDocSnap.id, ...userDocSnap.data() } as MockUser;
           setSupplierProfile(profile);
           // Fetch product count
-          const productsQuery = query(collection(db, "products"), where("supplierId", "==", profile.id));
-          const productsSnapshot = await getDocs(productsQuery);
-          setProductCount(productsSnapshot.size);
+          try {
+            const productsQuery = query(collection(db, "products"), where("supplierId", "==", profile.id));
+            const productsSnapshot = await getDocs(productsQuery);
+            setProductCount(productsSnapshot.size);
+          } catch (error) {
+            console.error("Error fetching product count:", error);
+            setProductCount(0); // Set to 0 on error
+          }
         } else {
           setSupplierProfile(null);
           setProductCount(0);
@@ -230,3 +235,5 @@ export default function SupplierDashboardPage() {
     </div>
   );
 }
+
+    
