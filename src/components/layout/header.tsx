@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/layout/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
-import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone, Settings, TrendingUp } from 'lucide-react';
+import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone, Settings, TrendingUp, Wrench } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
@@ -55,6 +55,7 @@ const navLinksAuthenticated: NavLinkItem[] = [
       { href: '/homeowner/energy-needs', label: 'Energy Needs Calculator', icon: Calculator },
       { href: '/homeowner/savings-estimator', label: 'Savings Estimator', icon: BarChartBig },
       { href: '/homeowner/savings-tracker', label: 'Savings Tracker', icon: TrendingUp },
+      { href: '/homeowner/maintenance', label: 'Maintenance Hub', icon: Wrench },
       { href: '/homeowner/rfq', label: 'Generate RFQ', icon: FileText },
       { href: '/settings', label: 'Settings', icon: Settings },
     ],
@@ -251,7 +252,7 @@ function DesktopDropdownMenu({ link }: { link: NavLinkItem }) {
                 {subLink.icon && <subLink.icon className="h-4 w-4 text-muted-foreground" />} {subLink.label}
               </Link>
             </DropdownMenuItem>
-            {(subLink.label === "Generate RFQ" || subLink.label === "Savings Tracker") && link.label === "For Homeowners" && index < link.subLinks.length - 2 && <DropdownMenuSeparator />}
+            {(subLink.label === "Generate RFQ" || subLink.label === "Maintenance Hub" || subLink.label === "Savings Tracker") && link.label === "For Homeowners" && index < link.subLinks.length - 2 && <DropdownMenuSeparator />}
             {subLink.label === "View RFQs" && link.label === "For Installers" && <DropdownMenuSeparator />}
             {subLink.label === "Add Product" && link.label === "For Suppliers" && <DropdownMenuSeparator />}
           </React.Fragment>
