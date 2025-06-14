@@ -119,6 +119,7 @@ export function Header() {
     let newLinks: NavLinkItem[] = [];
 
     if (onAuthPages) {
+      // Only show Home and Shop on auth pages
       newLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
     } else {
       newLinks = [...navLinksBase]; 
@@ -126,6 +127,7 @@ export function Header() {
       if (currentUser && userRole && !isLoadingAuth) {
         const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
         if (roleSpecificMenu) {
+          // Check if a menu with the same label (implying the same role) already exists
           const alreadyHasRoleMenu = newLinks.some(link => link.label === roleSpecificMenu.label && link.role === roleSpecificMenu.role);
           if (!alreadyHasRoleMenu) {
             newLinks.push(roleSpecificMenu);
@@ -146,7 +148,7 @@ export function Header() {
         <Logo />
         <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
           {currentNavLinks.map((link) =>
-            (link.subLinks) ? ( 
+            (link.subLinks && !onAuthPages) ? ( // Only show dropdowns if not on auth pages
               <DesktopDropdownMenu key={link.label} link={link} />
             ) : (
               <Link
@@ -160,33 +162,37 @@ export function Header() {
           )}
         </nav>
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="icon" asChild className="relative hidden md:inline-flex">
-            <Link href="/cart">
-              <CartIcon className="h-5 w-5" />
-              {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                  {cartItemCount}
-                </span>
-              )}
-              <span className="sr-only">View Cart</span>
-            </Link>
-          </Button>
+          {!onAuthPages && (
+            <Button variant="ghost" size="icon" asChild className="relative hidden md:inline-flex">
+              <Link href="/cart">
+                <CartIcon className="h-5 w-5" />
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    {cartItemCount}
+                  </span>
+                )}
+                <span className="sr-only">View Cart</span>
+              </Link>
+            </Button>
+          )}
           <div className="hidden md:flex items-center space-x-2">
              <AuthButtons isLoadingAuth={isLoadingAuth} currentUser={currentUser} />
           </div>
         </div>
         <div className="md:hidden flex items-center space-x-2">
-           <Button variant="ghost" size="icon" asChild className="relative">
-            <Link href="/cart">
-              <CartIcon className="h-5 w-5" />
-              {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                  {cartItemCount}
-                </span>
-              )}
-              <span className="sr-only">View Cart</span>
-            </Link>
-          </Button>
+           {!onAuthPages && (
+            <Button variant="ghost" size="icon" asChild className="relative">
+              <Link href="/cart">
+                <CartIcon className="h-5 w-5" />
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    {cartItemCount}
+                  </span>
+                )}
+                <span className="sr-only">View Cart</span>
+              </Link>
+            </Button>
+           )}
           <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -200,7 +206,7 @@ export function Header() {
               </SheetHeader>
               <nav className="flex flex-col space-y-4 mt-6">
                 {currentNavLinks.map((link) =>
-                  (link.subLinks) ? ( 
+                  (link.subLinks && !onAuthPages) ? ( // Only show accordions if not on auth pages
                     <MobileAccordionMenu key={link.label} link={link} onLinkClick={closeMobileSheet} />
                   ) : (
                     <SheetClose asChild key={link.label}>
@@ -387,3 +393,4 @@ function AuthButtons({
     </div>
   );
 }
+
