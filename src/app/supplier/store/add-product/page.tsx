@@ -8,9 +8,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { getMockUserByEmail, type MockUser } from "@/lib/mock-data/users";
-import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies"; // Import currency utils
+import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies"; 
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -52,14 +53,23 @@ export default function AddProductPage() {
   const [currency, setCurrency] = useState<Currency>(getDefaultCurrency());
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && user.email) {
-        const profile = getMockUserByEmail(user.email);
-        if (profile && profile.role === "supplier") {
-          setCurrentSupplier(profile);
-          setCurrency(getCurrencyByCode(profile.currency) || getDefaultCurrency());
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists() && userDocSnap.data()?.role === "supplier") {
+          const supplierProfile = userDocSnap.data() as MockUser;
+          setCurrentSupplier(supplierProfile);
+          setCurrency(getCurrencyByCode(supplierProfile.preferredCurrency) || getDefaultCurrency());
         } else {
-          setCurrentSupplier(null); // Not a supplier or profile not found
+           // Fallback or if role is not supplier
+          const profileFromMock = getMockUserByEmail(user.email || "");
+           if (profileFromMock && profileFromMock.role === "supplier") {
+            setCurrentSupplier(profileFromMock);
+            setCurrency(getCurrencyByCode(profileFromMock.preferredCurrency) || getDefaultCurrency());
+          } else {
+            setCurrentSupplier(null);
+          }
         }
       } else {
         setCurrentSupplier(null);
@@ -73,7 +83,7 @@ export default function AddProductPage() {
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: "",
-      price: undefined, // Use undefined for number inputs to show placeholder
+      price: undefined, 
       imageUrl: "",
       imageHint: "",
       stock: 0,
@@ -204,7 +214,7 @@ export default function AddProductPage() {
                             type="number" 
                             step="0.01" 
                             placeholder="e.g., 299.99" 
-                            className="pl-8" // Adjust based on symbol width
+                            className="pl-8" 
                             {...field} 
                             onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
                             value={field.value ?? ""}

@@ -8,8 +8,8 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "@/lib/firebase"; // Import db for Firestore
-import { doc, getDoc } from "firebase/firestore"; // Import Firestore functions
+import { auth, db, serverTimestamp } from "@/lib/firebase"; 
+import { doc, getDoc, updateDoc } from "firebase/firestore"; 
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -49,11 +49,14 @@ export default function LoginPage() {
         description: "Welcome back! Checking your role...",
       });
 
-      // Fetch user role from Firestore
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
+        await updateDoc(userDocRef, {
+          lastLogin: serverTimestamp()
+        });
+
         const userRole = userDocSnap.data()?.role;
         if (userRole === "installer") {
           router.push("/installer/dashboard");
@@ -70,7 +73,6 @@ export default function LoginPage() {
           router.push("/");
         }
       } else {
-        // This case should ideally not happen for a user who has signed up correctly
         toast({
           title: "Profile Error",
           description: "User profile data not found. Please contact support. Redirecting to homepage.",
@@ -100,7 +102,6 @@ export default function LoginPage() {
       title: "Google Login",
       description: "Google OAuth login is not yet implemented. This is a placeholder.",
     });
-    // signInWithPopup(auth, new GoogleAuthProvider()).then...
   };
 
   return (

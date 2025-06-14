@@ -8,7 +8,8 @@ import * as z from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db, serverTimestamp } from "@/lib/firebase";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { getMockUserByEmail, type MockUser, type UserRole } from "@/lib/mock-data/users";
 import { currencyOptions, getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies";
 
@@ -25,13 +26,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 const settingsFormSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   location: z.string().min(3, { message: "Location is required." }),
-  currency: z.string().min(1, { message: "Please select your currency." }),
+  preferredCurrency: z.string().min(1, { message: "Please select your currency." }),
   phone: z.string().optional(),
   avatarUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-  // Role-specific fields - presence depends on user role
   companyName: z.string().optional(),
-  specialties: z.string().optional(), // Comma-separated string
-  productsOffered: z.string().optional(), // Comma-separated string
+  specialties: z.string().optional(), 
+  productsOffered: z.string().optional(), 
 });
 
 type SettingsFormData = z.infer<typeof settingsFormSchema>;
@@ -75,22 +75,40 @@ export default function SettingsPage() {
   });
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
-      if (user && user.email) {
-        const profile = getMockUserByEmail(user.email);
-        setCurrentUserProfile(profile);
-        if (profile) {
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const firestoreProfile = userDocSnap.data() as MockUser; // Assuming Firestore data matches MockUser structure
+          setCurrentUserProfile(firestoreProfile);
           form.reset({
-            fullName: profile.fullName,
-            location: profile.location || "",
-            currency: profile.currency || getDefaultCurrency().value,
-            phone: profile.phone || "",
-            avatarUrl: profile.avatarUrl || "",
-            companyName: profile.companyName || "",
-            specialties: profile.specialties?.join(', ') || "",
-            productsOffered: profile.productsOffered?.join(', ') || "",
+            fullName: firestoreProfile.fullName,
+            location: firestoreProfile.location || "",
+            preferredCurrency: firestoreProfile.preferredCurrency || getDefaultCurrency().value,
+            phone: firestoreProfile.phone || "",
+            avatarUrl: firestoreProfile.avatarUrl || "",
+            companyName: firestoreProfile.companyName || "",
+            specialties: firestoreProfile.specialties?.join(', ') || "",
+            productsOffered: firestoreProfile.productsOffered?.join(', ') || "",
           });
+        } else {
+          // Fallback to mock/localStorage if Firestore doc doesn't exist (e.g., for users not yet migrated)
+          const profileFromMock = getMockUserByEmail(user.email || "");
+          setCurrentUserProfile(profileFromMock || null);
+           if (profileFromMock) {
+             form.reset({
+                fullName: profileFromMock.fullName,
+                location: profileFromMock.location || "",
+                preferredCurrency: profileFromMock.preferredCurrency || getDefaultCurrency().value,
+                phone: profileFromMock.phone || "",
+                avatarUrl: profileFromMock.avatarUrl || "",
+                companyName: profileFromMock.companyName || "",
+                specialties: profileFromMock.specialties?.join(', ') || "",
+                productsOffered: profileFromMock.productsOffered?.join(', ') || "",
+             });
+           }
         }
       } else {
         setCurrentUserProfile(null);
@@ -107,41 +125,45 @@ export default function SettingsPage() {
     }
     setIsSubmitting(true);
 
-    const updatedProfile: MockUser = {
-      ...currentUserProfile,
+    const updatedProfileData: Partial<MockUser> = {
       fullName: data.fullName,
       location: data.location,
-      currency: data.currency,
+      preferredCurrency: data.preferredCurrency,
       phone: data.phone,
       avatarUrl: data.avatarUrl,
       companyName: data.companyName,
       specialties: data.specialties ? data.specialties.split(',').map(s => s.trim()).filter(s => s) : undefined,
       productsOffered: data.productsOffered ? data.productsOffered.split(',').map(s => s.trim()).filter(s => s) : undefined,
+      // No 'updatedAt' here as serverTimestamp is for Firestore write operations
     };
 
-    // Update global state
-    if (global._mockUsers) {
-      const userIndex = global._mockUsers.findIndex(u => u.id === updatedProfile.id);
-      if (userIndex !== -1) {
-        global._mockUsers[userIndex] = updatedProfile;
-      } else {
-        // Fallback: if user was loaded from localStorage and not in global, try to find by email or push.
-        const emailIndex = global._mockUsers.findIndex(u => u.email.toLowerCase() === updatedProfile.email.toLowerCase());
-        if (emailIndex !== -1) {
-            global._mockUsers[emailIndex] = updatedProfile;
-        } else {
-            global._mockUsers.push(updatedProfile);
-        }
-      }
-    }
-    // Update localStorage
-    localStorage.setItem(`userProfile_${updatedProfile.email.toLowerCase()}`, JSON.stringify(updatedProfile));
-    
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+    try {
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        await updateDoc(userDocRef, {
+            ...updatedProfileData,
+            updatedAt: serverTimestamp() // Add/update timestamp on Firestore write
+        });
 
-    toast({ title: "Profile Updated", description: "Your settings have been successfully saved." });
-    setCurrentUserProfile(updatedProfile); // Update local state to reflect changes
-    setIsSubmitting(false);
+        // Update local state and localStorage if still needed for non-Firestore aware components
+        const fullyUpdatedProfile = { ...currentUserProfile, ...updatedProfileData };
+        setCurrentUserProfile(fullyUpdatedProfile);
+        if (typeof window !== 'undefined' && fullyUpdatedProfile.email) {
+            localStorage.setItem(`userProfile_${fullyUpdatedProfile.email.toLowerCase()}`, JSON.stringify(fullyUpdatedProfile));
+        }
+        if (global._mockUsers) {
+            const userIndex = global._mockUsers.findIndex(u => u.id === firebaseUser.uid);
+            if (userIndex !== -1) {
+                global._mockUsers[userIndex] = { ...global._mockUsers[userIndex], ...updatedProfileData };
+            }
+        }
+
+        toast({ title: "Profile Updated", description: "Your settings have been successfully saved to Firestore." });
+    } catch (error) {
+        console.error("Error updating profile in Firestore:", error);
+        toast({ title: "Update Failed", description: "Could not save settings to Firestore.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   if (isLoading) {
@@ -233,7 +255,7 @@ export default function SettingsPage() {
                 />
                 <FormField
                   control={form.control}
-                  name="currency"
+                  name="preferredCurrency"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Preferred Currency</FormLabel>
@@ -334,5 +356,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    

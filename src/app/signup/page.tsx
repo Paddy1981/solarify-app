@@ -11,7 +11,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db, serverTimestamp } from "@/lib/firebase"; // Import db and serverTimestamp
 import { doc, setDoc } from "firebase/firestore"; // Import Firestore functions
 import { currencyOptions } from "@/lib/currencies";
-import { mockUsers, type MockUser } from "@/lib/mock-data/users"; 
+import type { MockUser } from "@/lib/mock-data/users"; 
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ const signupFormSchema = z.object({
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   role: z.enum(["homeowner", "installer", "supplier"], { required_error: "Please select a role." }),
   location: z.string().min(3, { message: "Location must be at least 3 characters (e.g., City, Country)." }),
-  currency: z.string().min(1, { message: "Please select your preferred currency." }),
+  preferredCurrency: z.string().min(1, { message: "Please select your preferred currency." }),
 });
 
 type SignupFormData = z.infer<typeof signupFormSchema>;
@@ -45,7 +45,7 @@ export default function SignupPage() {
       password: "",
       role: undefined,
       location: "",
-      currency: "",
+      preferredCurrency: "",
     },
   });
 
@@ -56,34 +56,39 @@ export default function SignupPage() {
       const user = userCredential.user;
 
       // Store user role and additional info in Firestore
-      await setDoc(doc(db, "users", user.uid), {
+      const userDocData = {
         uid: user.uid,
         email: data.email,
         fullName: data.fullName,
         role: data.role,
         location: data.location,
-        currency: data.currency,
+        preferredCurrency: data.preferredCurrency,
         createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        isActive: true,
         avatarUrl: `https://placehold.co/100x100.png?text=${data.fullName[0]?.toUpperCase() || 'U'}`,
-        memberSince: new Date().toISOString().split("T")[0],
+        memberSince: new Date().toISOString().split("T")[0], // Keep for mock data consistency if needed
         companyName: data.role === 'installer' || data.role === 'supplier' ? `${data.fullName}'s Company` : undefined,
         specialties: data.role === 'installer' ? ['Residential Solar'] : undefined,
         productsOffered: data.role === 'supplier' ? ['Solar Panels'] : undefined,
-      });
+      };
+      await setDoc(doc(db, "users", user.uid), userDocData);
       
       // Save a copy to mockUsers and localStorage for immediate use by non-Firestore aware components (can be phased out)
       const newUserProfile: MockUser = {
-        id: user.uid, // Use Firebase UID as the primary ID
+        id: user.uid, 
         fullName: data.fullName,
         email: data.email, 
         role: data.role,
         location: data.location,
-        currency: data.currency,
-        avatarUrl: `https://placehold.co/100x100.png?text=${data.fullName[0]?.toUpperCase() || 'U'}`,
-        memberSince: new Date().toISOString().split("T")[0],
-        companyName: data.role === 'installer' || data.role === 'supplier' ? `${data.fullName}'s Company` : undefined,
-        specialties: data.role === 'installer' ? ['Residential Solar'] : undefined,
-        productsOffered: data.role === 'supplier' ? ['Solar Panels'] : undefined,
+        preferredCurrency: data.preferredCurrency,
+        avatarUrl: userDocData.avatarUrl,
+        memberSince: userDocData.memberSince,
+        companyName: userDocData.companyName,
+        specialties: userDocData.specialties,
+        productsOffered: userDocData.productsOffered,
+        lastLogin: new Date().toISOString(), // For mock data, approximate timestamp
+        isActive: true,
       };
 
       if (typeof window !== 'undefined') {
@@ -203,7 +208,7 @@ export default function SignupPage() {
               />
               <FormField
                 control={form.control}
-                name="currency"
+                name="preferredCurrency"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Preferred Currency</FormLabel>
