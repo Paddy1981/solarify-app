@@ -29,7 +29,7 @@ const promotionFormSchema = z.object({
   discountOffer: z.string().optional(),
   callToActionText: z.string().optional(),
   callToActionLink: z.string().url({ message: "Please enter a valid URL for the link." }).optional().or(z.literal('')),
-  tags: z.string().optional(), // Comma-separated
+  tags: z.string().optional(), 
   validUntil: z.string().optional().refine(val => !val || !isNaN(new Date(val).getTime()), {message: "Invalid date"}),
 }).refine(data => !data.callToActionText || !!data.callToActionLink, {
   message: "Call to action link is required if call to action text is provided.",
@@ -85,7 +85,7 @@ export default function AddPromotionPage() {
         if (userDocSnap.exists()) {
           setCurrentUserProfile(userDocSnap.data() as MockUser);
         } else {
-          setCurrentUserProfile(null); // Or handle error: profile not found
+          setCurrentUserProfile(null); 
         }
       } else {
         setCurrentUserProfile(null);
@@ -115,7 +115,6 @@ export default function AddPromotionPage() {
       toast({ title: "Authentication Error", description: "You must be logged in to create a promotion.", variant: "destructive" });
       return;
     }
-    // Basic role check for now - could be more granular
     if (currentUserProfile.role !== "installer" && currentUserProfile.role !== "supplier") {
         toast({ title: "Permission Denied", description: "Only installers and suppliers can create promotions.", variant: "destructive" });
         return;
@@ -128,10 +127,10 @@ export default function AddPromotionPage() {
         authorId: currentUser.uid,
         authorName: currentUserProfile.companyName || currentUserProfile.fullName,
         authorRole: currentUserProfile.role,
-        authorAvatarUrl: currentUserProfile.avatarUrl || `https://placehold.co/100x100.png?text=${(currentUserProfile.companyName || currentUserProfile.fullName)[0]}`,
+        authorAvatarUrl: currentUserProfile.avatarUrl || `https://placehold.co/100x100.png?text=${(currentUserProfile.companyName || currentUserProfile.fullName)[0]?.toUpperCase() || 'U'}&hint=avatar initials`,
         tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
         postDate: serverTimestamp(),
-        validUntil: data.validUntil ? new Date(data.validUntil) : null, // Store as Date, Firestore converts
+        validUntil: data.validUntil ? new Date(data.validUntil) : null, 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -139,7 +138,7 @@ export default function AddPromotionPage() {
       const docRef = await addDoc(collection(db, "promotions"), promotionData);
       toast({
         title: "Promotion Created!",
-        description: `Your promotion "${data.title}" has been successfully published. ID: ${docRef.id.substring(0,8)}`,
+        description: `Your promotion "${data.title}" has been successfully published. ID: ${docRef.id.substring(0,8)}...`,
       });
       form.reset();
       router.push("/promotions"); 
@@ -226,7 +225,7 @@ export default function AddPromotionPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Promotion Title</FormLabel>
-                    <FormControl><Input placeholder="e.g., Summer Sale on Panels!" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g., Summer Sale on Solar Panels!" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -237,7 +236,7 @@ export default function AddPromotionPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Detailed Content</FormLabel>
-                    <FormControl><Textarea placeholder="Describe your promotion in detail..." rows={5} {...field} /></FormControl>
+                    <FormControl><Textarea placeholder="Describe your promotion, its benefits, and any terms..." rows={5} {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -249,6 +248,7 @@ export default function AddPromotionPage() {
                   <FormItem>
                     <FormLabel className="flex items-center"><ImageIcon className="w-4 h-4 mr-2 text-muted-foreground" />Image URL (Optional)</FormLabel>
                     <FormControl><Input type="url" placeholder="https://example.com/promo.png or https://placehold.co/600x300.png" {...field} /></FormControl>
+                     <FormDescription>Link to an image representing your promotion.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -258,9 +258,9 @@ export default function AddPromotionPage() {
                 name="imageHint"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Image Keywords (Optional, for placeholders)</FormLabel>
-                    <FormControl><Input placeholder="e.g., solar discount" {...field} /></FormControl>
-                    <FormDescription>Max 2 words. Used if Image URL is a placeholder (e.g., "sale event").</FormDescription>
+                    <FormLabel>Image Keywords (Optional)</FormLabel>
+                    <FormControl><Input placeholder="e.g., solar discount, sale event" {...field} /></FormControl>
+                    <FormDescription>Max 2 words. Helps if image URL is a generic placeholder (e.g., "sale event").</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -296,6 +296,7 @@ export default function AddPromotionPage() {
                   <FormItem>
                     <FormLabel>Tags (Optional, comma-separated)</FormLabel>
                     <FormControl><Input placeholder="e.g., Discount, New Product, Solar Panels" {...field} /></FormControl>
+                     <FormDescription>Helps users find your promotion.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -318,7 +319,7 @@ export default function AddPromotionPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Call to Action Link (Optional)</FormLabel>
-                      <FormControl><Input type="url" placeholder="https://example.com/offer" {...field} /></FormControl>
+                      <FormControl><Input type="url" placeholder="https://example.com/offer-details" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -333,7 +334,7 @@ export default function AddPromotionPage() {
               </Button>
               <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing...</>
+                  <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing Promotion...</>
                 ) : (
                   <><Save className="mr-2 h-5 w-5" /> Publish Promotion</>
                 )}

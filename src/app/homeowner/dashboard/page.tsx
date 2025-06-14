@@ -125,28 +125,28 @@ function ActualDashboardContent({ homeownerProfile, systemConfiguration }: Actua
   const stats = [
     { 
       title: "Current Generation", 
-      value: systemSizeKW > 0 ? `${(systemSizeKW * 0.6).toFixed(1)} kW` : "N/A", 
+      value: systemSizeKW > 0 ? `${(systemSizeKW * 0.6).toFixed(1)} kW` : "N/A (Setup System)", 
       icon: <Zap className="w-6 h-6 text-primary" />, 
       change: systemSizeKW > 0 ? "+5%" : undefined, 
       changeType: "positive" as "positive" | "negative" 
     },
     { 
       title: "Today's Energy", 
-      value: systemSizeKW > 0 ? `${(systemSizeKW * 3.5).toFixed(1)} kWh` : "N/A", 
+      value: systemSizeKW > 0 ? `${(systemSizeKW * 3.5).toFixed(1)} kWh` : "N/A (Setup System)", 
       icon: <Zap className="w-6 h-6 text-primary" />, 
       change: systemSizeKW > 0 ? "+12%" : undefined, 
       changeType: "positive" as "positive" | "negative" 
     },
     { 
-      title: "Monthly Savings", 
-      value: "$45.80", // Placeholder, as this is complex
+      title: "Monthly Savings (Est.)", 
+      value: "$45.80", 
       icon: <DollarSign className="w-6 h-6 text-primary" />, 
-      change: "+8%", // Placeholder
+      change: "+8%", 
       changeType: "positive" as "positive" | "negative" 
     },
     { 
       title: "System Health", 
-      value: "Optimal", // Placeholder
+      value: "Optimal", 
       icon: <CheckCircle2 className="w-6 h-6 text-green-500" /> 
     },
   ];
@@ -154,10 +154,10 @@ function ActualDashboardContent({ homeownerProfile, systemConfiguration }: Actua
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-headline tracking-tight text-accent">Performance Dashboard</h1>
+        <h1 className="text-4xl font-headline tracking-tight text-accent">Solar Performance Dashboard</h1>
         <p className="mt-2 text-lg text-foreground/70">
-          Monitor your solar system&apos;s performance and environmental impact. 
-          {systemSizeKW > 0 ? ` (Stats based on ${systemSizeKW}kW system)` : ' (Demo Data)'}
+          Monitor your solar system's performance, savings, and environmental impact. 
+          {systemSizeKW > 0 ? ` (System Size: ${systemSizeKW}kWp)` : ' (Demo Data or Configure System)'}
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -176,7 +176,7 @@ function ActualDashboardContent({ homeownerProfile, systemConfiguration }: Actua
         <Card className="lg:col-span-2 shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><BarChartBig className="w-6 h-6 mr-2 text-primary" />Energy Generation Overview</CardTitle>
-            <CardDescription>Past 7 days energy production (kWh) (Demo Data)</CardDescription>
+            <CardDescription>Past 7 days energy production (kWh). (Demo Data)</CardDescription>
           </CardHeader>
           <CardContent>
             <PerformanceChart />
@@ -188,7 +188,7 @@ function ActualDashboardContent({ homeownerProfile, systemConfiguration }: Actua
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline flex items-center"><FileText className="w-6 h-6 mr-2 text-primary" />My Requests for Quotation</CardTitle>
-          <CardDescription>Track the status of your RFQs and view received quotes.</CardDescription>
+          <CardDescription>Track the status of your RFQs and view received quotes from installers.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoadingRFQs ? (
@@ -204,7 +204,7 @@ function ActualDashboardContent({ homeownerProfile, systemConfiguration }: Actua
           ) : (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">You haven&apos;t generated any RFQs yet.</p>
+              <p className="text-muted-foreground mb-4">You haven't generated any RFQs yet.</p>
               <Button asChild>
                 <Link href="/homeowner/rfq">
                   <PlusCircle className="w-4 h-4 mr-2" /> Create New RFQ
@@ -257,12 +257,12 @@ function ActualDashboardContent({ homeownerProfile, systemConfiguration }: Actua
             Coming Soon: Live Solar Performance Tracking
           </CardTitle>
           <CardDescription className="text-foreground/80">
-            Get ready to monitor your solar system&apos;s performance in real-time with our upcoming IoT integration!
+            Get ready to monitor your solar system's performance in real-time with our upcoming IoT device integration!
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-foreground/70">
-            We&apos;re diligently working on integrating smart IoT-enabled solar tracking devices with Solarify. Soon, you&apos;ll be able to:
+            We're diligently working on integrating smart IoT-enabled solar tracking devices with Solarify. Soon, you'll be able to:
           </p>
           <ul className="list-disc list-inside space-y-1.5 text-foreground/70 pl-5">
             <li>View live Solar Generation (kW) and Daily Energy produced (kWh).</li>
@@ -305,7 +305,6 @@ export default function DashboardPage() {
               if (journeyChoice === 'existing_configured' && profile.systemConfiguration) {
                 setSystemConfig(profile.systemConfiguration);
               } else if (journeyChoice === 'existing_configured' && !profile.systemConfiguration) {
-                // Data inconsistency: configured but no config data. Prompt for setup again.
                 setDashboardStatus('existing_setup_pending'); 
                  try {
                     await updateDoc(userDocRef, { dashboardJourneyChoice: 'existing_setup_pending' });
@@ -344,7 +343,7 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error("Error updating solar journey choice in Firestore:", error);
-        toast({ title: "Error", description: "Could not save your choice to cloud.", variant: "destructive" });
+        toast({ title: "Error", description: "Could not save your choice. Please try again.", variant: "destructive" });
       }
     }
   };
@@ -373,7 +372,7 @@ export default function DashboardPage() {
         console.error("Error saving dashboard configuration to Firestore:", error);
         toast({
           title: "Configuration Error",
-          description: "Could not save your system configuration to cloud.",
+          description: "Could not save your system configuration. Please try again.",
           variant: "destructive",
         });
       }
@@ -390,7 +389,7 @@ export default function DashboardPage() {
         <LogIn className="w-16 h-16 text-primary mb-6" />
         <h1 className="text-3xl font-headline mb-4">Access Denied</h1>
         <p className="text-muted-foreground mb-8 max-w-md">
-          Please log in to view your dashboard.
+          Please log in to view your Homeowner Dashboard.
         </p>
         <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
           <Link href="/login">Login</Link>

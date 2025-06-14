@@ -70,7 +70,6 @@ export default function InstallerDashboardPage() {
           const profile = { id: userDocSnap.id, ...userDocSnap.data() } as MockUser;
           setInstallerProfile(profile);
 
-          // Fetch active RFQ count
           try {
             const rfqsQuery = query(
               collection(db, "rfqs"),
@@ -81,11 +80,11 @@ export default function InstallerDashboardPage() {
             setActiveRfqCount(rfqsSnapshot.size);
           } catch (error) {
             console.error("Error fetching active RFQ count:", error);
-            setActiveRfqCount(0); // Set to 0 on error
+            setActiveRfqCount(0); 
           }
 
         } else {
-          setInstallerProfile(null); // Not an installer or profile not found
+          setInstallerProfile(null); 
           setActiveRfqCount(0);
         }
       } else {
@@ -149,22 +148,22 @@ export default function InstallerDashboardPage() {
         </div>
         <CardContent className="relative pt-0 -mt-12">
           <div className="flex flex-col sm:flex-row items-center sm:items-end space-x-0 sm:space-x-4">
-            {installerProfile.avatarUrl && installerProfile.avatarUrl.startsWith('https://placehold.co') ? (
-              <div 
-                data-ai-hint="company logo"
-                className="w-24 h-24 rounded-full border-4 border-background shadow-lg bg-muted flex items-center justify-center"
-              >
-                <Building2 className="w-12 h-12 text-muted-foreground" />
-              </div>
-            ) : (
+            {installerProfile.avatarUrl ? (
               <Image
-                src={installerProfile.avatarUrl || 'https://placehold.co/96x96.png'}
+                src={installerProfile.avatarUrl}
                 alt={`${installerProfile.companyName || installerProfile.fullName} logo`}
                 data-ai-hint="company logo"
                 width={96}
                 height={96}
-                className="rounded-full border-4 border-background shadow-lg"
+                className="rounded-full border-4 border-background shadow-lg object-cover"
               />
+            ) : (
+              <div
+                data-ai-hint="company building"
+                className="w-24 h-24 rounded-full border-4 border-background shadow-lg bg-muted flex items-center justify-center"
+              >
+                <Building2 className="w-12 h-12 text-muted-foreground" />
+              </div>
             )}
             <div className="mt-3 sm:mt-0 text-center sm:text-left">
               <h1 className="text-2xl font-headline tracking-tight text-accent">{installerProfile.companyName || installerProfile.fullName}</h1>
@@ -182,7 +181,7 @@ export default function InstallerDashboardPage() {
       <div className="text-center mb-8">
         <h2 className="text-3xl font-headline tracking-tight text-accent">Installer Dashboard</h2>
         <p className="mt-1 text-lg text-foreground/70">
-          Manage your projects, quotes, and profile.
+          Manage your projects, quotes, and professional profile.
         </p>
       </div>
 
@@ -228,7 +227,7 @@ export default function InstallerDashboardPage() {
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><BarChartHorizontalBig className="w-6 h-6 mr-2 text-accent"/> Performance &amp; Analytics</CardTitle>
-            <CardDescription>Track your quote conversion rates and project completions (Coming Soon).</CardDescription>
+            <CardDescription>Track your quote conversion rates and project completions. (Coming Soon)</CardDescription>
           </CardHeader>
            <CardContent>
              <p className="text-muted-foreground italic">Analytics dashboard under development.</p>

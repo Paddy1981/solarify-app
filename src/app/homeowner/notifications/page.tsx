@@ -14,13 +14,13 @@ export default function NotificationsPage() {
           </div>
           <CardTitle className="text-3xl font-headline">Notifications</CardTitle>
           <CardDescription>
-            All your system alerts and important updates will appear here.
+            Important updates, alerts, and messages regarding your account and solar system will appear here.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center py-10">
           <p className="text-muted-foreground mb-6">
-            This feature is currently under development. 
-            Soon, you'll find a list of all notifications related to your account and solar system.
+            This notifications feature is currently under development. 
+            Soon, you'll find a comprehensive list of all notifications, system alerts, and communications.
           </p>
           <Button variant="outline" asChild>
             <Link href="/homeowner/dashboard">

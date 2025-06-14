@@ -18,34 +18,33 @@ const sampleProjects = [
     title: "Sunnyvale Family Home Solar",
     imageUrl: "https://placehold.co/600x400.png?a=1",
     imageHint: "residential solar",
-    description: "5kW system installed for a modern family home, reducing energy bills by 70%.",
+    description: "5kW system installed for a modern family home, significantly reducing energy bills and carbon footprint.",
     location: "Sunnyvale, CA",
     dateCompleted: "2023-05-15",
-    systemSize: "5 kW",
+    systemSize: "5 kWp",
   },
   {
     id: "2",
     title: "Eco-Friendly Ranch Installation",
     imageUrl: "https://placehold.co/600x400.png?a=2",
     imageHint: "solar panels house",
-    description: "10kW off-grid solution for a sustainable ranch, including battery backup.",
+    description: "Comprehensive 10kW off-grid solution for a sustainable ranch, including battery backup for energy independence.",
     location: "Austin, TX",
     dateCompleted: "2023-08-20",
-    systemSize: "10 kW",
+    systemSize: "10 kWp Solar, 20 kWh Battery",
   },
   {
     id: "3",
     title: "Urban Rooftop Power Project",
     imageUrl: "https://placehold.co/600x400.png?a=3",
     imageHint: "rooftop solar",
-    description: "Compact 3kW system optimized for an urban townhouse with limited roof space.",
+    description: "Compact 3kW system cleverly optimized for an urban townhouse with limited roof space, maximizing solar gain.",
     location: "Brooklyn, NY",
     dateCompleted: "2024-01-10",
-    systemSize: "3 kW",
+    systemSize: "3 kWp",
   },
 ];
 
-// This featured installer profile is shown on the public showcase page.
 const featuredInstallerProfile = {
     name: "Featured Solar Installations Co.",
     tagline: "Pioneering Clean Energy Solutions for a Brighter Tomorrow.",
@@ -54,7 +53,7 @@ const featuredInstallerProfile = {
     reviews: 250,
     yearsInBusiness: 12,
     specialties: ["Residential Solar", "Commercial Solar", "Battery Storage", "EV Charging"],
-    avatarUrl: "https://placehold.co/120x120.png?text=FS" // Specific placeholder with text, good as is.
+    avatarUrl: "https://placehold.co/120x120.png?text=FS" 
 };
 
 
@@ -67,7 +66,7 @@ export default function InstallerPortfolioPage() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       if (user && user.email) {
-        const profile = getMockUserByEmail(user.email);
+        const profile = getMockUserByEmail(user.email); // Mock data used here
         setUserRole(profile?.role || null);
       } else {
         setUserRole(null);
@@ -82,7 +81,7 @@ export default function InstallerPortfolioPage() {
   return (
     <div className="space-y-8">
       <Card className="shadow-xl overflow-hidden">
-        <div className="relative h-48 bg-gradient-to-r from-primary/10 via-accent/5 to-background" data-ai-hint="solar company">
+        <div className="relative h-48 bg-gradient-to-r from-primary/10 via-accent/5 to-background" data-ai-hint="solar company office">
           <div className="absolute inset-0 overflow-hidden opacity-30">
             <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -98,9 +97,9 @@ export default function InstallerPortfolioPage() {
         <CardContent className="relative pt-0 -mt-16">
             <div className="flex flex-col md:flex-row items-center md:items-end space-x-0 md:space-x-6">
                 <Image
-                    src={featuredInstallerProfile.avatarUrl}
+                    src={featuredInstallerProfile.avatarUrl} // This uses placehold.co?text=FS
                     alt={`${featuredInstallerProfile.name} logo`}
-                    data-ai-hint="company logo" // This uses ?text=FS, so it's a good placeholder already
+                    data-ai-hint="company logo initials" // Hint for the initials-based placeholder
                     width={120}
                     height={120}
                     className="rounded-full border-4 border-background shadow-lg"
@@ -113,9 +112,8 @@ export default function InstallerPortfolioPage() {
                         <Star className="w-4 h-4 text-yellow-500" /> <span>{featuredInstallerProfile.rating} ({featuredInstallerProfile.reviews} reviews)</span>
                     </div>
                 </div>
-                {/* Request a Quote button might need to be smarter if this is a generic showcase */}
                 <Button className="mt-4 md:mt-0 md:ml-auto bg-accent text-accent-foreground hover:bg-accent/90">
-                    Request Information
+                    Request Information from this Installer
                 </Button>
             </div>
         </CardContent>
@@ -132,19 +130,20 @@ export default function InstallerPortfolioPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {sampleProjects.map((project) => (
-          <ProjectCard key={project.id} project={project} />
-        ))}
-      </div>
-      {sampleProjects.length === 0 && (
+      {sampleProjects.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {sampleProjects.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+            ))}
+        </div>
+      ) : (
         <Card className="col-span-full text-center py-12">
           <CardHeader>
             <div className="flex justify-center mb-4">
               <Briefcase className="w-16 h-16 text-muted-foreground" />
             </div>
             <CardTitle className="text-2xl font-headline">No Projects Yet</CardTitle>
-            <CardDescription>Explore inspiring solar installations from our community of installers.</CardDescription>
+            <CardDescription>Explore inspiring solar installations from our community of installers, or add your own if you are an installer.</CardDescription>
           </CardHeader>
           <CardContent>
             {isInstaller && (
@@ -158,7 +157,7 @@ export default function InstallerPortfolioPage() {
         </Card>
       )}
        <p className="text-sm text-center text-muted-foreground mt-8">
-          Installers: Log in to add your projects to the showcase.
+          Installers: Log in to add your projects to this public showcase. Currently displaying sample projects.
         </p>
     </div>
   );

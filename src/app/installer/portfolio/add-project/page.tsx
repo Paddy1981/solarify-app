@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { Briefcase, Save, XCircle, Image as ImageIcon } from "lucide-react";
+import { Briefcase, Save, XCircle, Image as ImageIcon, Loader2 } from "lucide-react";
 
 const projectFormSchema = z.object({
   title: z.string().min(3, { message: "Project title must be at least 3 characters." }),
@@ -25,7 +25,7 @@ const projectFormSchema = z.object({
   dateCompleted: z.string().refine((date) => new Date(date).toString() !== "Invalid Date", {
     message: "Please enter a valid completion date.",
   }),
-  systemSize: z.string().min(1, { message: "System size is required (e.g., 5 kW)." }),
+  systemSize: z.string().min(1, { message: "System size is required (e.g., 5 kWp)." }),
 });
 
 type ProjectFormData = z.infer<typeof projectFormSchema>;
@@ -56,11 +56,8 @@ export default function AddProjectPage() {
     
     toast({
       title: "Project Added (Simulated)",
-      description: `Project "${data.title}" has been successfully added to your portfolio.`,
+      description: `Project "${data.title}" has been successfully added to your portfolio. This is a simulated action; no data was saved to a database in this step.`,
     });
-    // In a real app, you might redirect or clear the form
-    // router.push("/installer/portfolio"); 
-    // form.reset(); // if you want to clear the form
     setIsSubmitting(false);
   };
 
@@ -71,9 +68,9 @@ export default function AddProjectPage() {
           <div className="flex justify-center mb-4">
             <Briefcase className="w-12 h-12 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-headline">Add New Project</CardTitle>
+          <CardTitle className="text-3xl font-headline">Add New Project to Portfolio</CardTitle>
           <CardDescription>
-            Showcase your latest solar installation to potential clients.
+            Showcase your latest solar installation to attract potential clients.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -86,7 +83,7 @@ export default function AddProjectPage() {
                   <FormItem>
                     <FormLabel>Project Title</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Sunnyvale Family Home Solar" {...field} />
+                      <Input placeholder="e.g., Sunnyvale Family Home Solar Installation" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -97,9 +94,9 @@ export default function AddProjectPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>Project Description</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Describe the project, its impact, key features..." rows={4} {...field} />
+                      <Textarea placeholder="Describe the project, its impact, key features, challenges overcome, and customer benefits..." rows={4} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -110,10 +107,11 @@ export default function AddProjectPage() {
                 name="imageUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center"><ImageIcon className="w-4 h-4 mr-2 text-muted-foreground" />Image URL (Optional)</FormLabel>
+                    <FormLabel className="flex items-center"><ImageIcon className="w-4 h-4 mr-2 text-muted-foreground" />Project Image URL (Optional)</FormLabel>
                     <FormControl>
-                      <Input type="url" placeholder="https://example.com/image.png or https://placehold.co/600x400.png" {...field} />
+                      <Input type="url" placeholder="https://example.com/project-image.png or https://placehold.co/600x400.png" {...field} />
                     </FormControl>
+                    <FormDescription>A high-quality image of the completed installation.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -123,11 +121,11 @@ export default function AddProjectPage() {
                 name="imageHint"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Image Keywords (Optional, max 2 words)</FormLabel>
+                    <FormLabel>Image Keywords (Optional, for placeholders)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., residential solar" {...field} />
+                      <Input placeholder="e.g., residential solar, rooftop panels" {...field} />
                     </FormControl>
-                     <FormDescription>Keywords for image search if using placeholders (e.g., "rooftop solar").</FormDescription>
+                     <FormDescription>Max 2 words. Used for AI assistance if Image URL is a placeholder (e.g., "rooftop solar").</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -138,7 +136,7 @@ export default function AddProjectPage() {
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Location</FormLabel>
+                      <FormLabel>Project Location</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., Austin, TX" {...field} />
                       </FormControl>
@@ -165,10 +163,11 @@ export default function AddProjectPage() {
                 name="systemSize"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>System Size</FormLabel>
+                    <FormLabel>System Size (e.g., kWp, kWh)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., 5 kWp, 10 kWh battery" {...field} />
+                      <Input placeholder="e.g., 5.5 kWp PV, 10 kWh battery" {...field} />
                     </FormControl>
+                    <FormDescription>Specify the capacity of the solar PV system and battery, if applicable.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -183,11 +182,8 @@ export default function AddProjectPage() {
               <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Saving...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving Project...
                   </>
                 ) : (
                   <><Save className="mr-2 h-5 w-5" /> Save Project</>

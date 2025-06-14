@@ -69,14 +69,13 @@ export default function SupplierDashboardPage() {
         if (userDocSnap.exists() && userDocSnap.data()?.role === 'supplier') {
           const profile = { id: userDocSnap.id, ...userDocSnap.data() } as MockUser;
           setSupplierProfile(profile);
-          // Fetch product count
           try {
             const productsQuery = query(collection(db, "products"), where("supplierId", "==", profile.id));
             const productsSnapshot = await getDocs(productsQuery);
             setProductCount(productsSnapshot.size);
           } catch (error) {
             console.error("Error fetching product count:", error);
-            setProductCount(0); // Set to 0 on error
+            setProductCount(0); 
           }
         } else {
           setSupplierProfile(null);
@@ -144,22 +143,22 @@ export default function SupplierDashboardPage() {
         </div>
         <CardContent className="relative pt-0 -mt-12">
           <div className="flex flex-col sm:flex-row items-center sm:items-end space-x-0 sm:space-x-4">
-            {supplierProfile.avatarUrl && supplierProfile.avatarUrl.startsWith('https://placehold.co') && !supplierProfile.avatarUrl.includes("?text=") ? (
-                <div
-                  data-ai-hint="company logo factory"
-                  className="w-24 h-24 rounded-full border-4 border-background shadow-lg bg-muted flex items-center justify-center"
-                >
-                  <Factory className="w-12 h-12 text-muted-foreground" />
-                </div>
-              ) : (
+            {supplierProfile.avatarUrl ? (
                 <Image
-                  src={supplierProfile.avatarUrl || 'https://placehold.co/96x96.png'}
+                  src={supplierProfile.avatarUrl}
                   alt={`${supplierProfile.companyName || supplierProfile.fullName} logo`}
-                  data-ai-hint="company logo"
+                  data-ai-hint="company logo factory"
                   width={96}
                   height={96}
                   className="rounded-full border-4 border-background shadow-lg object-cover"
                 />
+              ) : (
+                <div
+                  data-ai-hint="company factory"
+                  className="w-24 h-24 rounded-full border-4 border-background shadow-lg bg-muted flex items-center justify-center"
+                >
+                  <Factory className="w-12 h-12 text-muted-foreground" />
+                </div>
               )}
             <div className="mt-3 sm:mt-0 text-center sm:text-left">
               <h1 className="text-2xl font-headline tracking-tight text-accent">{supplierProfile.companyName || supplierProfile.fullName}</h1>
@@ -209,7 +208,7 @@ export default function SupplierDashboardPage() {
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><ListOrdered className="w-6 h-6 mr-2 text-accent"/> Orders & Fulfillment</CardTitle>
-            <CardDescription>Track incoming orders and manage fulfillment (Coming Soon).</CardDescription>
+            <CardDescription>Track incoming orders and manage fulfillment. (Coming Soon)</CardDescription>
           </CardHeader>
            <CardContent>
             <p className="text-muted-foreground italic">Order management under development.</p>
@@ -222,7 +221,7 @@ export default function SupplierDashboardPage() {
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><BarChartHorizontalBig className="w-6 h-6 mr-2 text-accent"/> Sales Analytics</CardTitle>
-            <CardDescription>Review your sales performance and trends (Coming Soon).</CardDescription>
+            <CardDescription>Review your sales performance and trends. (Coming Soon)</CardDescription>
           </CardHeader>
            <CardContent>
              <p className="text-muted-foreground italic">Analytics dashboard under development.</p>
@@ -235,5 +234,3 @@ export default function SupplierDashboardPage() {
     </div>
   );
 }
-
-    

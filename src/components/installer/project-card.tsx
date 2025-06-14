@@ -10,8 +10,8 @@ import { useState, useEffect } from 'react';
 interface Project {
   id: string;
   title: string;
-  imageUrl: string;
-  imageHint: string;
+  imageUrl?: string; // Made optional
+  imageHint?: string; // Made optional
   description: string;
   location: string;
   dateCompleted: string;
@@ -29,18 +29,17 @@ export function ProjectCard({ project }: ProjectCardProps) {
     try {
       setFormattedDate(new Date(project.dateCompleted).toLocaleDateString());
     } catch (e) {
-      // Keep the original string if date is invalid
       setFormattedDate(project.dateCompleted);
     }
   }, [project.dateCompleted]);
 
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
-      <div className="relative w-full h-48">
+      <div className="relative w-full h-48 bg-muted/30"> {/* Added bg for consistency if image is missing */}
         <Image
-          src={project.imageUrl}
+          src={project.imageUrl || 'https://placehold.co/600x400.png'}
           alt={project.title}
-          data-ai-hint={project.imageHint}
+          data-ai-hint={project.imageHint || "solar project"}
           layout="fill"
           objectFit="cover"
         />
@@ -64,7 +63,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </div>
       </CardContent>
       <CardFooter>
-        <Button variant="outline" className="w-full">View Details</Button>
+        <Button variant="outline" className="w-full">View Project Details</Button>
       </CardFooter>
     </Card>
   );

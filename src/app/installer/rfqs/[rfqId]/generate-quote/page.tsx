@@ -40,7 +40,7 @@ const quoteFormSchema = z.object({
   homeownerName: z.string(), 
   homeownerEmail: z.string().email(),
   projectAddress: z.string(), 
-  quoteDate: z.string().default(new Date().toISOString().split("T")[0]), // This will be converted to Timestamp on save
+  quoteDate: z.string().default(new Date().toISOString().split("T")[0]), 
   validityPeriodDays: z.coerce.number().min(1, "Validity period must be at least 1 day.").default(30),
   lineItems: z.array(lineItemSchema).min(1, "Please add at least one line item."),
   subtotal: z.coerce.number(),
@@ -111,7 +111,6 @@ export default function GenerateQuotePage() {
           form.setValue("currencyCode", currentInstallerCurrency.value);
           form.setValue("generatedByInstallerId", profile.id);
 
-          // Fetch RFQ details
           const rfqDocRef = doc(db, "rfqs", rfqId);
           const rfqDocSnap = await getDoc(rfqDocRef);
           if (rfqDocSnap.exists()) {
@@ -123,8 +122,8 @@ export default function GenerateQuotePage() {
               homeownerName: rfqData.name,
               homeownerEmail: rfqData.email,
               projectAddress: rfqData.address || "",
-              currencyCode: currentInstallerCurrency.value, // Ensure currency is set
-              generatedByInstallerId: profile.id, // Ensure installer ID is set
+              currencyCode: currentInstallerCurrency.value, 
+              generatedByInstallerId: profile.id, 
             });
           } else {
             toast({ title: "Error", description: "RFQ not found.", variant: "destructive" });
@@ -179,11 +178,10 @@ export default function GenerateQuotePage() {
             ...data,
             installerId: installerProfile.id,
             homeownerId: rfqDetails.homeownerId,
-            quoteDate: serverTimestamp() as Timestamp, // Will be set by server
+            quoteDate: serverTimestamp() as Timestamp, 
             createdAt: serverTimestamp() as Timestamp,
             updatedAt: serverTimestamp() as Timestamp,
             status: "Submitted",
-            // Denormalized fields
             homeownerName: rfqDetails.name,
             installerCompanyName: installerProfile.companyName || installerProfile.fullName,
             projectAddress: rfqDetails.address,
@@ -192,18 +190,17 @@ export default function GenerateQuotePage() {
 
         const quoteDocRef = await addDoc(collection(db, "quotes"), quoteDataToSave);
         
-        // Update RFQ status
         const rfqDocRef = doc(db, "rfqs", rfqId);
         await updateDoc(rfqDocRef, {
             status: "Responded",
-            updatedAt: serverTimestamp() // Assuming RFQ has an updatedAt field
+            updatedAt: serverTimestamp() 
         });
 
         toast({
             title: "Quote Submitted!",
-            description: `Quote for RFQ ID ${data.rfqId} has been submitted. Quote ID: ${quoteDocRef.id}`,
+            description: `Quote for RFQ ID ${data.rfqId.substring(0,8)} has been submitted. Quote ID: ${quoteDocRef.id.substring(0,8)}`,
         });
-        router.push("/installer/rfqs"); // Navigate back to RFQ list
+        router.push("/installer/rfqs"); 
     } catch (error) {
         console.error("Error submitting quote:", error);
         toast({ title: "Quote Submission Failed", description: "Could not submit the quote. Please try again.", variant: "destructive" });
@@ -296,12 +293,12 @@ export default function GenerateQuotePage() {
             <CardContent>
               <Alert variant="default" className="mb-6 bg-muted/50">
                 <Info className="h-5 w-5 text-accent" />
-                <AlertTitle className="font-headline text-accent">Responding To:</AlertTitle>
+                <AlertTitle className="font-headline text-accent">Responding To RFQ:</AlertTitle>
                 <AlertDescription>
                   <p><strong className="font-medium">Homeowner:</strong> {rfqDetails.name} ({rfqDetails.email})</p>
                   <p><strong className="font-medium">Address:</strong> {rfqDetails.address}</p>
                   <p><strong className="font-medium">Est. System:</strong> {rfqDetails.estimatedSystemSizeKW} kW, <strong className="font-medium">Avg. Consumption:</strong> {rfqDetails.monthlyConsumptionKWh} kWh/month</p>
-                  {rfqDetails.additionalNotes && <p><strong className="font-medium">Notes:</strong> {rfqDetails.additionalNotes}</p>}
+                  {rfqDetails.additionalNotes && <p><strong className="font-medium">Homeowner Notes:</strong> {rfqDetails.additionalNotes}</p>}
                 </AlertDescription>
               </Alert>
 
@@ -333,7 +330,7 @@ export default function GenerateQuotePage() {
                       <FormField control={form.control} name={`lineItems.${index}.description`} render={({ field: f }) => (
                         <FormItem>
                           <FormLabel>Description</FormLabel>
-                          <FormControl><Input placeholder="e.g., Solar Panel 450W" {...f} /></FormControl>
+                          <FormControl><Input placeholder="e.g., Solar Panel 450W, Installation Labor" {...f} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
@@ -351,7 +348,7 @@ export default function GenerateQuotePage() {
                             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground text-sm">
                               {quoteCurrency.symbol}
                             </span>
-                            <FormControl><Input type="number" step="0.01" placeholder="250" className="pl-8" {...f} /></FormControl>
+                            <FormControl><Input type="number" step="0.01" placeholder="250.00" className="pl-8" {...f} /></FormControl>
                           </div>
                           <FormMessage />
                         </FormItem>
@@ -398,15 +395,15 @@ export default function GenerateQuotePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField control={form.control} name="notes" render={({ field }) => (
                   <FormItem className="md:col-span-2">
-                    <FormLabel>Additional Notes for Homeowner</FormLabel>
-                    <FormControl><Textarea placeholder="Any clarifications, exclusions, or special offers..." {...field} rows={3} /></FormControl>
+                    <FormLabel>Additional Notes for Homeowner (Optional)</FormLabel>
+                    <FormControl><Textarea placeholder="e.g., Warranty details, estimated installation timeline, payment schedule..." {...field} rows={3} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                  <FormField control={form.control} name="termsAndConditions" render={({ field }) => (
                   <FormItem className="md:col-span-2">
-                    <FormLabel>Terms & Conditions</FormLabel>
-                    <FormControl><Textarea {...field} rows={4} /></FormControl>
+                    <FormLabel>Terms & Conditions (Optional)</FormLabel>
+                    <FormControl><Textarea placeholder="Enter your standard quote terms and conditions here." {...field} rows={4} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

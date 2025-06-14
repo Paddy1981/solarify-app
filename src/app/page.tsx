@@ -8,43 +8,43 @@ import Link from "next/link";
 export default function HomePage() {
   const features = [
     {
-      title: "Energy Needs Calculation",
-      description: "Calculate your energy needs by inputting home appliances and current usage.",
+      title: "Energy Needs Calculator",
+      description: "Estimate your household energy consumption and determine a suitable solar system size by detailing your appliances and usage.",
       icon: <Sun className="w-8 h-8 text-accent" />,
       link: "/homeowner/energy-needs",
       userType: "For Homeowners"
     },
     {
-      title: "Savings Potential Estimator",
-      description: "Estimate potential savings, payback period, and ROI with our AI-powered tool.",
+      title: "AI Savings Estimator",
+      description: "Leverage AI to project potential savings, payback period, and ROI from your solar panel investment based on usage, location, and system cost.",
       icon: <CheckCircle2 className="w-8 h-8 text-accent" />,
       link: "/homeowner/savings-estimator",
       userType: "For Homeowners"
     },
     {
       title: "RFQ Generation",
-      description: "Auto-populate a Request for Quotation based on your calculated needs.",
+      description: "Automatically generate a Request for Quotation (RFQ) based on your calculated energy needs to send to qualified local installers.",
       icon: <FileText className="w-8 h-8 text-accent" />,
       link: "/homeowner/rfq",
       userType: "For Homeowners"
     },
     {
-      title: "Installer Portfolio",
-      description: "Installers can showcase their completed projects and expertise.",
+      title: "Installer Portfolio Showcase",
+      description: "Installers can create and manage a portfolio of their completed projects, showcasing their expertise and experience to potential clients.",
       icon: <Briefcase className="w-8 h-8 text-accent" />,
       link: "/installer/portfolio",
       userType: "For Installers"
     },
     {
-      title: "Supplier Storefront",
-      description: "Suppliers manage digital storefronts and track inventory in real time.",
+      title: "Supplier Digital Storefront",
+      description: "Suppliers can manage their digital storefronts, list products like solar panels and inverters, and track inventory in real time.",
       icon: <StoreIcon className="w-8 h-8 text-accent" />,
       link: "/supplier/store",
       userType: "For Suppliers"
     },
     {
-      title: "Performance Dashboard",
-      description: "Monitor your solar system's real-time energy generation, consumption, and savings.",
+      title: "Solar Performance Dashboard",
+      description: "Homeowners can monitor their solar system's energy generation, consumption patterns, and overall savings through an intuitive dashboard.",
       icon: <BarChartBig className="w-8 h-8 text-accent" />,
       link: "/homeowner/dashboard",
       userType: "For Homeowners"
@@ -59,11 +59,11 @@ export default function HomePage() {
             Solarify
           </h1>
           <p className="mt-4 max-w-[700px] mx-auto text-foreground/80 md:text-xl">
-            Your All-In-One Platform for Residential Solar Projects. Connect, Calculate, and Control Your Solar Journey.
+            Your All-In-One Platform for Residential Solar Projects. Connect, Calculate, and Control Your Solar Journey with Confidence.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
             <Button size="lg" asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Link href="/homeowner/energy-needs">
+              <Link href="/signup">
                 Get Started <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -77,9 +77,9 @@ export default function HomePage() {
       <section id="features" className="w-full py-12 md:py-24 lg:py-32">
         <div className="container px-4 md:px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-headline tracking-tighter sm:text-4xl md:text-5xl">Core Features</h2>
+            <h2 className="text-3xl font-headline tracking-tighter sm:text-4xl md:text-5xl">Core Platform Features</h2>
             <p className="mt-2 max-w-[700px] mx-auto text-foreground/70 md:text-lg">
-              Solarify provides tailored experiences for homeowners, installers, and suppliers.
+              Solarify provides tailored tools and experiences for homeowners, installers, and suppliers in the solar ecosystem.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -96,7 +96,7 @@ export default function HomePage() {
                 <div className="p-6 pt-0 mt-auto">
                   <Button variant="outline" className="w-full" asChild>
                     <Link href={feature.link}>
-                      Explore <ArrowRight className="ml-2 h-4 w-4" />
+                      Explore Feature <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
                 </div>
@@ -115,13 +115,13 @@ export default function HomePage() {
             <h2 className="text-3xl font-headline tracking-tighter sm:text-4xl md:text-5xl mt-3">
               What's Coming to Solarify
             </h2>
-            <p className="mt-4 max-w-[900px] mx-auto text-foreground/70 md:text-lg">
+            <p className="mt-4 max-w-[900px] text-foreground/70 md:text-lg">
               We're constantly innovating to bring you the best solar experience. Get ready for these exciting new features designed to put even more power in your hands!
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div data-ai-hint="iot smart home" className="mx-auto aspect-video overflow-hidden rounded-xl sm:w-full bg-primary/5 flex items-center justify-center p-8 shadow-lg border border-primary/10">
-              <Signal className="w-3/4 h-3/4 text-primary/40" />
+             <div className="mx-auto aspect-video overflow-hidden rounded-xl sm:w-full bg-primary/5 flex items-center justify-center p-8 shadow-lg border border-primary/10">
+                <Image src="https://placehold.co/600x400.png" alt="IoT Integration Illustration" data-ai-hint="iot smart home" width={600} height={400} className="object-contain"/>
             </div>
             <div className="flex flex-col justify-center space-y-4">
               <div className="inline-block rounded-lg bg-accent px-3 py-1 text-sm text-accent-foreground font-medium self-start">
@@ -135,7 +135,7 @@ export default function HomePage() {
               </p>
               <ul className="list-disc list-inside space-y-2 text-foreground/70 pl-5 text-md">
                 <li>
-                  <strong>Live Data Stream:</strong> Monitor your Solar Generation (kW), Daily Energy produced (kWh), CO₂ Savings, and even Car Miles Avoided, all updated live.
+                  <strong>Live Data Stream:</strong> Monitor your Solar Generation (kW), Daily Energy produced (kWh), CO₂ Savings, and Car Miles Avoided, all updated live.
                 </li>
                 <li>
                   <strong>Seamless Device Pairing:</strong> Securely connect your compatible smart solar monitoring devices with your Solarify account with ease.
@@ -144,7 +144,7 @@ export default function HomePage() {
                   <strong>Enhanced Dashboard Experience:</strong> Visualize your live and historical data through intuitive charts and summaries on your Homeowner Dashboard.
                 </li>
                 <li>
-                  <strong>Personalized Control (Future):</strong> Eventually, you'll be able to customize data refresh intervals, set up performance alerts, and tailor reporting preferences to your needs.
+                  <strong>Personalized Control (Future):</strong> Customize data refresh intervals, set up performance alerts, and tailor reporting preferences to your needs.
                 </li>
               </ul>
               <p className="font-semibold text-accent text-md pt-2">
@@ -158,10 +158,9 @@ export default function HomePage() {
       <section className="w-full py-12 md:py-24 lg:py-32">
         <div className="container grid items-center gap-6 px-4 md:px-6 lg:grid-cols-2 lg:gap-12">
           <div
-            data-ai-hint="solar panels roof"
             className="mx-auto aspect-video overflow-hidden rounded-xl sm:w-full lg:order-last bg-primary/5 flex items-center justify-center p-8 shadow-lg border border-primary/10"
           >
-            <Home className="w-3/4 h-3/4 text-primary/30" />
+             <Image src="https://placehold.co/600x400.png" alt="Home with Solar Panels" data-ai-hint="solar panels roof" width={600} height={400} className="object-contain"/>
           </div>
           <div className="flex flex-col justify-center space-y-4">
             <div className="space-y-2">
