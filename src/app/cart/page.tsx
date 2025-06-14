@@ -3,34 +3,129 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import { useCart, type CartItem } from '@/context/cart-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, ShoppingCart, CreditCard, Info, MinusCircle, PlusCircle } from 'lucide-react';
+import { Trash2, ShoppingCart, CreditCard, Info, MinusCircle, PlusCircle, Loader2, LogIn, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getCurrencyByCode, getDefaultCurrency, type Currency } from '@/lib/currencies';
+import { auth, db } from '@/lib/firebase'; // Import auth and db
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'; // Firestore functions
+import type { Order, OrderItem } from '@/lib/types/orders'; // Import Order types
+import type { User as FirebaseUser } from 'firebase/auth';
+import type { MockUser } from '@/lib/mock-data/users';
 
 export default function CartPage() {
   const { items, removeItem, updateItemQuantity, getCartTotal, clearCart, getItemCount } = useCart();
   const { toast } = useToast();
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<MockUser | null>(null);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [orderNotes, setOrderNotes] = useState("");
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setCurrentUserProfile(userDocSnap.data() as MockUser);
+        }
+      } else {
+        setCurrentUserProfile(null);
+      }
+      setIsLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      updateItemQuantity(productId, 0); // This will filter it out
+      updateItemQuantity(productId, 0); 
     } else {
       updateItemQuantity(productId, newQuantity);
     }
   };
 
-  const handleCheckout = () => {
-    toast({
-      title: "Checkout Initiated (Simulated)",
-      description: "This is where the payment and order processing would begin.",
-    });
+  const handleCheckout = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to proceed with checkout.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (items.length === 0) {
+        toast({
+            title: "Empty Cart",
+            description: "Your cart is empty. Please add items before checking out.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    setIsProcessingCheckout(true);
+
+    const orderItems: OrderItem[] = items.map(item => ({
+      productId: item.id,
+      name: item.name,
+      quantity: item.quantity,
+      priceValue: item.priceValue,
+      currencyCode: item.currencyCode,
+      imageUrl: item.imageUrl,
+      imageHint: item.imageHint,
+      category: item.category,
+      supplierId: item.supplierId,
+    }));
+    
+    const subtotal = getCartTotal();
+    const tax = subtotal * 0.08; // Simulated tax
+    const total = subtotal + tax;
+    // Assume the first item's currency is the order's currency for simplicity
+    const orderCurrencyCode = items.length > 0 ? items[0].currencyCode : getDefaultCurrency().value;
+
+    const newOrder: Omit<Order, 'id'> = {
+      userId: currentUser.uid,
+      userName: currentUserProfile?.fullName || currentUser.displayName || "N/A",
+      userEmail: currentUserProfile?.email || currentUser.email || "N/A",
+      items: orderItems,
+      subtotal: parseFloat(subtotal.toFixed(2)),
+      taxAmount: parseFloat(tax.toFixed(2)),
+      totalAmount: parseFloat(total.toFixed(2)),
+      currencyCode: orderCurrencyCode,
+      status: 'Pending',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      notes: orderNotes || undefined,
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, "orders"), newOrder);
+      toast({
+        title: "Order Request Placed!",
+        description: `Your order request #${docRef.id.substring(0,8)} has been submitted. We will contact you shortly.`,
+      });
+      clearCart();
+      setOrderNotes(""); 
+    } catch (error) {
+      console.error("Error placing order:", error);
+      toast({
+        title: "Checkout Failed",
+        description: "There was an issue placing your order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingCheckout(false);
+    }
   };
 
   const getDisplayPrice = (item: CartItem): string => {
@@ -44,12 +139,9 @@ export default function CartPage() {
   };
 
   const cartTotal = getCartTotal();
-  const estimatedTax = cartTotal * 0.08; // Simulate 8% tax
+  const estimatedTax = cartTotal * 0.08; 
   const orderTotal = cartTotal + estimatedTax;
   const currentItemCount = getItemCount();
-
-  // Assuming all items in cart will share the first item's currency for summary display
-  // A more robust solution would involve currency conversion for totals.
   const summaryCurrencySymbol = items.length > 0 ? (getCurrencyByCode(items[0].currencyCode) || getDefaultCurrency()).symbol : getDefaultCurrency().symbol;
 
 
@@ -157,14 +249,24 @@ export default function CartPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-4">
-                <Button variant="outline" onClick={clearCart} className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
-                    <Trash2 className="mr-2 h-4 w-4" /> Clear Entire Cart
-                </Button>
+                <Textarea
+                  placeholder="Add any notes for your order request here..."
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  rows={3}
+                  className="shadow-sm"
+                />
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={clearCart} className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" /> Clear Entire Cart
+                    </Button>
+                </div>
                 <Alert variant="default" className="bg-muted/30">
                   <Info className="h-5 w-5 text-accent" />
                   <AlertTitle className="font-medium">Please Note</AlertTitle>
                   <AlertDescription>
-                    Shipping costs and final taxes are estimates and will be calculated at checkout. All sales are simulated. Cart total sums numerical price values and assumes a single currency for the summary.
+                    This is an order request. No payment will be processed. A representative may contact you to finalize details.
+                    Shipping costs and final taxes are estimates. Cart total sums numerical price values and assumes a single currency for the summary.
                   </AlertDescription>
                 </Alert>
             </div>
@@ -193,8 +295,19 @@ export default function CartPage() {
               <ShoppingCart className="mr-2 h-5 w-5" /> Continue Shopping
             </Link>
           </Button>
-          <Button size="lg" className="w-full sm:w-auto mt-4 sm:mt-0 bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleCheckout}>
-            <CreditCard className="mr-2 h-5 w-5" /> Proceed to Checkout (Simulated)
+          <Button 
+            size="lg" 
+            className="w-full sm:w-auto mt-4 sm:mt-0 bg-accent text-accent-foreground hover:bg-accent/90" 
+            onClick={handleCheckout}
+            disabled={isProcessingCheckout || isLoadingAuth || !currentUser}
+          >
+            {isProcessingCheckout ? (
+              <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...</>
+            ) : !currentUser && !isLoadingAuth ? (
+              <><LogIn className="mr-2 h-5 w-5" /> Login to Checkout</>
+            ) : (
+              <><FileText className="mr-2 h-5 w-5" /> Submit Order Request</>
+            )}
           </Button>
         </CardFooter>
       </Card>
