@@ -7,11 +7,11 @@ import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type UserCredential } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type UserCredential, sendEmailVerification } from "firebase/auth";
 import { auth, db, serverTimestamp } from "@/lib/firebase"; 
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore"; 
-import { currencyOptions } from "@/lib/currencies";
-import type { MockUser } from "@/lib/mock-data/users"; 
+import { currencyOptions, getDefaultCurrency } from "@/lib/currencies";
+import type { MockUser, UserRole } from "@/lib/mock-data/users"; 
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,7 +46,7 @@ export default function SignupPage() {
       password: "",
       role: undefined,
       location: "",
-      preferredCurrency: "",
+      preferredCurrency: getDefaultCurrency().value,
     },
   });
 
@@ -55,49 +55,63 @@ export default function SignupPage() {
     role: SignupFormData['role'], 
     location: SignupFormData['location'], 
     preferredCurrency: SignupFormData['preferredCurrency'],
-    fullName?: string, // For Google Sign-in, as it might override form's fullName
+    formFullName: string, // Full name from the form, as Google's might be different or null
     avatarUrl?: string // For Google Sign-in
   ) => {
     const userDocRef = doc(db, "users", user.uid);
     const userDocSnap = await getDoc(userDocRef);
+    const isNewFirestoreUser = !userDocSnap.exists();
 
-    const userFullName = fullName || user.displayName || form.getValues("fullName");
+    const userFullName = user.displayName || formFullName; // Prioritize Google's name if available for Google sign-ins, else form
     const userAvatar = avatarUrl || user.photoURL || `https://placehold.co/100x100.png?text=${userFullName[0]?.toUpperCase() || 'U'}`;
 
-    if (!userDocSnap.exists()) {
-      const userDocData = {
-        uid: user.uid,
-        email: user.email,
-        fullName: userFullName,
-        role: role,
-        location: location,
-        preferredCurrency: preferredCurrency,
-        avatarUrl: userAvatar,
-        createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp(),
-        isActive: true,
-        companyName: role === 'installer' || role === 'supplier' ? `${userFullName}'s Company (Default)` : undefined,
-        specialties: role === 'installer' ? ['Residential Solar (Default)'] : undefined,
-        productsOffered: role === 'supplier' ? ['Solar Panels (Default)'] : undefined,
-      };
-      await setDoc(userDocRef, userDocData);
-      toast({
-        title: "Account Created!",
-        description: "Your Solarify account has been successfully created.",
-      });
+    const userData: Partial<MockUser> = {
+      uid: user.uid,
+      email: user.email,
+      fullName: userFullName,
+      role,
+      location,
+      preferredCurrency,
+      avatarUrl: userAvatar,
+      lastLogin: serverTimestamp(),
+      isActive: true,
+    };
+
+    if (isNewFirestoreUser) {
+      userData.createdAt = serverTimestamp();
+      userData.companyName = (role === 'installer' || role === 'supplier') ? `${userFullName}'s Company (Default)` : undefined;
+      userData.specialties = role === 'installer' ? ['Residential Solar (Default)'] : undefined;
+      userData.productsOffered = role === 'supplier' ? ['Solar Panels (Default)'] : undefined;
+      await setDoc(userDocRef, userData);
     } else {
-      // User exists in Firestore, update lastLogin and potentially merge info if needed
+      // User exists, update relevant fields, especially if they logged in via Google after email/pass signup
       await updateDoc(userDocRef, {
         lastLogin: serverTimestamp(),
-        // Optionally, update other fields if Google profile has newer info, but be cautious
-        // fullName: userFullName, // Example: update if Google's name is preferred
-        // avatarUrl: userAvatar, // Example: update avatar
-      });
-      toast({
-        title: "Welcome Back!",
-        description: "Logged in successfully.",
+        fullName: userFullName, // Update name if Google provided a display name
+        avatarUrl: userAvatar,  // Update avatar if Google provided one
+        // Do NOT overwrite role, location, preferredCurrency if they already exist from a previous signup
+        // These fields are primarily set at the initial signup.
       });
     }
+    
+    let toastDescriptionMessage = isNewFirestoreUser 
+        ? "Your Solarify account has been successfully created." 
+        : "Logged in successfully.";
+
+    if (!user.emailVerified) {
+      try {
+        await sendEmailVerification(user);
+        toastDescriptionMessage += " A verification email has been sent. Please check your inbox to verify your email address.";
+      } catch (verificationError: any) {
+        console.error("Error sending verification email:", verificationError);
+        toastDescriptionMessage += " We tried to send a verification email, but it failed (Error: " + verificationError.code + "). You can request another one later from your profile or login.";
+      }
+    }
+
+    toast({
+      title: isNewFirestoreUser ? "Account Created!" : "Welcome Back!",
+      description: toastDescriptionMessage,
+    });
     
     // Common redirection logic
     if (role === "installer") {
@@ -108,27 +122,6 @@ export default function SignupPage() {
       router.push("/supplier/dashboard");
     } else {
       router.push("/");
-    }
-
-    // Update local mock data cache (can be phased out with full Firestore integration)
-    const newUserProfileForMock: MockUser = {
-        id: user.uid,
-        fullName: userFullName,
-        email: user.email!,
-        role,
-        location,
-        preferredCurrency,
-        avatarUrl: userAvatar,
-        lastLogin: new Date().toISOString(),
-        isActive: true,
-        memberSince: new Date().toISOString().split("T")[0],
-        companyName: (role === 'installer' || role === 'supplier') ? `${userFullName}'s Company (Default)` : undefined,
-    };
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(`userProfile_${user.email!.toLowerCase()}`, JSON.stringify(newUserProfileForMock));
-    }
-    if (global._mockUsers && !global._mockUsers.find(u => u.id === user.uid)) {
-        global._mockUsers.push(newUserProfileForMock);
     }
   };
 
@@ -141,9 +134,9 @@ export default function SignupPage() {
       console.error("Signup error:", error.code, error.message);
       let errorMessage = "An unexpected error occurred. Please try again.";
       if (error.code === "auth/email-already-in-use") {
-        errorMessage = "This email address is already in use.";
+        errorMessage = "This email address is already in use. Please log in or use a different email.";
       } else if (error.code === "auth/weak-password") {
-        errorMessage = "The password is too weak.";
+        errorMessage = "The password is too weak. Please choose a stronger password.";
       }
       toast({
         title: "Signup Failed",
@@ -165,27 +158,27 @@ export default function SignupPage() {
         variant: "destructive",
       });
       setIsGoogleSubmitting(false);
-      // Manually set errors if needed, though trigger() should show them
       if (!form.getValues("role")) form.setError("role", { type: "manual", message: "Role is required." });
       if (!form.getValues("location")) form.setError("location", { type: "manual", message: "Location is required." });
       if (!form.getValues("preferredCurrency")) form.setError("preferredCurrency", { type: "manual", message: "Currency is required." });
       return;
     }
 
-    const { role, location, preferredCurrency } = form.getValues();
+    const { role, location, preferredCurrency, fullName: formFullName } = form.getValues();
     const provider = new GoogleAuthProvider();
 
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      await createOrUpdateFirestoreUser(user, role, location, preferredCurrency, user.displayName || undefined, user.photoURL || undefined);
+      // Pass formFullName for cases where user.displayName might be null from Google
+      await createOrUpdateFirestoreUser(user, role, location, preferredCurrency, user.displayName || formFullName, user.photoURL || undefined);
     } catch (error: any) {
       console.error("Google signup error:", error);
       let errorMessage = "Could not sign up with Google. Please try again.";
        if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = "Google sign-up was cancelled.";
       } else if (error.code === 'auth/account-exists-with-different-credential') {
-        errorMessage = "An account already exists with this email address. Try logging in with your original method or link your Google account in settings (feature coming soon).";
+        errorMessage = "An account already exists with this email address. Try logging in with your original method.";
       }
       toast({
         title: "Google Signup Failed",
@@ -338,3 +331,4 @@ export default function SignupPage() {
     </div>
   );
 }
+
