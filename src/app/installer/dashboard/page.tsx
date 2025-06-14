@@ -4,12 +4,12 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Briefcase, ListChecks, Settings, BarChartHorizontalBig, Building2, LogIn, UserCircle as AlertUserCircle } from "lucide-react";
+import { Briefcase, ListChecks, Settings, BarChartHorizontalBig, Building2, LogIn, UserCircle as AlertUserCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import type { MockUser, UserRole } from '@/lib/mock-data/users';
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -58,6 +58,7 @@ export default function InstallerDashboardPage() {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [installerProfile, setInstallerProfile] = useState<MockUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeRfqCount, setActiveRfqCount] = useState<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -66,12 +67,30 @@ export default function InstallerDashboardPage() {
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists() && userDocSnap.data()?.role === 'installer') {
-          setInstallerProfile(userDocSnap.data() as MockUser);
+          const profile = { id: userDocSnap.id, ...userDocSnap.data() } as MockUser;
+          setInstallerProfile(profile);
+
+          // Fetch active RFQ count
+          try {
+            const rfqsQuery = query(
+              collection(db, "rfqs"),
+              where("selectedInstallerIds", "array-contains", profile.id),
+              where("status", "==", "Pending")
+            );
+            const rfqsSnapshot = await getDocs(rfqsQuery);
+            setActiveRfqCount(rfqsSnapshot.size);
+          } catch (error) {
+            console.error("Error fetching active RFQ count:", error);
+            setActiveRfqCount(0); // Set to 0 on error
+          }
+
         } else {
           setInstallerProfile(null); // Not an installer or profile not found
+          setActiveRfqCount(0);
         }
       } else {
         setInstallerProfile(null);
+        setActiveRfqCount(0);
       }
       setIsLoading(false);
     });
@@ -174,7 +193,14 @@ export default function InstallerDashboardPage() {
             <CardDescription>View and respond to incoming Requests for Quotation from homeowners.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-accent">5 <span className="text-sm font-normal text-muted-foreground">Active RFQs (mock)</span></p>
+            <p className="text-2xl font-bold text-accent">
+              {activeRfqCount === null ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                activeRfqCount
+              )}
+              <span className="text-sm font-normal text-muted-foreground"> Active RFQs</span>
+            </p>
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full">
@@ -190,6 +216,7 @@ export default function InstallerDashboardPage() {
           </CardHeader>
            <CardContent>
             <p className="text-2xl font-bold text-accent">{installerProfile.projectCount || 0} <span className="text-sm font-normal text-muted-foreground">Projects Listed</span></p>
+             <p className="text-xs text-muted-foreground mt-1">(Note: Project count is currently mock and not live from Firestore)</p>
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full">
@@ -200,7 +227,7 @@ export default function InstallerDashboardPage() {
 
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
-            <CardTitle className="font-headline flex items-center"><BarChartHorizontalBig className="w-6 h-6 mr-2 text-accent"/> Performance & Analytics</CardTitle>
+            <CardTitle className="font-headline flex items-center"><BarChartHorizontalBig className="w-6 h-6 mr-2 text-accent"/> Performance &amp; Analytics</CardTitle>
             <CardDescription>Track your quote conversion rates and project completions (Coming Soon).</CardDescription>
           </CardHeader>
            <CardContent>
