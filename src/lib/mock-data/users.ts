@@ -1,6 +1,15 @@
 
 export type UserRole = "homeowner" | "installer" | "supplier";
 
+// Assuming SystemConfigData will be defined elsewhere, e.g., where SystemSetupForm is
+// For now, we'll treat it as an implicit part of the user's Firestore document if role is homeowner
+// and journey choice is 'existing_configured'.
+interface SystemConfigData {
+  systemSizeKW: number;
+  installationDate: string;
+  location: string;
+}
+
 export interface MockUser {
   id: string;
   fullName: string;
@@ -18,8 +27,11 @@ export interface MockUser {
   memberSince?: string; 
   location?: string; 
   preferredCurrency?: string; 
-  lastLogin?: string; 
+  lastLogin?: string | Date; // Allow Date for runtime, string for mock data
   isActive?: boolean;
+  // Homeowner specific dashboard state
+  dashboardJourneyChoice?: 'existing_configured' | 'new_to_solar' | 'needs_choice';
+  systemConfiguration?: SystemConfigData;
 }
 
 const southIndianFirstNames = [
@@ -63,8 +75,9 @@ const specificTestUser: MockUser = {
   memberSince: "2024-01-01", 
   location: "Testville, USA",
   preferredCurrency: "USD",
-  lastLogin: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 7).toISOString(), // Random time within last week
+  lastLogin: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 7).toISOString(), 
   isActive: true,
+  dashboardJourneyChoice: 'needs_choice', 
 };
 
 
@@ -91,8 +104,9 @@ const generateRandomUser = (role: UserRole, index: number): MockUser => {
     memberSince: memberSinceDate.toISOString().split('T')[0],
     location: sampleLocations[index % sampleLocations.length],
     preferredCurrency: sampleCurrencies[index % sampleCurrencies.length],
-    lastLogin: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 30).toISOString(), // Random time in last month
-    isActive: Math.random() > 0.1, // 90% chance of being active
+    lastLogin: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 30).toISOString(),
+    isActive: Math.random() > 0.1, 
+    dashboardJourneyChoice: role === 'homeowner' ? 'needs_choice' : undefined,
   };
 
   if (role === "installer") {
@@ -181,6 +195,9 @@ export const getMockUserByEmail = (email: string): MockUser | undefined => {
       effectiveUser.password = storageProfile.password || effectiveUser.password; 
       effectiveUser.lastLogin = storageProfile.lastLogin || effectiveUser.lastLogin;
       effectiveUser.isActive = storageProfile.isActive !== undefined ? storageProfile.isActive : effectiveUser.isActive;
+      effectiveUser.dashboardJourneyChoice = storageProfile.dashboardJourneyChoice || effectiveUser.dashboardJourneyChoice;
+      effectiveUser.systemConfiguration = storageProfile.systemConfiguration || effectiveUser.systemConfiguration;
+
 
       if (effectiveUser.role === 'installer') {
         effectiveUser.companyName = storageProfile.companyName || effectiveUser.companyName;
@@ -191,7 +208,7 @@ export const getMockUserByEmail = (email: string): MockUser | undefined => {
         effectiveUser.productsOffered = storageProfile.productsOffered || effectiveUser.productsOffered;
         effectiveUser.storeRating = storageProfile.storeRating ?? effectiveUser.storeRating;
       }
-      // Use storageProfile's ID if it's different, indicating a Firebase UID
+      
       if (storageProfile.id !== effectiveUser.id) {
         effectiveUser.id = storageProfile.id;
       }
@@ -248,3 +265,9 @@ export function resetGlobalMockUsers() {
     console.warn("_initialMockUsers not found, cannot reset _mockUsers.");
   }
 }
+
+// It's good practice to also export SystemConfigData if it's defined here,
+// or ensure it's consistently defined/imported where needed.
+// For now, assuming it's implicitly handled or defined in the form component.
+export type { SystemConfigData };
+

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { PanelTop, CalendarDays, MapPin, Send } from "lucide-react"; // Changed SolarPanel to PanelTop
+import { PanelTop, CalendarDays, MapPin, Send } from "lucide-react"; 
 import type { MockUser } from "@/lib/mock-data/users";
 
 export const systemConfigSchema = z.object({
@@ -30,9 +30,9 @@ export function SystemSetupForm({ onConfigSubmit, userProfile }: SystemSetupForm
   const form = useForm<SystemConfigData>({
     resolver: zodResolver(systemConfigSchema),
     defaultValues: {
-      systemSizeKW: undefined,
-      installationDate: "",
-      location: userProfile?.location || "",
+      systemSizeKW: userProfile?.systemConfiguration?.systemSizeKW || undefined,
+      installationDate: userProfile?.systemConfiguration?.installationDate || "",
+      location: userProfile?.systemConfiguration?.location || userProfile?.location || "",
     },
   });
 
@@ -45,7 +45,7 @@ export function SystemSetupForm({ onConfigSubmit, userProfile }: SystemSetupForm
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <PanelTop className="w-16 h-16 text-primary" /> {/* Changed SolarPanel to PanelTop */}
+            <PanelTop className="w-16 h-16 text-primary" /> 
           </div>
           <CardTitle className="text-3xl font-headline">Configure Your Solar Dashboard</CardTitle>
           <CardDescription>
@@ -60,7 +60,7 @@ export function SystemSetupForm({ onConfigSubmit, userProfile }: SystemSetupForm
                 name="systemSizeKW"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center"><PanelTop className="w-4 h-4 mr-2 text-muted-foreground" /> System Size (kWp)</FormLabel> {/* Changed SolarPanel to PanelTop */}
+                    <FormLabel className="flex items-center"><PanelTop className="w-4 h-4 mr-2 text-muted-foreground" /> System Size (kWp)</FormLabel> 
                     <FormControl>
                       <Input type="number" step="0.1" placeholder="e.g., 5.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)} value={field.value ?? ""} />
                     </FormControl>

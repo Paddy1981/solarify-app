@@ -3,8 +3,8 @@
 
 import * as React from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, orderBy, type Timestamp } from 'firebase/firestore';
+import { auth, db, serverTimestamp } from '@/lib/firebase';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, type Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { MockUser } from '@/lib/mock-data/users';
 import type { RFQ } from '@/lib/mock-data/rfqs';
@@ -21,8 +21,6 @@ import { SolarJourneyChoiceForm } from '@/components/dashboard/solar-journey-cho
 import { NewToSolarDashboardContent } from '@/components/dashboard/new-to-solar-dashboard-content';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
-
-const DASHBOARD_STATE_KEY_PREFIX = 'homeownerDashboardState_';
 
 type DashboardStatus =
   | 'loading'
@@ -92,9 +90,10 @@ function DashboardLoadingSkeleton() {
 
 interface ActualDashboardContentProps {
   homeownerProfile: MockUser | null;
+  systemConfiguration: SystemConfigData | null;
 }
 
-function ActualDashboardContent({ homeownerProfile }: ActualDashboardContentProps) {
+function ActualDashboardContent({ homeownerProfile, systemConfiguration }: ActualDashboardContentProps) {
   const [userRFQs, setUserRFQs] = React.useState<RFQ[]>([]);
   const [isLoadingRFQs, setIsLoadingRFQs] = React.useState(true);
 
@@ -110,7 +109,6 @@ function ActualDashboardContent({ homeownerProfile }: ActualDashboardContentProp
           setUserRFQs(fetchedRFQs);
         } catch (error) {
           console.error("Error fetching RFQs:", error);
-          // Handle error appropriately, maybe set an error state
         } finally {
           setIsLoadingRFQs(false);
         }
@@ -121,12 +119,36 @@ function ActualDashboardContent({ homeownerProfile }: ActualDashboardContentProp
       setIsLoadingRFQs(false);
     }
   }, [homeownerProfile]);
+  
+  const systemSizeKW = systemConfiguration?.systemSizeKW || 0;
 
   const stats = [
-    { title: "Current Generation", value: "3.2 kW", icon: <Zap className="w-6 h-6 text-primary" />, change: "+5%", changeType: "positive" as "positive" | "negative" },
-    { title: "Today's Energy", value: "15.7 kWh", icon: <Zap className="w-6 h-6 text-primary" />, change: "+12%", changeType: "positive" as "positive" | "negative" },
-    { title: "Monthly Savings", value: "$45.80", icon: <DollarSign className="w-6 h-6 text-primary" />, change: "+8%", changeType: "positive" as "positive" | "negative" },
-    { title: "System Health", value: "Optimal", icon: <CheckCircle2 className="w-6 h-6 text-green-500" /> },
+    { 
+      title: "Current Generation", 
+      value: systemSizeKW > 0 ? `${(systemSizeKW * 0.6).toFixed(1)} kW` : "N/A", 
+      icon: <Zap className="w-6 h-6 text-primary" />, 
+      change: systemSizeKW > 0 ? "+5%" : undefined, 
+      changeType: "positive" as "positive" | "negative" 
+    },
+    { 
+      title: "Today's Energy", 
+      value: systemSizeKW > 0 ? `${(systemSizeKW * 3.5).toFixed(1)} kWh` : "N/A", 
+      icon: <Zap className="w-6 h-6 text-primary" />, 
+      change: systemSizeKW > 0 ? "+12%" : undefined, 
+      changeType: "positive" as "positive" | "negative" 
+    },
+    { 
+      title: "Monthly Savings", 
+      value: "$45.80", // Placeholder, as this is complex
+      icon: <DollarSign className="w-6 h-6 text-primary" />, 
+      change: "+8%", // Placeholder
+      changeType: "positive" as "positive" | "negative" 
+    },
+    { 
+      title: "System Health", 
+      value: "Optimal", // Placeholder
+      icon: <CheckCircle2 className="w-6 h-6 text-green-500" /> 
+    },
   ];
 
   return (
@@ -134,7 +156,8 @@ function ActualDashboardContent({ homeownerProfile }: ActualDashboardContentProp
       <div className="text-center">
         <h1 className="text-4xl font-headline tracking-tight text-accent">Performance Dashboard</h1>
         <p className="mt-2 text-lg text-foreground/70">
-          Monitor your solar system&apos;s real-time performance and environmental impact. (Demo Data)
+          Monitor your solar system&apos;s performance and environmental impact. 
+          {systemSizeKW > 0 ? ` (Stats based on ${systemSizeKW}kW system)` : ' (Demo Data)'}
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -221,7 +244,9 @@ function ActualDashboardContent({ homeownerProfile }: ActualDashboardContentProp
               </div>
             </li>
           </ul>
-           <Button variant="outline" className="mt-4 w-full md:w-auto">View All Notifications</Button>
+           <Button variant="outline" className="mt-4 w-full md:w-auto" asChild>
+             <Link href="/homeowner/notifications">View All Notifications</Link>
+           </Button>
         </CardContent>
       </Card>
 
@@ -259,6 +284,7 @@ function ActualDashboardContent({ homeownerProfile }: ActualDashboardContentProp
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = React.useState<FirebaseUser | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = React.useState<MockUser | null>(null);
+  const [systemConfig, setSystemConfig] = React.useState<SystemConfigData | null>(null);
   const [dashboardStatus, setDashboardStatus] = React.useState<DashboardStatus>('loading');
   const { toast } = useToast();
 
@@ -274,31 +300,23 @@ export default function DashboardPage() {
             setCurrentUserProfile(profile);
 
             if (profile.role === 'homeowner') {
-              if (typeof window !== 'undefined') {
-                try {
-                  const storedState = localStorage.getItem(`${DASHBOARD_STATE_KEY_PREFIX}${user.uid}`) as DashboardStatus | null;
-                  if (storedState === 'existing_configured') {
-                    setDashboardStatus('existing_configured');
-                  } else if (storedState === 'new_to_solar') {
-                    setDashboardStatus('new_to_solar');
-                  } else if (storedState === 'existing_setup_pending') {
-                     setDashboardStatus('existing_setup_pending');
-                  } else {
-                    setDashboardStatus('needs_choice');
-                  }
-                } catch (error) {
-                  console.error("Error accessing localStorage for dashboard state:", error);
-                  setDashboardStatus('needs_choice'); 
-                }
-              } else {
-                 setDashboardStatus('needs_choice'); 
+              const journeyChoice = profile.dashboardJourneyChoice || 'needs_choice';
+              setDashboardStatus(journeyChoice);
+              if (journeyChoice === 'existing_configured' && profile.systemConfiguration) {
+                setSystemConfig(profile.systemConfiguration);
+              } else if (journeyChoice === 'existing_configured' && !profile.systemConfiguration) {
+                // Data inconsistency: configured but no config data. Prompt for setup again.
+                setDashboardStatus('existing_setup_pending'); 
+                 try {
+                    await updateDoc(userDocRef, { dashboardJourneyChoice: 'existing_setup_pending' });
+                  } catch (error) { console.error("Failed to reset journey choice in Firestore", error); }
               }
             } else {
               setDashboardStatus('invalid_role');
             }
         } else {
             setCurrentUserProfile(null);
-            setDashboardStatus('invalid_role'); // Profile not found in Firestore
+            setDashboardStatus('invalid_role'); 
         }
       } else {
         setCurrentUserProfile(null);
@@ -308,40 +326,54 @@ export default function DashboardPage() {
     return () => unsubscribe();
   }, []);
 
-  const handleSolarJourneyChoice = (choice: 'existing' | 'new_to_solar') => {
-    if (currentUser && typeof window !== 'undefined') {
+  const handleSolarJourneyChoice = async (choice: 'existing' | 'new_to_solar') => {
+    if (currentUser && currentUserProfile) {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const newStatus = choice === 'existing' ? 'existing_setup_pending' : 'new_to_solar';
       try {
+        await updateDoc(userDocRef, { 
+          dashboardJourneyChoice: newStatus,
+          updatedAt: serverTimestamp() 
+        });
+        setDashboardStatus(newStatus);
+        setCurrentUserProfile(prev => prev ? {...prev, dashboardJourneyChoice: newStatus} : null);
         if (choice === 'existing') {
-          localStorage.setItem(`${DASHBOARD_STATE_KEY_PREFIX}${currentUser.uid}`, 'existing_setup_pending');
-          setDashboardStatus('existing_setup_pending');
           toast({ title: "Great!", description: "Please tell us about your solar system." });
-        } else { // new_to_solar
-          localStorage.setItem(`${DASHBOARD_STATE_KEY_PREFIX}${currentUser.uid}`, 'new_to_solar');
-          setDashboardStatus('new_to_solar');
+        } else {
           toast({ title: "Welcome!", description: "Let's explore your solar options." });
         }
       } catch (error) {
-        console.error("Error saving solar journey choice:", error);
-        toast({ title: "Error", description: "Could not save your choice.", variant: "destructive" });
+        console.error("Error updating solar journey choice in Firestore:", error);
+        toast({ title: "Error", description: "Could not save your choice to cloud.", variant: "destructive" });
       }
     }
   };
 
-  const handleConfigurationComplete = (data: SystemConfigData) => {
-    if (currentUser && typeof window !== 'undefined') {
+  const handleConfigurationComplete = async (data: SystemConfigData) => {
+     if (currentUser && currentUserProfile) {
+      const userDocRef = doc(db, "users", currentUser.uid);
       try {
-        localStorage.setItem(`${DASHBOARD_STATE_KEY_PREFIX}${currentUser.uid}`, 'existing_configured');
-        localStorage.setItem(`dashboardSystemData_${currentUser.uid}`, JSON.stringify(data));
+        await updateDoc(userDocRef, {
+          systemConfiguration: data,
+          dashboardJourneyChoice: 'existing_configured',
+          updatedAt: serverTimestamp()
+        });
+        setSystemConfig(data);
         setDashboardStatus('existing_configured');
+        setCurrentUserProfile(prev => prev ? {
+            ...prev, 
+            systemConfiguration: data, 
+            dashboardJourneyChoice: 'existing_configured'
+        } : null);
         toast({
           title: "System Configured!",
-          description: "Your dashboard is now set up.",
+          description: "Your dashboard is now set up and saved to your profile.",
         });
       } catch (error) {
-        console.error("Error saving dashboard configuration:", error);
+        console.error("Error saving dashboard configuration to Firestore:", error);
         toast({
           title: "Configuration Error",
-          description: "Could not save your system configuration.",
+          description: "Could not save your system configuration to cloud.",
           variant: "destructive",
         });
       }
@@ -395,7 +427,7 @@ export default function DashboardPage() {
   }
 
   if (dashboardStatus === 'existing_configured') {
-    return <ActualDashboardContent homeownerProfile={currentUserProfile} />;
+    return <ActualDashboardContent homeownerProfile={currentUserProfile} systemConfiguration={systemConfig} />;
   }
 
   return <DashboardLoadingSkeleton />; 
