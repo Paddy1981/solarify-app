@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, db, serverTimestamp } from "@/lib/firebase"; // Import db and serverTimestamp
-import { doc, setDoc } from "firebase/firestore"; // Import Firestore functions
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type UserCredential } from "firebase/auth";
+import { auth, db, serverTimestamp } from "@/lib/firebase"; 
+import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore"; 
 import { currencyOptions } from "@/lib/currencies";
 import type { MockUser } from "@/lib/mock-data/users"; 
 
@@ -36,6 +36,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const form = useForm<SignupFormData>({
     resolver: zodResolver(signupFormSchema),
@@ -49,61 +50,93 @@ export default function SignupPage() {
     },
   });
 
+  const createOrUpdateFirestoreUser = async (
+    user: UserCredential["user"], 
+    role: SignupFormData['role'], 
+    location: SignupFormData['location'], 
+    preferredCurrency: SignupFormData['preferredCurrency'],
+    fullName?: string, // For Google Sign-in, as it might override form's fullName
+    avatarUrl?: string // For Google Sign-in
+  ) => {
+    const userDocRef = doc(db, "users", user.uid);
+    const userDocSnap = await getDoc(userDocRef);
+
+    const userFullName = fullName || user.displayName || form.getValues("fullName");
+    const userAvatar = avatarUrl || user.photoURL || `https://placehold.co/100x100.png?text=${userFullName[0]?.toUpperCase() || 'U'}`;
+
+    if (!userDocSnap.exists()) {
+      const userDocData = {
+        uid: user.uid,
+        email: user.email,
+        fullName: userFullName,
+        role: role,
+        location: location,
+        preferredCurrency: preferredCurrency,
+        avatarUrl: userAvatar,
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        isActive: true,
+        companyName: role === 'installer' || role === 'supplier' ? `${userFullName}'s Company (Default)` : undefined,
+        specialties: role === 'installer' ? ['Residential Solar (Default)'] : undefined,
+        productsOffered: role === 'supplier' ? ['Solar Panels (Default)'] : undefined,
+      };
+      await setDoc(userDocRef, userDocData);
+      toast({
+        title: "Account Created!",
+        description: "Your Solarify account has been successfully created.",
+      });
+    } else {
+      // User exists in Firestore, update lastLogin and potentially merge info if needed
+      await updateDoc(userDocRef, {
+        lastLogin: serverTimestamp(),
+        // Optionally, update other fields if Google profile has newer info, but be cautious
+        // fullName: userFullName, // Example: update if Google's name is preferred
+        // avatarUrl: userAvatar, // Example: update avatar
+      });
+      toast({
+        title: "Welcome Back!",
+        description: "Logged in successfully.",
+      });
+    }
+    
+    // Common redirection logic
+    if (role === "installer") {
+      router.push("/installer/dashboard");
+    } else if (role === "homeowner") {
+      router.push("/homeowner/dashboard");
+    } else if (role === "supplier") {
+      router.push("/supplier/dashboard");
+    } else {
+      router.push("/");
+    }
+
+    // Update local mock data cache (can be phased out with full Firestore integration)
+    const newUserProfileForMock: MockUser = {
+        id: user.uid,
+        fullName: userFullName,
+        email: user.email!,
+        role,
+        location,
+        preferredCurrency,
+        avatarUrl: userAvatar,
+        lastLogin: new Date().toISOString(),
+        isActive: true,
+        memberSince: new Date().toISOString().split("T")[0],
+        companyName: (role === 'installer' || role === 'supplier') ? `${userFullName}'s Company (Default)` : undefined,
+    };
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(`userProfile_${user.email!.toLowerCase()}`, JSON.stringify(newUserProfileForMock));
+    }
+    if (global._mockUsers && !global._mockUsers.find(u => u.id === user.uid)) {
+        global._mockUsers.push(newUserProfileForMock);
+    }
+  };
+
   const onSubmit: SubmitHandler<SignupFormData> = async (data) => {
     setIsSubmitting(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      const user = userCredential.user;
-
-      // Store user role and additional info in Firestore
-      const userDocData = {
-        uid: user.uid,
-        email: data.email,
-        fullName: data.fullName,
-        role: data.role,
-        location: data.location,
-        preferredCurrency: data.preferredCurrency,
-        createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp(),
-        isActive: true,
-        avatarUrl: `https://placehold.co/100x100.png?text=${data.fullName[0]?.toUpperCase() || 'U'}`,
-        memberSince: new Date().toISOString().split("T")[0], // Keep for mock data consistency if needed
-        companyName: data.role === 'installer' || data.role === 'supplier' ? `${data.fullName}'s Company` : undefined,
-        specialties: data.role === 'installer' ? ['Residential Solar'] : undefined,
-        productsOffered: data.role === 'supplier' ? ['Solar Panels'] : undefined,
-      };
-      await setDoc(doc(db, "users", user.uid), userDocData);
-      
-      // Save a copy to mockUsers and localStorage for immediate use by non-Firestore aware components (can be phased out)
-      const newUserProfile: MockUser = {
-        id: user.uid, 
-        fullName: data.fullName,
-        email: data.email, 
-        role: data.role,
-        location: data.location,
-        preferredCurrency: data.preferredCurrency,
-        avatarUrl: userDocData.avatarUrl,
-        memberSince: userDocData.memberSince,
-        companyName: userDocData.companyName,
-        specialties: userDocData.specialties,
-        productsOffered: userDocData.productsOffered,
-        lastLogin: new Date().toISOString(), // For mock data, approximate timestamp
-        isActive: true,
-      };
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(`userProfile_${newUserProfile.email.toLowerCase()}`, JSON.stringify(newUserProfile));
-      }
-      if (global._mockUsers && !global._mockUsers.find(u => u.id === newUserProfile.id)) {
-        global._mockUsers.push(newUserProfile);
-      }
-      
-      toast({
-        title: "Account Created!",
-        description: "Your Solarify account has been successfully created. Role stored in Firestore. You can now log in.",
-      });
-      router.push("/login");
-
+      await createOrUpdateFirestoreUser(userCredential.user, data.role, data.location, data.preferredCurrency, data.fullName);
     } catch (error: any) {
       console.error("Signup error:", error.code, error.message);
       let errorMessage = "An unexpected error occurred. Please try again.";
@@ -119,6 +152,48 @@ export default function SignupPage() {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setIsGoogleSubmitting(true);
+    const isValid = await form.trigger(["role", "location", "preferredCurrency"]);
+    if (!isValid) {
+      toast({
+        title: "Missing Information",
+        description: "Please select your role, location, and currency before signing up with Google.",
+        variant: "destructive",
+      });
+      setIsGoogleSubmitting(false);
+      // Manually set errors if needed, though trigger() should show them
+      if (!form.getValues("role")) form.setError("role", { type: "manual", message: "Role is required." });
+      if (!form.getValues("location")) form.setError("location", { type: "manual", message: "Location is required." });
+      if (!form.getValues("preferredCurrency")) form.setError("preferredCurrency", { type: "manual", message: "Currency is required." });
+      return;
+    }
+
+    const { role, location, preferredCurrency } = form.getValues();
+    const provider = new GoogleAuthProvider();
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      await createOrUpdateFirestoreUser(user, role, location, preferredCurrency, user.displayName || undefined, user.photoURL || undefined);
+    } catch (error: any) {
+      console.error("Google signup error:", error);
+      let errorMessage = "Could not sign up with Google. Please try again.";
+       if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = "Google sign-up was cancelled.";
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        errorMessage = "An account already exists with this email address. Try logging in with your original method or link your Google account in settings (feature coming soon).";
+      }
+      toast({
+        title: "Google Signup Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -228,7 +303,7 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting}>
+              <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting || isGoogleSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -238,8 +313,15 @@ export default function SignupPage() {
                   "Sign Up"
                 )}
               </Button>
-              <Button variant="outline" className="w-full mt-2" disabled={isSubmitting} type="button" onClick={() => toast({ title: "Google Sign Up", description: "Google Sign Up is not yet implemented."})}>
-                Sign Up with Google
+              <Button variant="outline" className="w-full mt-2" disabled={isSubmitting || isGoogleSubmitting} type="button" onClick={handleGoogleSignup}>
+                 {isGoogleSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Sign Up with Google"
+                )}
               </Button>
             </CardContent>
           </form>
