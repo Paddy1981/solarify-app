@@ -5,8 +5,8 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
-import { rtdb, serverTimestamp as firebaseServerTimestamp } from "@/lib/firebase"; // Use rtdb for Realtime Database
-import { ref, push } from "firebase/database"; 
+import { rtdb } from "@/lib/firebase"; // Use rtdb for Realtime Database
+import { ref, push, serverTimestamp as rtdbServerTimestamp } from "firebase/database"; // Import RTDB serverTimestamp
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -56,11 +56,11 @@ export default function ContactPage() {
     try {
       const messageData = {
         ...data,
-        timestamp: firebaseServerTimestamp(), // Firebase server timestamp for Realtime Database
+        timestamp: rtdbServerTimestamp(), // Use RTDB's serverTimestamp
         status: "new", 
       };
 
-      const messagesRef = ref(rtdb, 'contactMessages'); // Use rtdb
+      const messagesRef = ref(rtdb, 'contactMessages');
       await push(messagesRef, messageData);
       
       console.log("Contact Form Data sent to Firebase Realtime Database:", messageData);
