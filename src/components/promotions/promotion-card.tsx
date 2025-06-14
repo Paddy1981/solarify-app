@@ -8,27 +8,40 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tag, CalendarDays, Percent, ExternalLink, Palette } from "lucide-react"; // Added Palette for placeholder image hint
-import { formatDistanceToNow, parseISO } from 'date-fns';
+import { Tag, CalendarDays, Percent, ExternalLink } from "lucide-react";
+import { formatDistanceToNow, parseISO, format, type Locale } from 'date-fns';
+import type { Timestamp } from "firebase/firestore";
+
 
 interface PromotionCardProps {
   post: PromotionPost;
 }
 
 export function PromotionCard({ post }: PromotionCardProps) {
-  let postDateFormatted = post.postDate;
-  try {
-    postDateFormatted = `${formatDistanceToNow(parseISO(post.postDate))} ago`;
-  } catch (e) {
-    // if date is invalid, use original
-  }
-
-  let validUntilFormatted = post.validUntil;
-  if (post.validUntil) {
+  
+  const formatDateRelatively = (dateInput: Timestamp | string | undefined): string => {
+    if (!dateInput) return "Recently";
     try {
-      validUntilFormatted = `Valid until ${new Date(post.validUntil).toLocaleDateString()}`;
-    } catch (e) { /* use original */ }
-  }
+      const date = typeof dateInput === 'string' ? parseISO(dateInput) : (dateInput as Timestamp).toDate();
+      return `${formatDistanceToNow(date)} ago`;
+    } catch (e) {
+      return "Sometime ago"; 
+    }
+  };
+
+  const formatAbsoluteDate = (dateInput: Timestamp | string | undefined): string | null => {
+    if (!dateInput) return null;
+    try {
+      const date = typeof dateInput === 'string' ? parseISO(dateInput) : (dateInput as Timestamp).toDate();
+      return `Valid until ${format(date, "PPP")}`; // e.g., Jul 28, 2024
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const postDateFormatted = formatDateRelatively(post.postDate);
+  const validUntilFormatted = formatAbsoluteDate(post.validUntil);
+
 
   return (
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col overflow-hidden">
@@ -66,7 +79,7 @@ export function PromotionCard({ post }: PromotionCardProps) {
             <span className="font-semibold">{post.discountOffer}</span>
           </div>
         )}
-        {post.validUntil && (
+        {validUntilFormatted && (
            <p className="text-xs text-muted-foreground flex items-center"><CalendarDays className="w-3 h-3 mr-1.5"/> {validUntilFormatted}</p>
         )}
       </CardContent>
@@ -82,7 +95,7 @@ export function PromotionCard({ post }: PromotionCardProps) {
         )}
         {post.callToActionText && post.callToActionLink && (
           <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90 mt-auto">
-            <Link href={post.callToActionLink}>
+            <Link href={post.callToActionLink} target="_blank" rel="noopener noreferrer">
               {post.callToActionText} <ExternalLink className="w-4 h-4 ml-2" />
             </Link>
           </Button>
