@@ -3,10 +3,11 @@
 
 import * as React from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc, collection, query, where, getDocs, orderBy, type Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { getMockUserByEmail, type MockUser } from '@/lib/mock-data/users';
-import { getRFQsByHomeownerId, type RFQ } from '@/lib/mock-data/rfqs';
+import type { MockUser } from '@/lib/mock-data/users';
+import type { RFQ } from '@/lib/mock-data/rfqs';
 
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -90,19 +91,36 @@ function DashboardLoadingSkeleton() {
 }
 
 interface ActualDashboardContentProps {
-  homeownerId: string | null;
+  homeownerProfile: MockUser | null;
 }
 
-function ActualDashboardContent({ homeownerId }: ActualDashboardContentProps) {
+function ActualDashboardContent({ homeownerProfile }: ActualDashboardContentProps) {
   const [userRFQs, setUserRFQs] = React.useState<RFQ[]>([]);
+  const [isLoadingRFQs, setIsLoadingRFQs] = React.useState(true);
 
   React.useEffect(() => {
-    if (homeownerId) {
-      setUserRFQs(getRFQsByHomeownerId(homeownerId));
+    if (homeownerProfile && homeownerProfile.id) {
+      const fetchRFQs = async () => {
+        setIsLoadingRFQs(true);
+        try {
+          const rfqsRef = collection(db, "rfqs");
+          const q = query(rfqsRef, where("homeownerId", "==", homeownerProfile.id), orderBy("dateCreated", "desc"));
+          const querySnapshot = await getDocs(q);
+          const fetchedRFQs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RFQ));
+          setUserRFQs(fetchedRFQs);
+        } catch (error) {
+          console.error("Error fetching RFQs:", error);
+          // Handle error appropriately, maybe set an error state
+        } finally {
+          setIsLoadingRFQs(false);
+        }
+      };
+      fetchRFQs();
     } else {
       setUserRFQs([]);
+      setIsLoadingRFQs(false);
     }
-  }, [homeownerId]);
+  }, [homeownerProfile]);
 
   const stats = [
     { title: "Current Generation", value: "3.2 kW", icon: <Zap className="w-6 h-6 text-primary" />, change: "+5%", changeType: "positive" as "positive" | "negative" },
@@ -150,7 +168,11 @@ function ActualDashboardContent({ homeownerId }: ActualDashboardContentProps) {
           <CardDescription>Track the status of your RFQs and view received quotes.</CardDescription>
         </CardHeader>
         <CardContent>
-          {userRFQs.length > 0 ? (
+          {isLoadingRFQs ? (
+            <div className="space-y-3">
+              {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+            </div>
+          ) : userRFQs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {userRFQs.map(rfq => (
                 <HomeownerRfqStatusCard key={rfq.id} rfq={rfq} />
@@ -241,34 +263,42 @@ export default function DashboardPage() {
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      if (user && user.email) {
-        const profile = getMockUserByEmail(user.email);
-        setCurrentUserProfile(profile);
+      if (user && user.uid) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
 
-        if (profile && profile.role === 'homeowner') {
-          if (typeof window !== 'undefined') {
-            try {
-              const storedState = localStorage.getItem(`${DASHBOARD_STATE_KEY_PREFIX}${user.uid}`) as DashboardStatus | null;
-              if (storedState === 'existing_configured') {
-                setDashboardStatus('existing_configured');
-              } else if (storedState === 'new_to_solar') {
-                setDashboardStatus('new_to_solar');
-              } else if (storedState === 'existing_setup_pending') {
-                 setDashboardStatus('existing_setup_pending');
+        if (userDocSnap.exists()) {
+            const profile = { id: userDocSnap.id, ...userDocSnap.data() } as MockUser;
+            setCurrentUserProfile(profile);
+
+            if (profile.role === 'homeowner') {
+              if (typeof window !== 'undefined') {
+                try {
+                  const storedState = localStorage.getItem(`${DASHBOARD_STATE_KEY_PREFIX}${user.uid}`) as DashboardStatus | null;
+                  if (storedState === 'existing_configured') {
+                    setDashboardStatus('existing_configured');
+                  } else if (storedState === 'new_to_solar') {
+                    setDashboardStatus('new_to_solar');
+                  } else if (storedState === 'existing_setup_pending') {
+                     setDashboardStatus('existing_setup_pending');
+                  } else {
+                    setDashboardStatus('needs_choice');
+                  }
+                } catch (error) {
+                  console.error("Error accessing localStorage for dashboard state:", error);
+                  setDashboardStatus('needs_choice'); 
+                }
               } else {
-                setDashboardStatus('needs_choice');
+                 setDashboardStatus('needs_choice'); 
               }
-            } catch (error) {
-              console.error("Error accessing localStorage for dashboard state:", error);
-              setDashboardStatus('needs_choice'); 
+            } else {
+              setDashboardStatus('invalid_role');
             }
-          } else {
-             setDashboardStatus('needs_choice'); 
-          }
         } else {
-          setDashboardStatus('invalid_role');
+            setCurrentUserProfile(null);
+            setDashboardStatus('invalid_role'); // Profile not found in Firestore
         }
       } else {
         setCurrentUserProfile(null);
@@ -365,7 +395,7 @@ export default function DashboardPage() {
   }
 
   if (dashboardStatus === 'existing_configured') {
-    return <ActualDashboardContent homeownerId={currentUserProfile ? currentUserProfile.id : null} />;
+    return <ActualDashboardContent homeownerProfile={currentUserProfile} />;
   }
 
   return <DashboardLoadingSkeleton />; 

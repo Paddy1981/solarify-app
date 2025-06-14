@@ -7,19 +7,27 @@ import { Button } from "@/components/ui/button";
 import { User, CalendarDays, Zap, FileText, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns'; // For Timestamp
 
 interface RfqCardProps {
   rfq: RFQ;
 }
 
 export function RfqCard({ rfq }: RfqCardProps) {
-  const [formattedDate, setFormattedDate] = useState(rfq.dateCreated);
+  const [formattedDate, setFormattedDate] = useState("N/A");
 
   useEffect(() => {
-    try {
-      setFormattedDate(new Date(rfq.dateCreated).toLocaleDateString());
-    } catch (e) {
-      setFormattedDate(rfq.dateCreated);
+    if (rfq.dateCreated && typeof rfq.dateCreated.toDate === 'function') {
+      try {
+        setFormattedDate(format(rfq.dateCreated.toDate(), "PPP"));
+      } catch (e) {
+        console.error("Error formatting RFQ date:", e);
+        // Keep N/A or original if string
+      }
+    } else if (typeof rfq.dateCreated === 'string') { // Fallback for old mock string dates
+        try {
+            setFormattedDate(format(new Date(rfq.dateCreated), "PPP"));
+        } catch (e) { /* Keep N/A */ }
     }
   }, [rfq.dateCreated]);
 
@@ -46,8 +54,8 @@ export function RfqCard({ rfq }: RfqCardProps) {
           <span>Avg. Consumption: {rfq.monthlyConsumptionKWh} kWh/month</span>
         </div>
         {rfq.additionalNotes && (
-            <p className="text-xs italic text-muted-foreground pt-1 border-t border-border mt-2">
-                Notes: {rfq.additionalNotes.length > 100 ? `${rfq.additionalNotes.substring(0, 97)}...` : rfq.additionalNotes}
+            <p className="text-xs italic text-muted-foreground pt-1 border-t border-border mt-2 line-clamp-3">
+                Notes: {rfq.additionalNotes}
             </p>
         )}
       </CardContent>

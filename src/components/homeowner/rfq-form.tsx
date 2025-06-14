@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users } from "lucide-react";
+import { Send, Users, Loader2 } from "lucide-react";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { getMockUsersByRole, type MockUser } from "@/lib/mock-data/users";
+import { getMockUsersByRole, type MockUser } from "@/lib/mock-data/users"; // Still used for listing installers
 import { Skeleton } from "@/components/ui/skeleton";
+import { db, serverTimestamp } from "@/lib/firebase";
+import { collection, addDoc } from "firebase/firestore";
 
 const rfqFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -41,10 +43,12 @@ export function RFQForm({ homeownerDetails }: RFQFormProps) {
   const { toast } = useToast();
   const [availableInstallers, setAvailableInstallers] = React.useState<MockUser[]>([]);
   const [hasMounted, setHasMounted] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     setHasMounted(true);
-    // In a real app, fetch installers based on homeowner's location
+    // In a real app, fetch installers based on homeowner's location from Firestore
+    // For now, using mock data for installer selection
     setAvailableInstallers(getMockUsersByRole("installer"));
   }, []);
 
@@ -55,8 +59,8 @@ export function RFQForm({ homeownerDetails }: RFQFormProps) {
       email: homeownerDetails.email,
       phone: homeownerDetails.phone || "",
       address: homeownerDetails.address || "",
-      estimatedSystemSizeKW: 5.0, // Default or could be passed via props if calculated
-      monthlyConsumptionKWh: 700, // Default or could be passed via props
+      estimatedSystemSizeKW: 5.0,
+      monthlyConsumptionKWh: 700,
       additionalNotes: "",
       includeMonitoring: true,
       includeBatteryStorage: false,
@@ -71,14 +75,39 @@ export function RFQForm({ homeownerDetails }: RFQFormProps) {
 
 
   const onSubmit: SubmitHandler<RFQFormData> = async (data) => {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log("RFQ Data:", data);
-    console.log(`Simulating sending RFQ to installers: ${data.selectedInstallerIds.join(', ')}`);
-    toast({
-      title: "RFQ Generated!",
-      description: `Your Request for Quotation has been created and notifications simulated to ${data.selectedInstallerIds.length} installer(s).`,
-    });
-    // form.reset(); // Optionally reset form
+    setIsSubmitting(true);
+    if (!homeownerDetails || !homeownerDetails.id) {
+        toast({ title: "Error", description: "Homeowner ID is missing. Please log in again.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+
+    try {
+      const rfqDataToSave = {
+        ...data,
+        homeownerId: homeownerDetails.id,
+        dateCreated: serverTimestamp(),
+        status: "Pending" as const,
+      };
+      
+      const docRef = await addDoc(collection(db, "rfqs"), rfqDataToSave);
+      console.log("RFQ Data saved to Firestore with ID:", docRef.id);
+      
+      toast({
+        title: "RFQ Submitted!",
+        description: `Your Request for Quotation has been successfully submitted to ${data.selectedInstallerIds.length} installer(s). RFQ ID: ${docRef.id}`,
+      });
+      form.reset(); 
+    } catch (error) {
+      console.error("Error saving RFQ to Firestore:", error);
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your RFQ. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   return (
@@ -200,18 +229,15 @@ export function RFQForm({ homeownerDetails }: RFQFormProps) {
             </FormItem>
         )} />
 
-        <Button type="submit" disabled={form.formState.isSubmitting} size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-          {form.formState.isSubmitting ? (
-            <><svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg> Generating...</>
+        <Button type="submit" disabled={isSubmitting} size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+          {isSubmitting ? (
+            <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Submitting RFQ...</>
           ) : (
-            <><Send className="mr-2 h-5 w-5" /> Generate & Send RFQ (Simulated)</>
+            <><Send className="mr-2 h-5 w-5" /> Submit RFQ to Selected Installers</>
           )}
         </Button>
         <p className="text-xs text-muted-foreground text-center">
-          This will generate an RFQ. Notifications to selected installers are simulated.
+          This will submit your RFQ to Firestore and selected installers will be able to view it.
         </p>
       </form>
     </Form>

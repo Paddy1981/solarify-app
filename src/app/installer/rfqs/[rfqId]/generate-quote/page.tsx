@@ -3,13 +3,17 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useForm, useFieldArray, type SubmitHandler, Controller } from "react-hook-form";
+import { useForm, useFieldArray, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
+import { auth, db, serverTimestamp } from "@/lib/firebase";
+import { doc, getDoc, addDoc, updateDoc, collection, type Timestamp } from "firebase/firestore";
 
-import { getRFQById, type RFQ } from "@/lib/mock-data/rfqs";
-import { getMockUserById, type MockUser } from "@/lib/mock-data/users";
+import type { RFQ } from "@/lib/mock-data/rfqs"; 
+import type { MockUser } from "@/lib/mock-data/users";
 import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies";
+import type { Quote, LineItem as QuoteLineItem } from "@/lib/types/quotes";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,11 +21,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { FileSpreadsheet, PlusCircle, Trash2, Send, Info, UserCircle, Home, Edit } from "lucide-react";
+import { FileSpreadsheet, PlusCircle, Trash2, Send, Info, AlertTriangle, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import Link from "next/link";
 
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description is required."),
@@ -36,7 +40,7 @@ const quoteFormSchema = z.object({
   homeownerName: z.string(), 
   homeownerEmail: z.string().email(),
   projectAddress: z.string(), 
-  quoteDate: z.string().default(new Date().toISOString().split("T")[0]),
+  quoteDate: z.string().default(new Date().toISOString().split("T")[0]), // This will be converted to Timestamp on save
   validityPeriodDays: z.coerce.number().min(1, "Validity period must be at least 1 day.").default(30),
   lineItems: z.array(lineItemSchema).min(1, "Please add at least one line item."),
   subtotal: z.coerce.number(),
@@ -45,7 +49,7 @@ const quoteFormSchema = z.object({
   totalAmount: z.coerce.number(),
   notes: z.string().optional(),
   termsAndConditions: z.string().optional().default("Standard terms apply. Payment due upon completion unless otherwise agreed."),
-  currencyCode: z.string(), // To store the currency code for the quote
+  currencyCode: z.string(), 
 });
 
 type QuoteFormData = z.infer<typeof quoteFormSchema>;
@@ -60,15 +64,17 @@ export default function GenerateQuotePage() {
   const rfqId = params.rfqId as string;
 
   const [rfqDetails, setRfqDetails] = React.useState<RFQ | null>(null);
-  const [installerDetails, setInstallerDetails] = React.useState<MockUser | null>(null);
+  const [installerProfile, setInstallerProfile] = React.useState<MockUser | null>(null);
   const [quoteCurrency, setQuoteCurrency] = React.useState<Currency>(getDefaultCurrency());
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isSubmittingForm, setIsSubmittingForm] = React.useState(false);
+  const [firebaseUser, setFirebaseUser] = React.useState<FirebaseUser | null>(null);
 
   const form = useForm<QuoteFormData>({
     resolver: zodResolver(quoteFormSchema),
     defaultValues: {
       rfqId: rfqId,
-      generatedByInstallerId: "", // Will be set from installerDetails
+      generatedByInstallerId: "", 
       homeownerName: "",
       homeownerEmail: "",
       projectAddress: "",
@@ -90,34 +96,54 @@ export default function GenerateQuotePage() {
     name: "lineItems",
   });
 
-  React.useEffect(() => {
-    // In a real app, current installer ID would come from auth context
-    const MOCK_CURRENT_INSTALLER_ID = "installer-user-001"; 
-    const rfq = getRFQById(rfqId);
-    const installer = getMockUserById(MOCK_CURRENT_INSTALLER_ID);
-    
-    if (rfq && installer) {
-      setRfqDetails(rfq);
-      setInstallerDetails(installer);
-      const currentInstallerCurrency = getCurrencyByCode(installer.currency) || getDefaultCurrency();
-      setQuoteCurrency(currentInstallerCurrency);
+ React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+      setIsLoading(true);
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists() && userDocSnap.data()?.role === 'installer') {
+          const profile = { id: userDocSnap.id, ...userDocSnap.data() } as MockUser;
+          setInstallerProfile(profile);
+          const currentInstallerCurrency = getCurrencyByCode(profile.preferredCurrency) || getDefaultCurrency();
+          setQuoteCurrency(currentInstallerCurrency);
+          form.setValue("currencyCode", currentInstallerCurrency.value);
+          form.setValue("generatedByInstallerId", profile.id);
 
-      form.reset({
-        ...form.getValues(), 
-        rfqId: rfq.id,
-        generatedByInstallerId: installer.id,
-        homeownerName: rfq.name,
-        homeownerEmail: rfq.email,
-        projectAddress: rfq.address,
-        currencyCode: currentInstallerCurrency.value,
-      });
-    } else {
-      if (!rfq) toast({ title: "Error", description: "RFQ not found.", variant: "destructive" });
-      if (!installer) toast({ title: "Error", description: "Installer profile not found.", variant: "destructive" });
-      router.push("/installer/rfqs");
-    }
-    setIsLoading(false);
+          // Fetch RFQ details
+          const rfqDocRef = doc(db, "rfqs", rfqId);
+          const rfqDocSnap = await getDoc(rfqDocRef);
+          if (rfqDocSnap.exists()) {
+            const rfqData = { id: rfqDocSnap.id, ...rfqDocSnap.data() } as RFQ;
+            setRfqDetails(rfqData);
+            form.reset({
+              ...form.getValues(), 
+              rfqId: rfqData.id,
+              homeownerName: rfqData.name,
+              homeownerEmail: rfqData.email,
+              projectAddress: rfqData.address || "",
+              currencyCode: currentInstallerCurrency.value, // Ensure currency is set
+              generatedByInstallerId: profile.id, // Ensure installer ID is set
+            });
+          } else {
+            toast({ title: "Error", description: "RFQ not found.", variant: "destructive" });
+            router.push("/installer/rfqs"); 
+          }
+        } else {
+          setInstallerProfile(null); 
+          toast({ title: "Access Denied", description: "You must be logged in as an installer.", variant: "destructive" });
+          router.push("/login");
+        }
+      } else {
+        setInstallerProfile(null);
+        router.push("/login");
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, [rfqId, form, router, toast]);
+
 
   const watchedLineItems = form.watch("lineItems");
   const watchedTaxRate = form.watch("taxRate");
@@ -141,15 +167,52 @@ export default function GenerateQuotePage() {
 
 
   const onSubmit: SubmitHandler<QuoteFormData> = async (data) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log("Generated Quote Data:", data);
-    toast({
-      title: "Quote Generated (Simulated)",
-      description: `Quote for RFQ ID ${data.rfqId} has been successfully generated in ${data.currencyCode}.`,
-    });
+    setIsSubmittingForm(true);
+    if (!installerProfile || !rfqDetails) {
+        toast({ title: "Error", description: "Required data missing (installer or RFQ).", variant: "destructive" });
+        setIsSubmittingForm(false);
+        return;
+    }
+
+    try {
+        const quoteDataToSave: Omit<Quote, 'id'> = {
+            ...data,
+            installerId: installerProfile.id,
+            homeownerId: rfqDetails.homeownerId,
+            quoteDate: serverTimestamp() as Timestamp, // Will be set by server
+            createdAt: serverTimestamp() as Timestamp,
+            updatedAt: serverTimestamp() as Timestamp,
+            status: "Submitted",
+            // Denormalized fields
+            homeownerName: rfqDetails.name,
+            installerCompanyName: installerProfile.companyName || installerProfile.fullName,
+            projectAddress: rfqDetails.address,
+            rfqEstimatedSystemSizeKW: rfqDetails.estimatedSystemSizeKW,
+        };
+
+        const quoteDocRef = await addDoc(collection(db, "quotes"), quoteDataToSave);
+        
+        // Update RFQ status
+        const rfqDocRef = doc(db, "rfqs", rfqId);
+        await updateDoc(rfqDocRef, {
+            status: "Responded",
+            updatedAt: serverTimestamp() // Assuming RFQ has an updatedAt field
+        });
+
+        toast({
+            title: "Quote Submitted!",
+            description: `Quote for RFQ ID ${data.rfqId} has been submitted. Quote ID: ${quoteDocRef.id}`,
+        });
+        router.push("/installer/rfqs"); // Navigate back to RFQ list
+    } catch (error) {
+        console.error("Error submitting quote:", error);
+        toast({ title: "Quote Submission Failed", description: "Could not submit the quote. Please try again.", variant: "destructive" });
+    } finally {
+        setIsSubmittingForm(false);
+    }
   };
 
-  if (isLoading || !rfqDetails || !installerDetails) {
+  if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto">
          <Card className="shadow-xl">
@@ -179,6 +242,41 @@ export default function GenerateQuotePage() {
     );
   }
 
+  if (!firebaseUser || !installerProfile) {
+     return (
+      <div className="max-w-xl mx-auto text-center py-12">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <div className="flex justify-center mb-4">
+                <AlertTriangle className="w-16 h-16 text-destructive" />
+            </div>
+            <CardTitle className="text-2xl font-headline text-destructive">Access Denied</CardTitle>
+            <CardDescription>
+              You must be logged in as an installer to generate a quote.
+            </CardDescription>
+          </CardHeader>
+           <CardContent>
+            <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Link href="/login">Login</Link>
+            </Button>
+             <Button variant="outline" asChild className="mt-2">
+                <Link href="/installer/rfqs">Back to RFQs</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!rfqDetails) {
+    return (
+        <div className="max-w-xl mx-auto text-center py-12">
+            <Card className="shadow-lg"> <CardHeader> <AlertTriangle className="w-16 h-16 text-destructive mx-auto mb-4" /> <CardTitle className="text-2xl">RFQ Not Found</CardTitle> </CardHeader> <CardContent><Button asChild><Link href="/installer/rfqs">Back to RFQs</Link></Button></CardContent> </Card>
+        </div>
+    );
+  }
+
+
   return (
     <div className="max-w-4xl mx-auto">
       <Form {...form}>
@@ -190,7 +288,7 @@ export default function GenerateQuotePage() {
               </div>
               <CardTitle className="text-3xl font-headline">Generate Quote</CardTitle>
               <CardDescription>
-                Create a detailed quote for RFQ ID: <span className="font-semibold text-accent">{rfqId}</span>.
+                Create a detailed quote for RFQ ID: <span className="font-semibold text-accent">{rfqId.substring(0,8)}</span>.
                 All monetary values in {quoteCurrency.value} ({quoteCurrency.symbol}).
               </CardDescription>
             </CardHeader>
@@ -287,6 +385,9 @@ export default function GenerateQuotePage() {
                 {form.formState.errors.lineItems?.root && (
                     <p className="text-sm text-destructive mt-1">{form.formState.errors.lineItems.root.message}</p>
                 )}
+                 {form.formState.errors.lineItems && !form.formState.errors.lineItems.root && Array.isArray(form.formState.errors.lineItems) && (
+                    <p className="text-sm text-destructive mt-1">Please correct errors in line items.</p>
+                )}
                 <Button type="button" variant="outline" onClick={() => append(defaultLineItem)} className="mt-2">
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Line Item
                 </Button>
@@ -334,17 +435,14 @@ export default function GenerateQuotePage() {
                         <span>{quoteCurrency.symbol}{form.getValues("totalAmount").toFixed(2)}</span>
                     </div>
                 </div>
-                 <Button type="submit" size="lg" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 mt-4" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? (
+                 <Button type="submit" size="lg" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 mt-4" disabled={isSubmittingForm}>
+                  {isSubmittingForm ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Generating...
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Submitting Quote...
                     </>
                   ) : (
-                    <><Send className="mr-2 h-5 w-5" /> Generate & Send Quote (Simulated)</>
+                    <><Send className="mr-2 h-5 w-5" /> Submit Quote to Homeowner</>
                   )}
                 </Button>
             </CardFooter>
