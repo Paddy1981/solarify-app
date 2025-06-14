@@ -5,30 +5,44 @@ import type { MaintenanceTask } from "@/lib/mock-data/maintenance";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Wrench, CalendarDays, CheckCircle2, AlertCircle, Clock, PlayCircle, Search } from "lucide-react";
-import { format, parseISO } from 'date-fns';
+import { Wrench, CalendarDays, CheckCircle2, AlertCircle, Clock, Film, Search } from "lucide-react"; // Changed PlayCircle to Film
+import { format, parseISO, isValid } from 'date-fns';
 import { cn } from "@/lib/utils";
 
 interface MaintenanceTaskCardProps {
   task: MaintenanceTask;
-  onMarkComplete: (taskId: string) => void; // Simulate completion
-  onViewGuide: (taskId: string) => void; // Simulate viewing guide
+  onMarkComplete: (taskId: string) => void;
+  onViewGuide: (taskId: string) => void;
 }
 
 export function MaintenanceTaskCard({ task, onMarkComplete, onViewGuide }: MaintenanceTaskCardProps) {
-  const isOverdue = task.nextDue && new Date(task.nextDue) < new Date() && !task.isCompleted;
+  
+  const formatDate = (dateInput?: MaintenanceTask["nextDue"] | MaintenanceTask["lastCompleted"]): string | null => {
+    if (!dateInput) return null;
+    let dateToFormat: Date;
+    if (typeof dateInput === 'string') {
+      dateToFormat = parseISO(dateInput);
+    } else if (dateInput instanceof Date) {
+      dateToFormat = dateInput;
+    } else if (typeof dateInput === 'object' && 'toDate' in dateInput) { // Firestore Timestamp
+      dateToFormat = dateInput.toDate();
+    } else {
+      return String(dateInput); // Fallback if unknown type
+    }
 
-  const formatDate = (dateString?: string): string | null => {
-    if (!dateString) return null;
+    if (!isValid(dateToFormat)) return String(dateInput); // Return original if parsing/conversion results in invalid date
+    
     try {
-      return format(parseISO(dateString), "MMM dd, yyyy");
+      return format(dateToFormat, "MMM dd, yyyy");
     } catch (e) {
-      return dateString; // Return original if parsing fails
+      return String(dateInput); 
     }
   };
-
+  
   const nextDueDateFormatted = formatDate(task.nextDue);
   const lastCompletedDateFormatted = formatDate(task.lastCompleted);
+  const isOverdue = task.nextDue && new Date(task.nextDue as string) < new Date() && !task.isCompleted;
+
 
   const getTaskTypeColor = (type: MaintenanceTask["taskType"]) => {
     switch (type) {
@@ -37,6 +51,7 @@ export function MaintenanceTaskCard({ task, onMarkComplete, onViewGuide }: Maint
       case "check": return "bg-purple-100 text-purple-800 border-purple-300";
       case "professional_service": return "bg-red-100 text-red-800 border-red-300";
       case "diy": return "bg-green-100 text-green-800 border-green-300";
+      case "custom": return "bg-indigo-100 text-indigo-800 border-indigo-300";
       default: return "bg-gray-100 text-gray-800 border-gray-300";
     }
   }
@@ -52,14 +67,14 @@ export function MaintenanceTaskCard({ task, onMarkComplete, onViewGuide }: Maint
           <CardTitle className="text-lg font-headline flex items-center">
             <Wrench className="w-5 h-5 mr-2 text-primary" /> {task.taskTitle}
           </CardTitle>
-          <Badge variant="outline" className={cn("text-xs", getTaskTypeColor(task.taskType))}>{task.taskType.replace("_", " ")}</Badge>
+          <Badge variant="outline" className={cn("text-xs capitalize", getTaskTypeColor(task.taskType))}>{task.taskType.replace("_", " ")}</Badge>
         </div>
-        <CardDescription className="text-xs line-clamp-2">{task.description}</CardDescription>
+        <CardDescription className="text-xs line-clamp-2 h-8">{task.description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 text-sm flex-grow">
         <div className="flex items-center">
           <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-          <span>Frequency: <span className="font-medium">{task.frequency.charAt(0).toUpperCase() + task.frequency.slice(1)}</span></span>
+          <span>Frequency: <span className="font-medium capitalize">{task.frequency}</span></span>
         </div>
         {nextDueDateFormatted && (
           <div className={cn("flex items-center", isOverdue ? "text-destructive font-semibold" : "text-muted-foreground")}>
@@ -79,7 +94,7 @@ export function MaintenanceTaskCard({ task, onMarkComplete, onViewGuide }: Maint
                 <span>Est. Duration: {task.estimatedDurationMinutes} min</span>
             </div>
         )}
-         {task.notes && <p className="text-xs italic text-muted-foreground pt-1">Note: {task.notes}</p>}
+         {task.notes && <p className="text-xs italic text-muted-foreground pt-1 line-clamp-2">Note: {task.notes}</p>}
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-2 pt-4">
         <Button
@@ -88,7 +103,8 @@ export function MaintenanceTaskCard({ task, onMarkComplete, onViewGuide }: Maint
           onClick={() => onViewGuide(task.id)}
           disabled={task.taskType === "professional_service"}
         >
-          <PlayCircle className="w-4 h-4 mr-2" /> View Guide
+          {task.taskType === "professional_service" ? <Search className="w-4 h-4 mr-2" /> : <Film className="w-4 h-4 mr-2" />} 
+          {task.taskType === "professional_service" ? "Find Pro" : "View Guide"}
         </Button>
         <Button
           size="sm"
