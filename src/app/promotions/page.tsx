@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import type { PromotionPost } from "@/lib/mock-data/promotions";
 import { PromotionCard } from "@/components/promotions/promotion-card";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"; // Added CardFooter
 import { Megaphone, PlusCircle, Loader2, Inbox } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from '@/components/ui/skeleton';
