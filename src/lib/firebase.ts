@@ -1,7 +1,7 @@
 
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore, serverTimestamp } from "firebase/firestore"; // Import Firestore
+import { getAuth, initializeAuth, browserLocalPersistence, indexedDBLocalPersistence, inMemoryPersistence } from "firebase/auth";
+import { getFirestore, serverTimestamp } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
@@ -21,8 +21,29 @@ if (getApps().length === 0) {
   app = getApp();
 }
 
-const auth = getAuth(app);
-const db = getFirestore(app); // Initialize Firestore
-const rtdb = getDatabase(app); // Initialize Realtime Database and rename
+// Initialize Auth with explicit persistence settings.
+// Firebase will attempt to use them in the order provided.
+// indexedDBLocalPersistence is generally preferred by Firebase for web.
+// browserLocalPersistence uses localStorage.
+// inMemoryPersistence means session is lost when tab/window is closed.
+let authInstance;
+if (typeof window !== 'undefined') { // Ensure this runs only in the browser
+  try {
+    authInstance = initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence]
+    });
+  } catch (error) {
+    console.error("Error initializing Firebase Auth with persistence:", error);
+    // Fallback to getAuth if initializeAuth fails for some reason
+    authInstance = getAuth(app);
+  }
+} else {
+  // For server environments or when window is not available during SSR pre-render
+  authInstance = getAuth(app);
+}
 
-export { app, auth, db, rtdb, serverTimestamp }; // Export Firestore db and serverTimestamp
+const auth = authInstance; // Export the initialized auth instance
+const db = getFirestore(app);
+const rtdb = getDatabase(app);
+
+export { app, auth, db, rtdb, serverTimestamp };
