@@ -5,8 +5,8 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
-import { db } from "@/lib/firebase"; // Import Firebase Realtime Database
-import { ref, push, serverTimestamp } from "firebase/database"; // Import Realtime Database functions
+import { rtdb, serverTimestamp as firebaseServerTimestamp } from "@/lib/firebase"; // Use rtdb for Realtime Database
+import { ref, push } from "firebase/database"; 
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,18 +54,16 @@ export default function ContactPage() {
   const onSubmit: SubmitHandler<ContactFormData> = async (data) => {
     setIsSubmitting(true);
     try {
-      // Add a timestamp to the data
       const messageData = {
         ...data,
-        timestamp: serverTimestamp(), // Firebase server timestamp
-        status: "new", // You can add a status field
+        timestamp: firebaseServerTimestamp(), // Firebase server timestamp for Realtime Database
+        status: "new", 
       };
 
-      // Push data to Firebase Realtime Database under 'contactMessages' node
-      const messagesRef = ref(db, 'contactMessages');
+      const messagesRef = ref(rtdb, 'contactMessages'); // Use rtdb
       await push(messagesRef, messageData);
       
-      console.log("Contact Form Data sent to Firebase:", messageData);
+      console.log("Contact Form Data sent to Firebase Realtime Database:", messageData);
       
       toast({
         title: "Message Sent!",
@@ -73,7 +71,7 @@ export default function ContactPage() {
       });
       form.reset();
     } catch (error) {
-      console.error("Error sending message to Firebase:", error);
+      console.error("Error sending message to Firebase Realtime Database:", error);
       toast({
         title: "Error Sending Message",
         description: "There was a problem sending your message. Please try again later.",

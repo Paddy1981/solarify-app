@@ -8,9 +8,10 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { mockUsers, type MockUser } from "@/lib/mock-data/users"; 
+import { auth, db, serverTimestamp } from "@/lib/firebase"; // Import db and serverTimestamp
+import { doc, setDoc } from "firebase/firestore"; // Import Firestore functions
 import { currencyOptions } from "@/lib/currencies";
+import { mockUsers, type MockUser } from "@/lib/mock-data/users"; 
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,13 +51,29 @@ export default function SignupPage() {
 
   const onSubmit: SubmitHandler<SignupFormData> = async (data) => {
     setIsSubmitting(true);
-    console.log("Signup attempt with data:", data);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      console.log("User created in Firebase Auth:", userCredential.user.uid, userCredential.user.email);
+      const user = userCredential.user;
 
+      // Store user role and additional info in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: data.email,
+        fullName: data.fullName,
+        role: data.role,
+        location: data.location,
+        currency: data.currency,
+        createdAt: serverTimestamp(),
+        avatarUrl: `https://placehold.co/100x100.png?text=${data.fullName[0]?.toUpperCase() || 'U'}`,
+        memberSince: new Date().toISOString().split("T")[0],
+        companyName: data.role === 'installer' || data.role === 'supplier' ? `${data.fullName}'s Company` : undefined,
+        specialties: data.role === 'installer' ? ['Residential Solar'] : undefined,
+        productsOffered: data.role === 'supplier' ? ['Solar Panels'] : undefined,
+      });
+      
+      // Save a copy to mockUsers and localStorage for immediate use by non-Firestore aware components (can be phased out)
       const newUserProfile: MockUser = {
-        id: userCredential.user.uid,
+        id: user.uid, // Use Firebase UID as the primary ID
         fullName: data.fullName,
         email: data.email, 
         role: data.role,
@@ -67,30 +84,21 @@ export default function SignupPage() {
         companyName: data.role === 'installer' || data.role === 'supplier' ? `${data.fullName}'s Company` : undefined,
         specialties: data.role === 'installer' ? ['Residential Solar'] : undefined,
         productsOffered: data.role === 'supplier' ? ['Solar Panels'] : undefined,
-        projectCount: data.role === 'installer' ? 0 : undefined,
-        storeRating: data.role === 'supplier' ? 0 : undefined,
       };
 
       if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(`userProfile_${newUserProfile.email.toLowerCase()}`, JSON.stringify(newUserProfile));
-          console.log("New user profile saved to localStorage for email:", newUserProfile.email.toLowerCase());
-        } catch (e) {
-          console.error("Error saving user profile to localStorage:", e);
-        }
+        localStorage.setItem(`userProfile_${newUserProfile.email.toLowerCase()}`, JSON.stringify(newUserProfile));
       }
-
       if (global._mockUsers && !global._mockUsers.find(u => u.id === newUserProfile.id)) {
         global._mockUsers.push(newUserProfile);
       }
       
-      console.log("New user profile potentially added to in-memory mockUsers. Current count:", global._mockUsers?.length);
-      
       toast({
         title: "Account Created!",
-        description: "Your Solarify account has been successfully created. You can now log in.",
+        description: "Your Solarify account has been successfully created. Role stored in Firestore. You can now log in.",
       });
       router.push("/login");
+
     } catch (error: any) {
       console.error("Signup error:", error.code, error.message);
       let errorMessage = "An unexpected error occurred. Please try again.";
@@ -225,7 +233,7 @@ export default function SignupPage() {
                   "Sign Up"
                 )}
               </Button>
-              <Button variant="outline" className="w-full mt-2" disabled={isSubmitting} type="button">
+              <Button variant="outline" className="w-full mt-2" disabled={isSubmitting} type="button" onClick={() => toast({ title: "Google Sign Up", description: "Google Sign Up is not yet implemented."})}>
                 Sign Up with Google
               </Button>
             </CardContent>

@@ -9,11 +9,13 @@ import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarC
 import type { LucideIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase'; // Import db for Firestore
+import { doc, getDoc } from "firebase/firestore"; // Import Firestore functions
 import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/context/cart-context';
-import { getMockUserByEmail, type UserRole } from '@/lib/mock-data/users'; 
+// Removed getMockUserByEmail as role now comes from Firestore for authenticated users
+import type { UserRole } from '@/lib/mock-data/users'; 
 
 import {
   DropdownMenu,
@@ -99,11 +101,18 @@ export function Header() {
 
   useEffect(() => {
     setMounted(true);
-    const unsubscribe = onAuthStateChanged(auth, (user) => { 
+    const unsubscribe = onAuthStateChanged(auth, async (user) => { 
       setCurrentUser(user);
-      if (user && user.email) {
-        const profile = getMockUserByEmail(user.email);
-        setUserRole(profile?.role || null);
+      if (user) {
+        // Fetch role from Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setUserRole(userDocSnap.data()?.role as UserRole);
+        } else {
+          setUserRole(null); // Role not found in Firestore
+          console.warn("User document not found in Firestore for UID:", user.uid);
+        }
       } else {
         setUserRole(null);
       }
@@ -378,14 +387,18 @@ function AuthButtons({
     return (
       <div className="flex flex-col space-y-2 w-full">
         {pathname !== '/login' && (
-          <Button variant="ghost" onClick={handleLoginClick} className="w-full justify-start text-sm">
-            <LogIn className="mr-2 h-4 w-4" /> Login
-          </Button>
+          <SheetClose asChild>
+            <Button variant="ghost" onClick={handleLoginClick} className="w-full justify-start text-sm">
+              <LogIn className="mr-2 h-4 w-4" /> Login
+            </Button>
+          </SheetClose>
         )}
         {pathname !== '/signup' && (
-          <Button onClick={handleSignupClick} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
-            <UserPlus className="mr-2 h-4 w-4" /> Sign Up
-          </Button>
+          <SheetClose asChild>
+            <Button onClick={handleSignupClick} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
+              <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+            </Button>
+          </SheetClose>
         )}
       </div>
     );

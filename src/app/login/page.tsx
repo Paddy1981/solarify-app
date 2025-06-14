@@ -8,8 +8,8 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { getMockUserByEmail } from "@/lib/mock-data/users";
+import { auth, db } from "@/lib/firebase"; // Import db for Firestore
+import { doc, getDoc } from "firebase/firestore"; // Import Firestore functions
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,42 +40,41 @@ export default function LoginPage() {
 
   const onSubmit: SubmitHandler<LoginFormData> = async (data) => {
     setIsSubmitting(true);
-    console.log("Login attempt with email:", data.email);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      const firebaseUserEmail = userCredential.user.email;
-
-      console.log("Firebase Auth successful for email:", firebaseUserEmail || data.email);
+      const user = userCredential.user;
 
       toast({
         title: "Login Successful!",
-        description: "Welcome back to Solarify. Checking your role...",
+        description: "Welcome back! Checking your role...",
       });
 
-      const userProfile = getMockUserByEmail(data.email);
+      // Fetch user role from Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
 
-      if (userProfile) {
-        console.log("User profile found in mock data:", JSON.stringify(userProfile));
-        if (userProfile.role === "installer") {
-          console.log("User role is 'installer'. Redirecting to /installer/dashboard.");
+      if (userDocSnap.exists()) {
+        const userRole = userDocSnap.data()?.role;
+        if (userRole === "installer") {
           router.push("/installer/dashboard");
-        } else if (userProfile.role === "homeowner") {
-          console.log("User role is 'homeowner'. Redirecting to /homeowner/dashboard.");
+        } else if (userRole === "homeowner") {
           router.push("/homeowner/dashboard");
-        } else if (userProfile.role === "supplier") {
-          console.log("User role is 'supplier'. Redirecting to /supplier/dashboard.");
+        } else if (userRole === "supplier") {
           router.push("/supplier/dashboard");
         } else {
-          console.log(`User role is '${userProfile.role}'. Redirecting to homepage.`);
+          toast({
+            title: "Role Undetermined",
+            description: "Your role is not set. Redirecting to homepage.",
+            variant: "default",
+          });
           router.push("/");
         }
       } else {
-        console.warn(`User profile NOT found in mock data for email: '${data.email}'. global._mockUsers count: ${global._mockUsers?.length}. Redirecting to homepage.`);
+        // This case should ideally not happen for a user who has signed up correctly
         toast({
-          title: "Profile Role Undetermined",
-          description: "Login was successful, but we couldn't determine your specific role from our records. Taking you to the homepage.",
-          variant: "default",
-          duration: 7000,
+          title: "Profile Error",
+          description: "User profile data not found. Please contact support. Redirecting to homepage.",
+          variant: "destructive",
         });
         router.push("/");
       }
@@ -94,6 +93,14 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    toast({
+      title: "Google Login",
+      description: "Google OAuth login is not yet implemented. This is a placeholder.",
+    });
+    // signInWithPopup(auth, new GoogleAuthProvider()).then...
   };
 
   return (
@@ -133,7 +140,7 @@ export default function LoginPage() {
                 )}
               />
               <div className="text-right">
-                <Button variant="link" type="button" className="text-sm h-auto p-0 text-accent">
+                <Button variant="link" type="button" className="text-sm h-auto p-0 text-accent" onClick={() => toast({title: "Forgot Password", description: "Forgot password functionality is not implemented yet."})}>
                   Forgot Password?
                 </Button>
               </div>
@@ -147,7 +154,7 @@ export default function LoginPage() {
                   "Login"
                 )}
               </Button>
-              <Button variant="outline" className="w-full mt-2" disabled={isSubmitting} type="button">
+              <Button variant="outline" className="w-full mt-2" disabled={isSubmitting} type="button" onClick={handleGoogleLogin}>
                 Login with Google
               </Button>
             </CardContent>
