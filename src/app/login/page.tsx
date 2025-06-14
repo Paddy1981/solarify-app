@@ -7,17 +7,18 @@ import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type UserCredential } from "firebase/auth";
-import { auth, db, serverTimestamp } from "@/lib/firebase"; 
-import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore"; 
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type UserCredential, sendPasswordResetEmail } from "firebase/auth";
+import { auth, db, serverTimestamp } from "@/lib/firebase";
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import { getDefaultCurrency } from "@/lib/currencies";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -26,17 +27,32 @@ const loginFormSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginFormSchema>;
 
+const passwordResetSchema = z.object({
+  resetEmail: z.string().email({ message: "Please enter a valid email address." }),
+});
+type PasswordResetFormData = z.infer<typeof passwordResetSchema>;
+
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [isPasswordResetDialogOpen, setIsPasswordResetDialogOpen] = useState(false);
+  const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
 
-  const form = useForm<LoginFormData>({
+
+  const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
       email: "",
       password: "",
+    },
+  });
+
+  const passwordResetForm = useForm<PasswordResetFormData>({
+    resolver: zodResolver(passwordResetSchema),
+    defaultValues: {
+      resetEmail: "",
     },
   });
 
@@ -49,14 +65,13 @@ export default function LoginPage() {
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists()) {
         userRole = userDocSnap.data()?.role;
-        userFullName = userDocSnap.data()?.fullName || userFullName; 
+        userFullName = userDocSnap.data()?.fullName || userFullName;
         await updateDoc(userDocRef, {
           lastLogin: serverTimestamp()
         });
       } else if (isNewGoogleUser) {
-        // This case is specific to first-time Google login for a user not in our DB
         const defaultRole = "homeowner";
-        const defaultLocation = ""; 
+        const defaultLocation = "";
         const defaultPreferredCurrency = getDefaultCurrency().value;
         const defaultAvatar = user.photoURL || `https://placehold.co/100x100.png?text=${userFullName[0]?.toUpperCase() || 'U'}`;
 
@@ -112,7 +127,7 @@ export default function LoginPage() {
   };
 
 
-  const onSubmit: SubmitHandler<LoginFormData> = async (data) => {
+  const onLoginSubmit: SubmitHandler<LoginFormData> = async (data) => {
     setIsSubmitting(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
@@ -143,8 +158,7 @@ export default function LoginPage() {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      
-      // Check if user exists in Firestore to determine if it's a "new to our app" Google user
+
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
       const isNewAppUser = !userDocSnap.exists();
@@ -161,7 +175,7 @@ export default function LoginPage() {
       if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = "Google sign-in was cancelled.";
       } else if (error.code === 'auth/account-exists-with-different-credential') {
-        errorMessage = "An account already exists with this email address. Try logging in with your original method or link your Google account in settings (feature coming soon).";
+        errorMessage = "An account already exists with this email address. Try logging in with your original method.";
       }
       toast({
         title: "Google Login Failed",
@@ -173,6 +187,42 @@ export default function LoginPage() {
     }
   };
 
+  const onPasswordResetSubmit: SubmitHandler<PasswordResetFormData> = async (data) => {
+    setIsSendingResetEmail(true);
+    try {
+      await sendPasswordResetEmail(auth, data.resetEmail);
+      toast({
+        title: "Password Reset Email Sent",
+        description: "If an account exists for this email, a password reset link has been sent. Please check your inbox (and spam folder).",
+      });
+      setIsPasswordResetDialogOpen(false);
+      passwordResetForm.reset();
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      let errorMessage = "Failed to send password reset email. Please try again.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
+        // Don't explicitly say "user not found" for security, but you can tailor if needed
+        errorMessage = "If an account exists for this email, a password reset link has been sent.";
+         toast({
+            title: "Password Reset Email Sent",
+            description: errorMessage,
+        });
+         setIsPasswordResetDialogOpen(false);
+         passwordResetForm.reset();
+
+      } else {
+         toast({
+            title: "Password Reset Failed",
+            description: "Could not send reset email. Please check the email address and try again.",
+            variant: "destructive",
+        });
+      }
+    } finally {
+      setIsSendingResetEmail(false);
+    }
+  };
+
+
   return (
     <div className="flex justify-center items-center min-h-[calc(100vh-10rem)] py-12">
       <Card className="w-full max-w-md shadow-xl">
@@ -180,11 +230,11 @@ export default function LoginPage() {
           <CardTitle className="text-3xl font-headline">Welcome Back!</CardTitle>
           <CardDescription>Log in to your Solarify account.</CardDescription>
         </CardHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+        <Form {...loginForm}>
+          <form onSubmit={loginForm.handleSubmit(onLoginSubmit)}>
             <CardContent className="space-y-6">
               <FormField
-                control={form.control}
+                control={loginForm.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
@@ -197,7 +247,7 @@ export default function LoginPage() {
                 )}
               />
               <FormField
-                control={form.control}
+                control={loginForm.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
@@ -210,9 +260,50 @@ export default function LoginPage() {
                 )}
               />
               <div className="text-right">
-                <Button variant="link" type="button" className="text-sm h-auto p-0 text-accent" onClick={() => toast({title: "Forgot Password", description: "Forgot password functionality is not implemented yet."})}>
-                  Forgot Password?
-                </Button>
+                <Dialog open={isPasswordResetDialogOpen} onOpenChange={setIsPasswordResetDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="link" type="button" className="text-sm h-auto p-0 text-accent">
+                      Forgot Password?
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Reset Password</DialogTitle>
+                      <DialogDescription>
+                        Enter your email address below and we&apos;ll send you a link to reset your password.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <Form {...passwordResetForm}>
+                      <form onSubmit={passwordResetForm.handleSubmit(onPasswordResetSubmit)} className="space-y-4">
+                        <FormField
+                          control={passwordResetForm.control}
+                          name="resetEmail"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email Address</FormLabel>
+                              <FormControl>
+                                <Input type="email" placeholder="you@example.com" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button type="button" variant="outline" disabled={isSendingResetEmail}>Cancel</Button>
+                          </DialogClose>
+                          <Button type="submit" disabled={isSendingResetEmail}>
+                            {isSendingResetEmail ? (
+                              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</>
+                            ) : (
+                              <><Mail className="mr-2 h-4 w-4" /> Send Reset Email</>
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
               </div>
               <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting || isGoogleSubmitting}>
                 {isSubmitting ? (
