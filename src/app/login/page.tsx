@@ -52,7 +52,6 @@ export default function LoginPage() {
         description: "Welcome back to Solarify. Checking your role...",
       });
 
-      // Attempt to get user profile from our mock data (now potentially from global._mockUsers)
       const userProfile = getMockUserByEmail(data.email);
 
       if (userProfile) {
@@ -71,7 +70,6 @@ export default function LoginPage() {
           router.push("/");
         }
       } else {
-        // This case should be less common now if signup correctly populates global._mockUsers
         console.warn(`User profile NOT found in mock data for email: '${data.email}'. global._mockUsers count: ${global._mockUsers?.length}. Redirecting to homepage.`);
         toast({
           title: "Profile Role Undetermined",
@@ -134,6 +132,11 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
+              <div className="text-right">
+                <Button variant="link" type="button" className="text-sm h-auto p-0 text-accent">
+                  Forgot Password?
+                </Button>
+              </div>
               <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>

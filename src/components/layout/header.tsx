@@ -121,6 +121,7 @@ export function Header() {
     let newLinks: NavLinkItem[] = [];
 
     if (onAuthPages) {
+      // On login/signup, only show Home and Shop for general navigation, no role-specific menus
       newLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
     } else {
       newLinks = [...navLinksBase]; 
@@ -148,10 +149,10 @@ export function Header() {
         <Logo />
         <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
           {currentNavLinks.map((link) =>
-            (link.subLinks && !onAuthPages) ? ( 
+            (link.subLinks && !onAuthPages && currentUser && userRole) ? ( 
               <DesktopDropdownMenu key={link.label} link={link} />
             ) : (
-              link.href && // Ensure href exists before creating a Link
+              link.href && 
               <Link
                 key={link.label}
                 href={link.href}
@@ -207,10 +208,10 @@ export function Header() {
               </SheetHeader>
               <nav className="flex flex-col space-y-4 mt-6">
                 {currentNavLinks.map((link) =>
-                  (link.subLinks && !onAuthPages) ? ( 
+                  (link.subLinks && !onAuthPages && currentUser && userRole) ? ( 
                     <MobileAccordionMenu key={link.label} link={link} onLinkClick={closeMobileSheet} />
                   ) : (
-                    link.href && // Ensure href exists
+                    link.href && 
                     <SheetClose asChild key={link.label}>
                       <Link
                         href={link.href}
@@ -392,4 +393,3 @@ function AuthButtons({
     </div>
   );
 }
-
