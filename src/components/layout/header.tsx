@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/layout/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
-import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone, Settings } from 'lucide-react';
+import { Menu, Users, Briefcase, StoreIcon, HomeIcon, Calculator, FileText, BarChartBig, LogOut, LogIn, UserPlus, ChevronDown, Loader2, PackagePlus, ShoppingBag, ShoppingCart as CartIcon, Award, Megaphone, Settings, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
@@ -54,6 +54,7 @@ const navLinksAuthenticated: NavLinkItem[] = [
       { href: '/homeowner/dashboard', label: 'Dashboard', icon: BarChartBig },
       { href: '/homeowner/energy-needs', label: 'Energy Needs Calculator', icon: Calculator },
       { href: '/homeowner/savings-estimator', label: 'Savings Estimator', icon: BarChartBig },
+      { href: '/homeowner/savings-tracker', label: 'Savings Tracker', icon: TrendingUp },
       { href: '/homeowner/rfq', label: 'Generate RFQ', icon: FileText },
       { href: '/settings', label: 'Settings', icon: Settings },
     ],
@@ -119,7 +120,6 @@ export function Header() {
     let newLinks: NavLinkItem[] = [];
 
     if (onAuthPages) {
-      // Only show Home and Shop on auth pages
       newLinks = navLinksBase.filter(link => link.label === 'Home' || link.label === 'Shop');
     } else {
       newLinks = [...navLinksBase]; 
@@ -127,7 +127,6 @@ export function Header() {
       if (currentUser && userRole && !isLoadingAuth) {
         const roleSpecificMenu = navLinksAuthenticated.find(link => link.role === userRole);
         if (roleSpecificMenu) {
-          // Check if a menu with the same label (implying the same role) already exists
           const alreadyHasRoleMenu = newLinks.some(link => link.label === roleSpecificMenu.label && link.role === roleSpecificMenu.role);
           if (!alreadyHasRoleMenu) {
             newLinks.push(roleSpecificMenu);
@@ -148,12 +147,13 @@ export function Header() {
         <Logo />
         <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
           {currentNavLinks.map((link) =>
-            (link.subLinks && !onAuthPages) ? ( // Only show dropdowns if not on auth pages
+            (link.subLinks && !onAuthPages) ? ( 
               <DesktopDropdownMenu key={link.label} link={link} />
             ) : (
+              link.href && // Ensure href exists before creating a Link
               <Link
                 key={link.label}
-                href={link.href!}
+                href={link.href}
                 className="transition-colors hover:text-accent"
               >
                 {link.label}
@@ -206,12 +206,13 @@ export function Header() {
               </SheetHeader>
               <nav className="flex flex-col space-y-4 mt-6">
                 {currentNavLinks.map((link) =>
-                  (link.subLinks && !onAuthPages) ? ( // Only show accordions if not on auth pages
+                  (link.subLinks && !onAuthPages) ? ( 
                     <MobileAccordionMenu key={link.label} link={link} onLinkClick={closeMobileSheet} />
                   ) : (
+                    link.href && // Ensure href exists
                     <SheetClose asChild key={link.label}>
                       <Link
-                        href={link.href!}
+                        href={link.href}
                         className="flex items-center gap-2 rounded-md p-2 text-lg font-medium hover:bg-accent hover:text-accent-foreground"
                         onClick={closeMobileSheet}
                       >
@@ -250,12 +251,9 @@ function DesktopDropdownMenu({ link }: { link: NavLinkItem }) {
                 {subLink.icon && <subLink.icon className="h-4 w-4 text-muted-foreground" />} {subLink.label}
               </Link>
             </DropdownMenuItem>
-            {subLink.label === "Generate RFQ" && link.label === "For Homeowners" && <DropdownMenuSeparator />}
+            {(subLink.label === "Generate RFQ" || subLink.label === "Savings Tracker") && link.label === "For Homeowners" && index < link.subLinks.length - 2 && <DropdownMenuSeparator />}
             {subLink.label === "View RFQs" && link.label === "For Installers" && <DropdownMenuSeparator />}
             {subLink.label === "Add Product" && link.label === "For Suppliers" && <DropdownMenuSeparator />}
-            {(subLink.label === "Settings" && index === link.subLinks!.length -1 && (link.label === "For Homeowners" || link.label === "For Installers" || link.label === "For Suppliers")) ? null : 
-             (subLink.label === "Settings" && (link.label === "For Homeowners" || link.label === "For Installers" || link.label === "For Suppliers")) && <DropdownMenuSeparator />}
-
           </React.Fragment>
         ))}
       </DropdownMenuContent>
