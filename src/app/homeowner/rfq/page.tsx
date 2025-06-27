@@ -5,13 +5,14 @@ import * as React from "react";
 import { RFQForm } from "@/components/homeowner/rfq-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, LogIn, UserCircle } from "lucide-react";
+import { FileText, LogIn, UserCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import type { User as FirebaseUser } from "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
-import { getMockUserByEmail, type MockUser } from "@/lib/mock-data/users";
+import { doc, getDoc } from "firebase/firestore";
+import type { MockUser } from "@/lib/mock-data/users";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function RFQPage() {
@@ -20,12 +21,13 @@ export default function RFQPage() {
   const [firebaseUser, setFirebaseUser] = React.useState<FirebaseUser | null>(null);
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
-      if (user && user.email) {
-        const profile = getMockUserByEmail(user.email);
-        if (profile && profile.role === "homeowner") {
-          setCurrentUserProfile(profile);
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists() && userDocSnap.data()?.role === "homeowner") {
+          setCurrentUserProfile({ id: userDocSnap.id, ...userDocSnap.data() } as MockUser);
         } else {
           setCurrentUserProfile(null); // Not a homeowner or profile not found
         }
