@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type UserCredential, sendPasswordResetEmail } from "firebase/auth";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type UserCredential, sendPasswordResetEmail, OAuthProvider, linkWithCredential, fetchSignInMethodsForEmail } from "firebase/auth";
 import { auth, db, serverTimestamp } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import { getDefaultCurrency } from "@/lib/currencies";
@@ -56,33 +56,31 @@ export default function LoginPage() {
     },
   });
 
-  const handleSuccessfulLogin = async (user: UserCredential["user"], isNewGoogleUser: boolean = false) => {
+  const handleSuccessfulLogin = async (user: UserCredential["user"]) => {
     const userDocRef = doc(db, "users", user.uid);
     let userRole;
-    let userFullName = user.displayName || "User";
-
+    
     try {
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists()) {
         userRole = userDocSnap.data()?.role;
-        userFullName = userDocSnap.data()?.fullName || userFullName;
         await updateDoc(userDocRef, {
-          lastLogin: serverTimestamp()
+          lastLogin: serverTimestamp(),
+          // Also update avatar if Google sign-in provided a new one
+          ...(user.photoURL && { avatarUrl: user.photoURL }),
         });
-      } else if (isNewGoogleUser) {
+      } else {
+         // This case might happen for a new Google user who was just created.
+         // Let's create a default profile for them.
         const defaultRole = "homeowner";
-        const defaultLocation = "";
-        const defaultPreferredCurrency = getDefaultCurrency().value;
-        const defaultAvatar = user.photoURL || `https://placehold.co/100x100.png?text=${userFullName[0]?.toUpperCase() || 'U'}`;
-
         await setDoc(userDocRef, {
           uid: user.uid,
           email: user.email,
-          fullName: userFullName,
+          fullName: user.displayName || "New User",
           role: defaultRole,
-          location: defaultLocation,
-          preferredCurrency: defaultPreferredCurrency,
-          avatarUrl: defaultAvatar,
+          location: "",
+          preferredCurrency: getDefaultCurrency().value,
+          avatarUrl: user.photoURL || `https://placehold.co/100x100.png?text=${user.displayName?.[0]?.toUpperCase() || 'U'}`,
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
           isActive: true,
@@ -90,18 +88,11 @@ export default function LoginPage() {
         userRole = defaultRole;
         toast({
           title: "Welcome!",
-          description: "Your account has been created. Please review your settings.",
+          description: "Your account has been created. Please review your profile settings.",
         });
-      } else {
-         toast({
-          title: "Profile Error",
-          description: "User profile data not found. Please contact support.",
-          variant: "destructive",
-        });
-        router.push("/");
-        return;
       }
 
+      // Redirect based on role
       if (userRole === "installer") {
         router.push("/installer/dashboard");
       } else if (userRole === "homeowner") {
@@ -157,26 +148,22 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const userDocRef = doc(db, "users", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      const isNewAppUser = !userDocSnap.exists();
-
       toast({
-        title: isNewAppUser ? "Account Creation via Google" : "Login Successful!",
-        description: "Processing your Google login...",
+        title: "Google Login Successful!",
+        description: "Processing your login...",
       });
-      await handleSuccessfulLogin(user, isNewAppUser);
+      await handleSuccessfulLogin(result.user);
 
     } catch (error: any) {
       console.error("Google login error:", error);
+      
       let errorMessage = "Could not sign in with Google. Please try again.";
       if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = "Google sign-in was cancelled.";
       } else if (error.code === 'auth/account-exists-with-different-credential') {
-        errorMessage = "An account already exists with this email address. Try logging in with your original method.";
+         errorMessage = "An account already exists with this email address. Please sign in with your original method (e.g., email and password).";
       }
+
       toast({
         title: "Google Login Failed",
         description: errorMessage,
@@ -340,3 +327,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
