@@ -15,11 +15,19 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp;
-if (getApps().length === 0) {
+// Check if all required Firebase config keys are present
+const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId;
+
+if (isFirebaseConfigured && getApps().length === 0) {
   app = initializeApp(firebaseConfig);
-} else {
+} else if (isFirebaseConfigured) {
   app = getApp();
+} else {
+  console.error("Firebase configuration is missing. Please set up your .env.local file.");
+  // Create a dummy app object to avoid crashing the app on server-side where auth might be accessed
+  app = {} as FirebaseApp;
 }
+
 
 // Initialize Auth with explicit persistence settings.
 // Firebase will attempt to use them in the order provided.
@@ -27,23 +35,30 @@ if (getApps().length === 0) {
 // browserLocalPersistence uses localStorage.
 // inMemoryPersistence means session is lost when tab/window is closed.
 let authInstance;
-if (typeof window !== 'undefined') { // Ensure this runs only in the browser
-  try {
-    authInstance = initializeAuth(app, {
-      persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence]
-    });
-  } catch (error) {
-    console.error("Error initializing Firebase Auth with persistence:", error);
-    // Fallback to getAuth if initializeAuth fails for some reason
-    authInstance = getAuth(app);
-  }
+if (isFirebaseConfigured) {
+    if (typeof window !== 'undefined') { // Ensure this runs only in the browser
+      try {
+        authInstance = initializeAuth(app, {
+          persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence]
+        });
+      } catch (error) {
+        console.error("Error initializing Firebase Auth with persistence:", error);
+        // Fallback to getAuth if initializeAuth fails for some reason
+        authInstance = getAuth(app);
+      }
+    } else {
+      // For server environments or when window is not available during SSR pre-render
+      authInstance = getAuth(app);
+    }
 } else {
-  // For server environments or when window is not available during SSR pre-render
-  authInstance = getAuth(app);
+    // Provide a dummy auth object if not configured to prevent crashes
+    authInstance = {} as any;
 }
 
-const auth = authInstance; // Export the initialized auth instance
-const db = getFirestore(app);
-const rtdb = getDatabase(app);
+
+const auth = authInstance;
+const db = isFirebaseConfigured ? getFirestore(app) : ({} as any);
+const rtdb = isFirebaseConfigured ? getDatabase(app) : ({} as any);
+
 
 export { app, auth, db, rtdb, serverTimestamp };
