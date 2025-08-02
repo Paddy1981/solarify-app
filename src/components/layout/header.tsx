@@ -193,7 +193,7 @@ export function Header() {
             </Button>
           )}
           <div className="hidden md:flex items-center space-x-2">
-             <AuthButtons isLoadingAuth={isLoadingAuth} currentUser={currentUser} />
+             <AuthButtons isLoadingAuth={isLoadingAuth || onAuthPages} currentUser={currentUser} onAuthPages={onAuthPages} />
           </div>
         </div>
         <div className="md:hidden flex items-center space-x-2">
@@ -240,7 +240,7 @@ export function Header() {
                   )
                 )}
                 <div className="mt-auto pt-4 border-t">
-                  <AuthButtons column isLoadingAuth={isLoadingAuth} currentUser={currentUser} onAuthAction={closeMobileSheet} />
+                  <AuthButtons column isLoadingAuth={isLoadingAuth || onAuthPages} currentUser={currentUser} onAuthAction={closeMobileSheet} onAuthPages={onAuthPages} />
                 </div>
               </nav>
             </SheetContent>
@@ -317,12 +317,14 @@ function AuthButtons({
   column = false, 
   isLoadingAuth, 
   currentUser,
-  onAuthAction 
+  onAuthAction,
+  onAuthPages,
 }: { 
   column?: boolean, 
   isLoadingAuth: boolean, 
   currentUser: FirebaseUser | null,
   onAuthAction?: () => void; 
+  onAuthPages: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -355,7 +357,7 @@ function AuthButtons({
     router.push('/signup');
   };
 
-  if (!clientMounted || isLoadingAuth) {
+  if (!clientMounted || (isLoadingAuth && !onAuthPages)) {
     return (
       <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
         <Button variant="ghost" disabled className={`${column ? 'w-full justify-start text-sm' : 'text-sm'} h-9 px-3`}>
@@ -366,8 +368,7 @@ function AuthButtons({
   }
 
   if (currentUser) {
-     // Don't show logout button on login/signup pages if already logged in (edge case, user might navigate there directly)
-    if (pathname === '/login' || pathname === '/signup') {
+    if (onAuthPages) {
       return null; 
     }
     const buttonContent = (
