@@ -101,13 +101,6 @@ export function Header() {
 
   useEffect(() => {
     setMounted(true);
-    // On auth pages, we don't need to check for the user, so we can set loading to false immediately.
-    if (onAuthPages) {
-      setIsLoadingAuth(false);
-      setCurrentUser(null);
-      setUserRole(null);
-      return;
-    }
     const unsubscribe = onAuthStateChanged(auth, async (user) => { 
       setCurrentUser(user);
       if (user) {
@@ -126,7 +119,7 @@ export function Header() {
       setIsLoadingAuth(false);
     });
     return () => unsubscribe(); 
-  }, [pathname, onAuthPages]);
+  }, [pathname]);
   
   const cartItemCount = mounted ? getItemCount() : 0;
 
@@ -193,7 +186,7 @@ export function Header() {
             </Button>
           )}
           <div className="hidden md:flex items-center space-x-2">
-             <AuthButtons isLoadingAuth={isLoadingAuth || onAuthPages} currentUser={currentUser} onAuthPages={onAuthPages} />
+             <AuthButtons isLoadingAuth={isLoadingAuth} currentUser={currentUser} onAuthPages={onAuthPages} />
           </div>
         </div>
         <div className="md:hidden flex items-center space-x-2">
@@ -240,7 +233,7 @@ export function Header() {
                   )
                 )}
                 <div className="mt-auto pt-4 border-t">
-                  <AuthButtons column isLoadingAuth={isLoadingAuth || onAuthPages} currentUser={currentUser} onAuthAction={closeMobileSheet} onAuthPages={onAuthPages} />
+                  <AuthButtons column isLoadingAuth={isLoadingAuth} currentUser={currentUser} onAuthAction={closeMobileSheet} onAuthPages={onAuthPages} />
                 </div>
               </nav>
             </SheetContent>
@@ -357,7 +350,36 @@ function AuthButtons({
     router.push('/signup');
   };
 
-  if (!clientMounted || (isLoadingAuth && !onAuthPages)) {
+  if (!clientMounted) {
+    // Render nothing on the server, and a loader on initial client render before mount.
+    return (
+        <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
+            <Button variant="ghost" disabled className={`${column ? 'w-full justify-start text-sm' : 'text-sm'} h-9 px-3`}>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            </Button>
+        </div>
+    );
+  }
+  
+  if (onAuthPages) {
+    // Immediately show login/signup buttons on auth pages
+     return (
+        <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
+            {pathname !== '/login' && (
+                <Button variant={column ? "ghost" : "ghost"} onClick={handleLoginClick} className={column ? "w-full justify-start text-sm" : "text-sm"}>
+                    <LogIn className="mr-2 h-4 w-4" /> Login
+                </Button>
+            )}
+            {pathname !== '/signup' && (
+                <Button onClick={handleSignupClick} className={`${column ? "w-full" : ""} bg-accent text-accent-foreground hover:bg-accent/90 text-sm`}>
+                    <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+                </Button>
+            )}
+        </div>
+    );
+  }
+
+  if (isLoadingAuth) {
     return (
       <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
         <Button variant="ghost" disabled className={`${column ? 'w-full justify-start text-sm' : 'text-sm'} h-9 px-3`}>
@@ -368,9 +390,6 @@ function AuthButtons({
   }
 
   if (currentUser) {
-    if (onAuthPages) {
-      return null; 
-    }
     const buttonContent = (
       <>
         <LogOut className="mr-2 h-4 w-4" /> Logout
@@ -390,41 +409,15 @@ function AuthButtons({
     );
   }
 
-  // Show Login/Signup buttons if not logged in
-  if (column) { // For mobile sheet
-    return (
-      <div className="flex flex-col space-y-2 w-full">
-        {pathname !== '/login' && (
-          <SheetClose asChild>
-            <Button variant="ghost" onClick={handleLoginClick} className="w-full justify-start text-sm">
-              <LogIn className="mr-2 h-4 w-4" /> Login
-            </Button>
-          </SheetClose>
-        )}
-        {pathname !== '/signup' && (
-          <SheetClose asChild>
-            <Button onClick={handleSignupClick} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
-              <UserPlus className="mr-2 h-4 w-4" /> Sign Up
-            </Button>
-          </SheetClose>
-        )}
-      </div>
-    );
-  }
-
-  // For desktop header
+  // Show Login/Signup buttons if not logged in and not on auth pages
   return (
-    <div className="flex space-x-2">
-      {pathname !== '/login' && (
-        <Button variant="ghost" onClick={handleLoginClick} className="text-sm">
-          <LogIn className="mr-2 h-4 w-4" /> Login
-        </Button>
-      )}
-      {pathname !== '/signup' && (
-        <Button onClick={handleSignupClick} className="bg-accent text-accent-foreground hover:bg-accent/90 text-sm">
-          <UserPlus className="mr-2 h-4 w-4" /> Sign Up
-        </Button>
-      )}
+    <div className={`flex ${column ? 'flex-col space-y-2 w-full' : 'space-x-2'}`}>
+      <Button variant={column ? "ghost" : "ghost"} onClick={handleLoginClick} className={column ? "w-full justify-start text-sm" : "text-sm"}>
+        <LogIn className="mr-2 h-4 w-4" /> Login
+      </Button>
+      <Button onClick={handleSignupClick} className={`${column ? "w-full" : ""} bg-accent text-accent-foreground hover:bg-accent/90 text-sm`}>
+        <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+      </Button>
     </div>
   );
 }
