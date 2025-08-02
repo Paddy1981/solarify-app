@@ -101,6 +101,13 @@ export function Header() {
 
   useEffect(() => {
     setMounted(true);
+    // On auth pages, we don't need to check for the user, so we can set loading to false immediately.
+    if (onAuthPages) {
+      setIsLoadingAuth(false);
+      setCurrentUser(null);
+      setUserRole(null);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (user) => { 
       setCurrentUser(user);
       if (user) {
@@ -119,7 +126,7 @@ export function Header() {
       setIsLoadingAuth(false);
     });
     return () => unsubscribe(); 
-  }, []);
+  }, [pathname, onAuthPages]);
   
   const cartItemCount = mounted ? getItemCount() : 0;
 
