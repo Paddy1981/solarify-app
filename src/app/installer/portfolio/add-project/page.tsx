@@ -6,15 +6,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
+import { auth, db, serverTimestamp } from "@/lib/firebase";
+import { doc, getDoc, collection, addDoc, updateDoc } from "firebase/firestore";
+import type { MockUser } from "@/lib/mock-data/users";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { Briefcase, Save, XCircle, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Briefcase, Save, XCircle, Image as ImageIcon, Loader2, LogIn, AlertTriangle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const projectFormSchema = z.object({
   title: z.string().min(3, { message: "Project title must be at least 3 characters." }),
@@ -30,10 +35,56 @@ const projectFormSchema = z.object({
 
 type ProjectFormData = z.infer<typeof projectFormSchema>;
 
+function AddProjectPageSkeleton() {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card className="shadow-xl">
+          <CardHeader className="text-center pb-4 pt-6">
+            <Skeleton className="h-12 w-12 mx-auto mb-4 rounded-full" />
+            <Skeleton className="h-8 w-3/4 mx-auto mb-2" />
+            <Skeleton className="h-5 w-full mx-auto" />
+          </CardHeader>
+          <CardContent className="space-y-6 pt-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-5 w-1/4" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
+          <CardFooter className="pt-6 flex justify-end gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-32" />
+          </CardFooter>
+        </Card>
+      </div>
+    );
+}
+
 export default function AddProjectPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [installerProfile, setInstallerProfile] = useState<MockUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists() && docSnap.data()?.role === 'installer') {
+          setInstallerProfile({ id: docSnap.id, ...docSnap.data() } as MockUser);
+        } else {
+          setInstallerProfile(null); // Not an installer or profile not found
+        }
+      } else {
+        setInstallerProfile(null);
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
@@ -49,17 +100,74 @@ export default function AddProjectPage() {
   });
 
   const onSubmit: SubmitHandler<ProjectFormData> = async (data) => {
+    if (!installerProfile) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in as an installer to add a project.",
+        variant: "destructive"
+      });
+      return;
+    }
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log("New Project Data:", data);
-    
-    toast({
-      title: "Project Added (Simulated)",
-      description: `Project "${data.title}" has been successfully added to your portfolio. This is a simulated action; no data was saved to a database in this step.`,
-    });
-    setIsSubmitting(false);
+    try {
+      const projectsCollectionRef = collection(db, "projects");
+      await addDoc(projectsCollectionRef, {
+        ...data,
+        installerId: installerProfile.id,
+        installerName: installerProfile.companyName || installerProfile.fullName,
+        createdAt: serverTimestamp(),
+      });
+      
+      const userDocRef = doc(db, "users", installerProfile.id);
+      const currentProjectCount = installerProfile.projectCount || 0;
+      await updateDoc(userDocRef, {
+          projectCount: currentProjectCount + 1
+      });
+
+      toast({
+        title: "Project Added!",
+        description: `Project "${data.title}" has been successfully saved to your portfolio.`,
+      });
+      form.reset();
+      router.push('/installer/portfolio');
+    } catch (error) {
+      console.error("Error adding project:", error);
+      toast({
+        title: "Error Saving Project",
+        description: "There was an issue saving your project to the database. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return <AddProjectPageSkeleton />;
+  }
+
+  if (!installerProfile) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-12">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <div className="flex justify-center mb-4">
+              <LogIn className="w-16 h-16 text-primary" />
+            </div>
+            <CardTitle className="text-2xl font-headline">Access Denied</CardTitle>
+            <CardDescription>
+              Please log in as an installer to add a project to your portfolio.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Link href="/login">Login</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
