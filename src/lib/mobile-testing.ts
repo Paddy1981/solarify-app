@@ -1,5 +1,7 @@
 // Mobile testing utilities for responsive design validation
 
+import { logger } from './error-handling/logger';
+
 export interface ViewportSize {
   width: number
   height: number
@@ -69,7 +71,14 @@ export class MobileTestingUtility {
       // Trigger resize event
       window.dispatchEvent(new Event('resize'))
       
-      console.log(`📱 Simulating ${viewport.name} (${viewport.width}x${viewport.height})`)
+      logger.info('Simulating mobile viewport', {
+        context: 'mobile_testing',
+        operation: 'simulate_viewport',
+        viewportName: viewport.name,
+        viewportWidth: viewport.width,
+        viewportHeight: viewport.height,
+        viewportCategory: viewport.category
+      })
     }
   }
 
@@ -374,7 +383,10 @@ export class MobileTestingUtility {
     this.viewport = null
     this.touchTargets = []
     
-    console.log('🖥️ Reset to normal viewport')
+    logger.info('Reset to normal viewport', {
+      context: 'mobile_testing',
+      operation: 'reset_viewport'
+    })
   }
 }
 
@@ -387,6 +399,12 @@ export function testMobileViewport(viewport: ViewportSize): void {
 
 export function analyzeMobileAccessibility(): void {
   const report = mobileTestingUtility.generateAccessibilityReport()
+  logger.info('Mobile accessibility analysis completed', {
+    context: 'mobile_testing',
+    operation: 'analyze_accessibility',
+    summary: report.summary,
+    issuesCount: report.issues.length
+  })
   console.table(report.summary)
   console.log('📱 Mobile Accessibility Report:', report)
   mobileTestingUtility.highlightTouchTargets()
@@ -394,11 +412,24 @@ export function analyzeMobileAccessibility(): void {
 
 export function testAllBreakpoints(): void {
   const results = mobileTestingUtility.testResponsiveBreakpoints()
+  logger.info('Responsive breakpoint testing completed', {
+    context: 'mobile_testing',
+    operation: 'test_breakpoints',
+    resultsCount: results.length,
+    totalIssues: results.reduce((sum, r) => sum + r.issues.length, 0)
+  })
   console.log('📐 Responsive Breakpoint Test Results:', results)
 }
 
 export function testMobilePerformance(): void {
   const results = mobileTestingUtility.testMobilePerformance()
+  logger.info('Mobile performance testing completed', {
+    context: 'mobile_testing',
+    operation: 'test_performance',
+    loadTime: results.loadTime,
+    firstContentfulPaint: results.firstContentfulPaint,
+    recommendationsCount: results.recommendations.length
+  })
   console.log('🚀 Mobile Performance Test Results:', results)
 }
 

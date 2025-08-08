@@ -4,12 +4,16 @@
  */
 
 import { validateDesignSystemColors, generateColorReport } from './color-contrast';
+import { logger } from '../error-handling/logger';
 
 /**
  * Run color validation and generate report
  */
 export function validateApplicationColors() {
-  console.log('🎨 Running WCAG 2.1 AA Color Contrast Validation...\n');
+  logger.info('Running WCAG 2.1 AA Color Contrast Validation', {
+    context: 'accessibility',
+    operation: 'validate_colors'
+  });
   
   const results = validateDesignSystemColors();
   const report = generateColorReport();
@@ -26,6 +30,16 @@ export function validateApplicationColors() {
   );
   
   if (violations.length > 0) {
+    logger.error('Critical color contrast violations found', {
+      context: 'accessibility',
+      operation: 'validate_colors',
+      violationsCount: violations.length,
+      violations: violations.map(([name, result]) => ({
+        name,
+        ratio: result.ratio,
+        grade: result.grade
+      }))
+    });
     console.log('❌ CRITICAL ISSUES FOUND:');
     violations.forEach(([name, result]) => {
       console.log(`   ${name}: ${result.ratio.toFixed(2)}:1 (${result.grade})`);
@@ -34,6 +48,16 @@ export function validateApplicationColors() {
   }
   
   if (warnings.length > 0) {
+    logger.warn('Color contrast warnings found', {
+      context: 'accessibility',
+      operation: 'validate_colors',
+      warningsCount: warnings.length,
+      warnings: warnings.map(([name, result]) => ({
+        name,
+        ratio: result.ratio,
+        grade: result.grade
+      }))
+    });
     console.log('⚠️  WARNINGS:');
     warnings.forEach(([name, result]) => {
       console.log(`   ${name}: ${result.ratio.toFixed(2)}:1 (${result.grade})`);
@@ -46,6 +70,11 @@ export function validateApplicationColors() {
   );
   
   if (passing.length > 0) {
+    logger.info('Color contrast validation passed combinations', {
+      context: 'accessibility',
+      operation: 'validate_colors',
+      passingCount: passing.length
+    });
     console.log('✅ PASSING COMBINATIONS:');
     passing.forEach(([name, result]) => {
       console.log(`   ${name}: ${result.ratio.toFixed(2)}:1 (${result.grade})`);
@@ -53,16 +82,25 @@ export function validateApplicationColors() {
   }
   
   // Summary
+  const overallCompliance = violations.length === 0 ? 
+    (warnings.length === 0 ? 'FULL COMPLIANCE' : 'MOSTLY COMPLIANT') : 
+    'NON-COMPLIANT';
+    
+  logger.info('Color contrast validation summary', {
+    context: 'accessibility',
+    operation: 'validate_colors',
+    totalCombinations: Object.keys(results).length,
+    passingCount: passing.length,
+    warningsCount: warnings.length,
+    violationsCount: violations.length,
+    overallCompliance
+  });
+  
   console.log('\n📊 SUMMARY:');
   console.log(`   Total combinations checked: ${Object.keys(results).length}`);
   console.log(`   Passing (AA/AAA): ${passing.length}`);
   console.log(`   Warnings (large text only): ${warnings.length}`);
   console.log(`   Violations: ${violations.length}`);
-  
-  const overallCompliance = violations.length === 0 ? 
-    (warnings.length === 0 ? 'FULL COMPLIANCE' : 'MOSTLY COMPLIANT') : 
-    'NON-COMPLIANT';
-    
   console.log(`   Overall status: ${overallCompliance}\n`);
   
   return {

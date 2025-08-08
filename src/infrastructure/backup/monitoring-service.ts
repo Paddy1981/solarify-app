@@ -6,9 +6,11 @@
 import { PubSub } from '@google-cloud/pubsub';
 import { Monitoring } from '@google-cloud/monitoring';
 import { Logging } from '@google-cloud/logging';
+import { Storage } from '@google-cloud/storage';
 import { BackupConfig, BackupMetadata } from './backup-config';
 import { BackupMetrics, RecoveryExecution } from './backup-manager';
 import { ValidationResult } from './backup-validator';
+import { logger } from '../../lib/error-handling/logger';
 
 export interface AlertConfiguration {
   id: string;
@@ -107,6 +109,7 @@ export class MonitoringService {
   private pubsub: PubSub;
   private monitoring: Monitoring;
   private logging: Logging;
+  private storage: Storage;
   private alerts: Map<string, AlertConfiguration>;
   private activeAlerts: Map<string, BackupAlert>;
   private healthChecks: Map<string, HealthCheckResult>;
@@ -116,6 +119,7 @@ export class MonitoringService {
     this.pubsub = new PubSub();
     this.monitoring = new Monitoring();
     this.logging = new Logging();
+    this.storage = new Storage();
     this.alerts = new Map();
     this.activeAlerts = new Map();
     this.healthChecks = new Map();
@@ -125,7 +129,10 @@ export class MonitoringService {
    * Initialize monitoring system
    */
   async initialize(): Promise<void> {
-    console.log('Initializing Backup Monitoring System...');
+    logger.info('Initializing Backup Monitoring System', {
+      context: 'backup_monitoring',
+      operation: 'initialization'
+    });
     
     // Setup alert configurations
     await this.setupAlertConfigurations();
@@ -139,14 +146,28 @@ export class MonitoringService {
     // Start monitoring loops
     await this.startMonitoringLoops();
     
-    console.log('Backup Monitoring System initialized');
+    logger.info('Backup Monitoring System initialized', {
+      context: 'backup_monitoring',
+      operation: 'initialization',
+      status: 'completed',
+      alertConfigs: this.alerts.size,
+      healthChecks: this.healthChecks.size
+    });
   }
 
   /**
    * Report successful backup completion
    */
   async reportBackupSuccess(metadata: BackupMetadata, metrics: BackupMetrics): Promise<void> {
-    console.log(`Reporting backup success: ${metadata.id}`);
+    logger.info('Reporting backup success', {
+      context: 'backup_monitoring',
+      operation: 'backup_success_report',
+      backupId: metadata.id,
+      backupType: metadata.type,
+      size: metadata.size,
+      duration: metrics.duration,
+      collections: metadata.collections.length
+    });
     
     // Log success event
     await this.logEvent('backup_success', {
@@ -201,7 +222,13 @@ export class MonitoringService {
    * Report backup failure
    */
   async reportBackupFailure(backupId: string, error: Error): Promise<void> {
-    console.log(`Reporting backup failure: ${backupId}`);
+    logger.error('Reporting backup failure', {
+      context: 'backup_monitoring',
+      operation: 'backup_failure_report',
+      backupId,
+      error: error.message,
+      stack: error.stack
+    });
     
     // Log failure event
     await this.logEvent('backup_failure', {
@@ -240,7 +267,14 @@ export class MonitoringService {
    * Report disaster recovery start
    */
   async notifyDisasterRecoveryStart(recovery: RecoveryExecution): Promise<void> {
-    console.log(`Notifying disaster recovery start: ${recovery.id}`);
+    logger.info('Notifying disaster recovery start', {
+      context: 'backup_monitoring',
+      operation: 'disaster_recovery_start_notify',
+      recoveryId: recovery.id,
+      scenario: recovery.scenario.name,
+      severity: recovery.scenario.severity,
+      estimatedRTO: recovery.scenario.estimatedRTO
+    });
     
     await this.logEvent('disaster_recovery_start', {
       recoveryId: recovery.id,
@@ -265,7 +299,15 @@ export class MonitoringService {
    * Report disaster recovery success
    */
   async notifyDisasterRecoverySuccess(recovery: RecoveryExecution): Promise<void> {
-    console.log(`Notifying disaster recovery success: ${recovery.id}`);
+    logger.info('Notifying disaster recovery success', {
+      context: 'backup_monitoring',
+      operation: 'disaster_recovery_success_notify',
+      recoveryId: recovery.id,
+      scenario: recovery.scenario.name,
+      duration: recovery.endTime ? recovery.endTime.getTime() - recovery.startTime.getTime() : 0,
+      actualRTO: recovery.metrics.actualRTO,
+      stepsCompleted: recovery.metrics.stepsCompleted
+    });
     
     const duration = recovery.endTime ? recovery.endTime.getTime() - recovery.startTime.getTime() : 0;
     
@@ -304,7 +346,15 @@ export class MonitoringService {
    * Report disaster recovery failure
    */
   async notifyDisasterRecoveryFailure(recovery: RecoveryExecution, error: Error): Promise<void> {
-    console.log(`Notifying disaster recovery failure: ${recovery.id}`);
+    logger.error('Notifying disaster recovery failure', {
+      context: 'backup_monitoring',
+      operation: 'disaster_recovery_failure_notify',
+      recoveryId: recovery.id,
+      scenario: recovery.scenario.name,
+      error: error.message,
+      stepsCompleted: recovery.metrics.stepsCompleted,
+      stepsTotal: recovery.metrics.stepsTotal
+    });
     
     await this.logEvent('disaster_recovery_failure', {
       recoveryId: recovery.id,
@@ -330,7 +380,14 @@ export class MonitoringService {
    * Report partial disaster recovery
    */
   async notifyDisasterRecoveryPartial(recovery: RecoveryExecution, issues: string[]): Promise<void> {
-    console.log(`Notifying partial disaster recovery: ${recovery.id}`);
+    logger.warn('Notifying partial disaster recovery', {
+      context: 'backup_monitoring',
+      operation: 'disaster_recovery_partial_notify',
+      recoveryId: recovery.id,
+      scenario: recovery.scenario.name,
+      issues: issues.length,
+      stepsCompleted: recovery.metrics.stepsCompleted
+    });
     
     await this.logEvent('disaster_recovery_partial', {
       recoveryId: recovery.id,
@@ -349,7 +406,11 @@ export class MonitoringService {
    * Monitor backup system health
    */
   async performHealthChecks(): Promise<HealthCheckResult[]> {
-    console.log('Performing backup system health checks...');
+    logger.info('Performing backup system health checks', {
+      context: 'backup_monitoring',
+      operation: 'health_checks',
+      checkTypes: ['scheduler', 'storage', 'firestore', 'encryption', 'replication', 'monitoring']
+    });
     
     const healthChecks = await Promise.allSettled([
       this.checkBackupSchedulerHealth(),
@@ -410,7 +471,15 @@ export class MonitoringService {
    * Monitor storage capacity
    */
   async monitorStorageCapacity(): Promise<void> {
-    console.log('Monitoring storage capacity...');
+    logger.info('Monitoring storage capacity', {
+      context: 'backup_monitoring',
+      operation: 'storage_capacity_monitoring',
+      buckets: [
+        this.config.destinations.primary.bucket,
+        this.config.destinations.secondary.bucket,
+        this.config.destinations.archive.bucket
+      ]
+    });
     
     const buckets = [
       this.config.destinations.primary.bucket,
@@ -453,7 +522,13 @@ export class MonitoringService {
         }
         
       } catch (error) {
-        console.error(`Failed to monitor storage capacity for ${bucketName}:`, error);
+        logger.error('Failed to monitor storage capacity', {
+          context: 'backup_monitoring',
+          operation: 'storage_capacity_monitoring',
+          bucket: bucketName,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined
+        });
         await this.triggerAlert('storage_monitoring_failure', {
           affectedServices: [bucketName],
           errorMessage: error instanceof Error ? error.message : String(error)
@@ -466,7 +541,10 @@ export class MonitoringService {
    * Monitor backup retention and cleanup
    */
   async monitorRetentionCompliance(): Promise<void> {
-    console.log('Monitoring backup retention compliance...');
+    logger.info('Monitoring backup retention compliance', {
+      context: 'backup_monitoring',
+      operation: 'retention_compliance_monitoring'
+    });
     
     // This would check that backups are being cleaned up according to retention policies
     // and alert if there are compliance issues
@@ -556,12 +634,18 @@ export class MonitoringService {
 
   private async initializeHealthChecks(): Promise<void> {
     // Setup health check configurations
-    console.log('Initializing health checks...');
+    logger.info('Initializing health checks', {
+      context: 'backup_monitoring',
+      operation: 'health_check_setup'
+    });
   }
 
   private async setupMetricCollection(): Promise<void> {
     // Setup custom metrics in Google Cloud Monitoring
-    console.log('Setting up metric collection...');
+    logger.info('Setting up metric collection', {
+      context: 'backup_monitoring',
+      operation: 'metric_collection_setup'
+    });
   }
 
   private async startMonitoringLoops(): Promise<void> {
@@ -587,7 +671,14 @@ export class MonitoringService {
   private async recordMetrics(metrics: MetricData[]): Promise<void> {
     // Record custom metrics in Google Cloud Monitoring
     for (const metric of metrics) {
-      console.log(`Recording metric: ${metric.name} = ${metric.value}`);
+      logger.debug('Recording metric', {
+        context: 'backup_monitoring',
+        operation: 'metric_recording',
+        metricName: metric.name,
+        value: metric.value,
+        unit: metric.unit,
+        labels: metric.labels
+      });
       // Actual implementation would use the Monitoring client
     }
   }
@@ -595,7 +686,11 @@ export class MonitoringService {
   private async triggerAlert(alertId: string, context: AlertContext): Promise<void> {
     const alertConfig = this.alerts.get(alertId);
     if (!alertConfig) {
-      console.error(`Unknown alert configuration: ${alertId}`);
+      logger.error('Unknown alert configuration', {
+        context: 'backup_monitoring',
+        operation: 'alert_trigger',
+        alertId
+      });
       return;
     }
 
@@ -615,7 +710,14 @@ export class MonitoringService {
   }
 
   private async sendNotification(channel: NotificationChannel, subject: string, message: string): Promise<void> {
-    console.log(`Sending ${channel.type} notification to ${channel.target}: ${subject}`);
+    logger.info('Sending notification', {
+      context: 'backup_monitoring',
+      operation: 'notification_send',
+      channelType: channel.type,
+      target: channel.target,
+      subject,
+      priority: channel.priority
+    });
     
     switch (channel.type) {
       case 'email':
@@ -680,27 +782,49 @@ export class MonitoringService {
 
   private async sendEmailNotification(email: string, subject: string, message: string): Promise<void> {
     // Implementation would use email service (SendGrid, SES, etc.)
-    console.log(`Email sent to ${email}: ${subject}`);
+    logger.info('Email notification sent', {
+      context: 'backup_monitoring',
+      operation: 'email_notification',
+      email,
+      subject
+    });
   }
 
   private async sendSlackNotification(webhook: string, subject: string, message: string): Promise<void> {
     // Implementation would use Slack webhook API
-    console.log(`Slack notification sent: ${subject}`);
+    logger.info('Slack notification sent', {
+      context: 'backup_monitoring',
+      operation: 'slack_notification',
+      subject
+    });
   }
 
   private async sendSmsNotification(phone: string, message: string): Promise<void> {
     // Implementation would use SMS service (Twilio, etc.)
-    console.log(`SMS sent to ${phone}: ${message.substring(0, 50)}...`);
+    logger.info('SMS notification sent', {
+      context: 'backup_monitoring',
+      operation: 'sms_notification',
+      phone,
+      messageLength: message.length
+    });
   }
 
   private async sendPagerDutyNotification(serviceKey: string, subject: string, message: string): Promise<void> {
     // Implementation would use PagerDuty API
-    console.log(`PagerDuty alert sent: ${subject}`);
+    logger.info('PagerDuty alert sent', {
+      context: 'backup_monitoring',
+      operation: 'pagerduty_notification',
+      subject
+    });
   }
 
   private async sendWebhookNotification(url: string, payload: any): Promise<void> {
     // Implementation would make HTTP POST to webhook URL
-    console.log(`Webhook notification sent to ${url}`);
+    logger.info('Webhook notification sent', {
+      context: 'backup_monitoring',
+      operation: 'webhook_notification',
+      url
+    });
   }
 
   // Health check implementations

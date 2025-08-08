@@ -7,6 +7,7 @@ import { PubSub } from '@google-cloud/pubsub';
 import { BackupConfig } from './backup-config';
 import { DisasterRecoveryManager, RecoveryExecution, DisasterScenario } from './disaster-recovery-manager';
 import { MonitoringService } from './monitoring-service';
+import { logger } from '../../lib/error-handling/logger';
 
 export interface BusinessContinuityPlan {
   id: string;
@@ -325,7 +326,10 @@ export class BusinessContinuityManager {
    * Initialize business continuity system
    */
   async initialize(): Promise<void> {
-    console.log('Initializing Business Continuity System...');
+    logger.info('Initializing Business Continuity System', {
+      context: 'business_continuity',
+      operation: 'initialization'
+    });
     
     // Load continuity plan
     await this.loadContinuityPlan();
@@ -339,7 +343,13 @@ export class BusinessContinuityManager {
     // Setup monitoring integration
     await this.setupContinuityMonitoring();
     
-    console.log('Business Continuity System initialized');
+    logger.info('Business Continuity System initialized', {
+      context: 'business_continuity',
+      operation: 'initialization',
+      status: 'completed',
+      scenarioCount: this.continuityPlan.scenarios.length,
+      stakeholderCount: this.stakeholderDirectory.size
+    });
   }
 
   /**
@@ -350,7 +360,13 @@ export class BusinessContinuityManager {
     trigger: 'automatic' | 'manual',
     context?: any
   ): Promise<ContinuityEvent> {
-    console.log(`Activating business continuity for scenario: ${scenarioId}`);
+    logger.info('Activating business continuity for scenario', {
+      context: 'business_continuity',
+      operation: 'continuity_activation',
+      scenarioId,
+      trigger,
+      context: context
+    });
 
     const scenario = this.continuityPlan.scenarios.find(s => s.id === scenarioId);
     if (!scenario) {
@@ -403,11 +419,27 @@ export class BusinessContinuityManager {
       // Setup status monitoring
       await this.setupStatusMonitoring(continuityEvent);
 
-      console.log(`Business continuity activated: ${eventId}`);
+      logger.info('Business continuity activated', {
+        context: 'business_continuity',
+        operation: 'continuity_activation',
+        eventId,
+        scenarioId,
+        scenarioName: scenario.name,
+        severity: scenario.impact.severity,
+        affectedServices: scenario.businessServices.length,
+        activatedTeams: continuityEvent.activatedTeams.length
+      });
       return continuityEvent;
 
     } catch (error) {
-      console.error(`Failed to activate business continuity: ${eventId}`, error);
+      logger.error('Failed to activate business continuity', {
+        context: 'business_continuity',
+        operation: 'continuity_activation',
+        eventId,
+        scenarioId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       continuityEvent.status = ContinuityStatus.MONITORING;
       throw error;
     }
@@ -432,7 +464,16 @@ export class BusinessContinuityManager {
       throw new Error(`Unknown communication template: ${templateId}`);
     }
 
-    console.log(`Sending communication: ${template.name} to ${audience}`);
+    logger.info('Sending stakeholder communication', {
+      context: 'business_continuity',
+      operation: 'stakeholder_communication',
+      eventId,
+      templateId,
+      templateName: template.name,
+      audience,
+      urgency: template.urgency,
+      approvalRequired: template.approvalRequired
+    });
 
     // Get audience members
     const audienceMembers = await this.getAudienceMembers(audience);
@@ -460,7 +501,16 @@ export class BusinessContinuityManager {
           continuityEvent.metrics.stakeholdersContacted++;
         } catch (error) {
           communication.deliveryStatus = 'failed';
-          console.error(`Failed to send communication to ${member.id}:`, error);
+          logger.error('Failed to send communication to stakeholder', {
+            context: 'business_continuity',
+            operation: 'stakeholder_communication',
+            eventId,
+            stakeholderId: member.id,
+            contactMethod: contactMethod.type,
+            templateId,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined
+          });
         }
 
         communications.push(communication);
@@ -493,7 +543,15 @@ export class BusinessContinuityManager {
       throw new Error(`Unknown continuity event: ${eventId}`);
     }
 
-    console.log(`Updating incident status: ${eventId} -> ${status}`);
+    logger.info('Updating incident status', {
+      context: 'business_continuity',
+      operation: 'status_update',
+      eventId,
+      previousStatus: continuityEvent.status,
+      newStatus: status,
+      message,
+      affectedServices: services?.length || continuityEvent.affectedServices.length
+    });
 
     const previousStatus = continuityEvent.status;
     continuityEvent.status = status;
@@ -548,7 +606,14 @@ export class BusinessContinuityManager {
       throw new Error(`Unknown continuity event: ${continuityEventId}`);
     }
 
-    console.log(`Coordinating continuity ${continuityEventId} with recovery ${recoveryExecution.id}`);
+    logger.info('Coordinating continuity with disaster recovery', {
+      context: 'business_continuity',
+      operation: 'dr_coordination',
+      continuityEventId,
+      recoveryExecutionId: recoveryExecution.id,
+      scenarioName: recoveryExecution.scenario.name,
+      recoveryStatus: recoveryExecution.status
+    });
 
     // Update continuity event with recovery information
     await this.recordDecision(continuityEvent, {
@@ -581,7 +646,15 @@ export class BusinessContinuityManager {
       throw new Error(`Unknown continuity event: ${eventId}`);
     }
 
-    console.log(`Generating post-incident report for: ${eventId}`);
+    logger.info('Generating post-incident report', {
+      context: 'business_continuity',
+      operation: 'post_incident_report',
+      eventId,
+      status: continuityEvent.status,
+      duration: new Date().getTime() - continuityEvent.timestamp.getTime(),
+      affectedServices: continuityEvent.affectedServices.length,
+      communicationsSent: continuityEvent.communications.length
+    });
 
     // Create timeline
     const timeline = this.createEventTimeline(continuityEvent);
@@ -611,7 +684,13 @@ export class BusinessContinuityManager {
     eventId: string,
     improvements: ContinuityPlanImprovement[]
   ): Promise<void> {
-    console.log(`Updating continuity plan based on event: ${eventId}`);
+    logger.info('Updating continuity plan based on event', {
+      context: 'business_continuity',
+      operation: 'plan_update',
+      eventId,
+      improvementCount: improvements.length,
+      currentVersion: this.continuityPlan.version
+    });
 
     for (const improvement of improvements) {
       await this.applyContinuityImprovement(improvement);
@@ -624,7 +703,12 @@ export class BusinessContinuityManager {
     // Notify stakeholders of plan updates
     await this.notifyPlanUpdates(improvements);
 
-    console.log('Continuity plan updated successfully');
+    logger.info('Continuity plan updated successfully', {
+      context: 'business_continuity',
+      operation: 'plan_update',
+      newVersion: this.continuityPlan.version,
+      lastUpdated: this.continuityPlan.lastUpdated.toISOString()
+    });
   }
 
   // Private helper methods
@@ -937,22 +1021,37 @@ export class BusinessContinuityManager {
   // Additional helper methods...
 
   private async loadContinuityPlan(): Promise<void> {
-    console.log('Loading business continuity plan...');
+    logger.info('Loading business continuity plan', {
+      context: 'business_continuity',
+      operation: 'plan_loading'
+    });
   }
 
   private async setupStakeholderDirectory(): Promise<void> {
-    console.log('Setting up stakeholder directory...');
+    logger.info('Setting up stakeholder directory', {
+      context: 'business_continuity',
+      operation: 'stakeholder_setup',
+      stakeholderCount: this.continuityPlan.stakeholders.length
+    });
     this.continuityPlan.stakeholders.forEach(stakeholder => {
       this.stakeholderDirectory.set(stakeholder.id, stakeholder);
     });
   }
 
   private async initializeCommunicationChannels(): Promise<void> {
-    console.log('Initializing communication channels...');
+    logger.info('Initializing communication channels', {
+      context: 'business_continuity',
+      operation: 'communication_setup',
+      channelCount: this.continuityPlan.communicationPlan.channels.length,
+      templateCount: this.continuityPlan.communicationPlan.templates.length
+    });
   }
 
   private async setupContinuityMonitoring(): Promise<void> {
-    console.log('Setting up continuity monitoring...');
+    logger.info('Setting up continuity monitoring', {
+      context: 'business_continuity',
+      operation: 'monitoring_setup'
+    });
   }
 
   private generateEventId(scenarioId: string): string {
@@ -968,22 +1067,43 @@ export class BusinessContinuityManager {
   }
 
   private async activateRecoveryTeams(event: ContinuityEvent, scenario: ContinuityScenario): Promise<void> {
-    console.log('Activating recovery teams...');
+    logger.info('Activating recovery teams', {
+      context: 'business_continuity',
+      operation: 'team_activation',
+      eventId: event.id,
+      scenarioId: scenario.id
+    });
     // Implementation would activate relevant teams based on scenario
   }
 
   private async sendImmediateNotifications(event: ContinuityEvent, scenario: ContinuityScenario): Promise<void> {
-    console.log('Sending immediate notifications...');
+    logger.info('Sending immediate notifications', {
+      context: 'business_continuity',
+      operation: 'immediate_notifications',
+      eventId: event.id,
+      scenarioId: scenario.id,
+      severity: scenario.impact.severity
+    });
     // Implementation would send notifications to stakeholders
   }
 
   private async startRecoveryProcedures(event: ContinuityEvent, scenario: ContinuityScenario): Promise<void> {
-    console.log('Starting recovery procedures...');
+    logger.info('Starting recovery procedures', {
+      context: 'business_continuity',
+      operation: 'recovery_procedures',
+      eventId: event.id,
+      scenarioId: scenario.id,
+      procedureCount: scenario.continuityProcedures.length
+    });
     // Implementation would start continuity procedures
   }
 
   private async setupStatusMonitoring(event: ContinuityEvent): Promise<void> {
-    console.log('Setting up status monitoring...');
+    logger.info('Setting up status monitoring', {
+      context: 'business_continuity',
+      operation: 'status_monitoring_setup',
+      eventId: event.id
+    });
   }
 
   private async getAudienceMembers(audience: string): Promise<Stakeholder[]> {
@@ -1002,36 +1122,81 @@ export class BusinessContinuityManager {
   }
 
   private async sendCommunication(contactMethod: ContactMethod, message: string, subject: string): Promise<void> {
-    console.log(`Sending ${contactMethod.type} communication: ${subject}`);
+    logger.debug('Sending communication via channel', {
+      context: 'business_continuity',
+      operation: 'communication_send',
+      channelType: contactMethod.type,
+      subject,
+      messageLength: message.length
+    });
     // Implementation would send actual communication
   }
 
   private logContinuityEvent(event: ContinuityEvent, type: ContinuityEventType, details: any): void {
-    console.log(`Continuity event: ${type} for ${event.id}`);
+    logger.info('Logging continuity event', {
+      context: 'business_continuity',
+      operation: 'event_logging',
+      eventId: event.id,
+      eventType: type,
+      details
+    });
   }
 
   private async sendStatusUpdates(event: ContinuityEvent, previousStatus: ContinuityStatus, message: string): Promise<void> {
-    console.log(`Sending status updates: ${previousStatus} -> ${event.status}`);
+    logger.info('Sending status updates', {
+      context: 'business_continuity',
+      operation: 'status_updates',
+      eventId: event.id,
+      previousStatus,
+      currentStatus: event.status,
+      message
+    });
   }
 
   private async handleStabilizingStatus(event: ContinuityEvent): Promise<void> {
-    console.log('Handling stabilizing status...');
+    logger.info('Handling stabilizing status', {
+      context: 'business_continuity',
+      operation: 'status_handling',
+      eventId: event.id,
+      status: 'stabilizing'
+    });
   }
 
   private async handleResolvedStatus(event: ContinuityEvent): Promise<void> {
-    console.log('Handling resolved status...');
+    logger.info('Handling resolved status', {
+      context: 'business_continuity',
+      operation: 'status_handling',
+      eventId: event.id,
+      status: 'resolved'
+    });
   }
 
   private async handlePostReviewStatus(event: ContinuityEvent): Promise<void> {
-    console.log('Handling post-review status...');
+    logger.info('Handling post-review status', {
+      context: 'business_continuity',
+      operation: 'status_handling',
+      eventId: event.id,
+      status: 'post_review'
+    });
   }
 
   private async sendCoordinatedCommunications(event: ContinuityEvent, recovery: RecoveryExecution): Promise<void> {
-    console.log('Sending coordinated communications...');
+    logger.info('Sending coordinated communications', {
+      context: 'business_continuity',
+      operation: 'coordinated_communication',
+      eventId: event.id,
+      recoveryId: recovery.id
+    });
   }
 
   private async monitorRecoveryProgress(event: ContinuityEvent, recovery: RecoveryExecution): Promise<void> {
-    console.log('Monitoring recovery progress...');
+    logger.info('Monitoring recovery progress', {
+      context: 'business_continuity',
+      operation: 'recovery_monitoring',
+      eventId: event.id,
+      recoveryId: recovery.id,
+      recoveryStatus: recovery.status
+    });
   }
 
   private createEventTimeline(event: ContinuityEvent): TimelineEntry[] {
@@ -1059,7 +1224,12 @@ export class BusinessContinuityManager {
   }
 
   private async applyContinuityImprovement(improvement: ContinuityPlanImprovement): Promise<void> {
-    console.log('Applying continuity improvement...');
+    logger.info('Applying continuity improvement', {
+      context: 'business_continuity',
+      operation: 'improvement_application',
+      improvementType: improvement.type,
+      priority: improvement.priority
+    });
   }
 
   private generateNewVersion(): string {
@@ -1069,7 +1239,12 @@ export class BusinessContinuityManager {
   }
 
   private async notifyPlanUpdates(improvements: ContinuityPlanImprovement[]): Promise<void> {
-    console.log('Notifying stakeholders of plan updates...');
+    logger.info('Notifying stakeholders of plan updates', {
+      context: 'business_continuity',
+      operation: 'plan_update_notification',
+      improvementCount: improvements.length,
+      stakeholderCount: this.stakeholderDirectory.size
+    });
   }
 
   private createRegionalDisasterScenario(): ContinuityScenario {

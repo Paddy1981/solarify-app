@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { logger } from './error-handling/logger';
 
 // Client-side environment variables validation
 const clientEnvSchema = z.object({
@@ -42,7 +43,11 @@ export const clientEnv = (() => {
   const result = clientEnvSchema.safeParse(env);
   
   if (!result.success) {
-    console.error('❌ Invalid client environment variables:', result.error.flatten().fieldErrors);
+    logger.error('Invalid client environment variables', {
+      context: 'environment',
+      operation: 'client_env_validation',
+      errors: result.error.flatten().fieldErrors
+    });
     throw new Error('Invalid client environment variables');
   }
 
@@ -72,7 +77,11 @@ export const serverEnv = (() => {
   const result = serverEnvSchema.safeParse(env);
   
   if (!result.success) {
-    console.error('❌ Invalid server environment variables:', result.error.flatten().fieldErrors);
+    logger.error('Invalid server environment variables', {
+      context: 'environment',
+      operation: 'server_env_validation',
+      errors: result.error.flatten().fieldErrors
+    });
     throw new Error('Invalid server environment variables');
   }
 
@@ -110,10 +119,17 @@ export function validateEnvironment() {
       });
     }
 
-    console.log('✅ Environment validation passed');
+    logger.info('Environment validation passed', {
+      context: 'environment',
+      operation: 'validate_environment'
+    });
     return true;
   } catch (error) {
-    console.error('❌ Environment validation failed:', error);
+    logger.error('Environment validation failed', {
+      context: 'environment',
+      operation: 'validate_environment',
+      error: error instanceof Error ? error.message : String(error)
+    });
     return false;
   }
 }

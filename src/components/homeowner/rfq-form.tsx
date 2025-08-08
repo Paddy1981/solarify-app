@@ -18,6 +18,7 @@ import { getMockUsersByRole, type MockUser } from "@/lib/mock-data/users"; // St
 import { Skeleton } from "@/components/ui/skeleton";
 import { db, serverTimestamp } from "@/lib/firebase";
 import { collection, addDoc } from "firebase/firestore";
+import { logger } from "@/lib/error-handling/logger";
 
 const rfqFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -95,7 +96,12 @@ export function RFQForm({ homeownerDetails }: RFQFormProps) {
       };
       
       const docRef = await addDoc(collection(db, "rfqs"), rfqDataToSave);
-      console.log("RFQ Data saved to Firestore with ID:", docRef.id);
+      logger.info('RFQ Data saved to Firestore', { 
+        rfqId: docRef.id,
+        homeownerId: homeownerDetails.id,
+        installerCount: data.selectedInstallerIds.length,
+        context: 'rfq_submission'
+      });
       
       toast({
         title: "RFQ Submitted!",
@@ -103,7 +109,11 @@ export function RFQForm({ homeownerDetails }: RFQFormProps) {
       });
       form.reset(); 
     } catch (error) {
-      console.error("Error saving RFQ to Firestore:", error);
+      logger.error('Error saving RFQ to Firestore', {
+        error: error instanceof Error ? error.message : String(error),
+        homeownerId: homeownerDetails.id,
+        context: 'rfq_submission'
+      });
       toast({
         title: "Submission Failed",
         description: "There was an error submitting your RFQ. Please try again.",

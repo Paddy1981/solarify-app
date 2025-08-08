@@ -7,6 +7,7 @@
 
 import { utilityProviderDatabase } from './utility-provider-database';
 import { netMeteringEngine } from './net-metering-engine';
+import { logger } from '../error-handling/logger';
 
 // Types and Interfaces
 
@@ -319,7 +320,12 @@ class SmartMeterIntegration {
 
       return reading;
     } catch (error) {
-      console.error(`Failed to collect meter reading for ${meterId}:`, error);
+      logger.error('Failed to collect meter reading', {
+        context: 'solar_system',
+        operation: 'collect_meter_reading',
+        meterId,
+        error: error instanceof Error ? error.message : String(error)
+      });
       return null;
     }
   }
@@ -510,7 +516,13 @@ class SmartMeterIntegration {
 
       return greenButtonData;
     } catch (error) {
-      console.error('Green Button download failed:', error);
+      logger.error('Green Button download failed', {
+        context: 'solar_system',
+        operation: 'download_green_button',
+        customerId,
+        utilityId,
+        error: error instanceof Error ? error.message : String(error)
+      });
       return null;
     }
   }
@@ -623,7 +635,15 @@ class SmartMeterIntegration {
 
   private async sendAlert(alert: MonitoringAlert): Promise<void> {
     // Implementation would send actual notifications
-    console.log(`Alert: ${alert.title} - ${alert.message}`);
+    logger.warn('Monitoring alert generated', {
+      context: 'solar_system',
+      operation: 'send_alert',
+      alertType: alert.type,
+      alertSeverity: alert.severity,
+      alertTitle: alert.title,
+      alertMessage: alert.message,
+      sessionId: alert.sessionId
+    });
   }
 
   // Private Helper Methods
@@ -684,7 +704,13 @@ class SmartMeterIntegration {
 
   private async testMeterConnection(config: MeterConfiguration): Promise<boolean> {
     // This would test actual meter connectivity
-    console.log(`Testing connection to meter ${config.meterSerialNumber}`);
+    logger.info('Testing meter connection', {
+      context: 'solar_system',
+      operation: 'test_meter_connection',
+      meterSerialNumber: config.meterSerialNumber,
+      meterType: config.meterType,
+      communicationProtocol: config.communicationProtocol
+    });
     return true;
   }
 
@@ -747,7 +773,12 @@ class SmartMeterIntegration {
           session.dataPoints = session.dataPoints.slice(-1000);
         }
       } catch (error) {
-        console.error(`Data collection error for session ${session.id}:`, error);
+        logger.error('Data collection error during monitoring session', {
+          context: 'solar_system',
+          operation: 'data_collection',
+          sessionId: session.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
         session.status = 'error';
       }
     }, session.configuration.updateInterval * 1000);
@@ -763,7 +794,10 @@ class SmartMeterIntegration {
 
   private initializeIntegrations(): void {
     // Initialize integrations with utility AMI systems
-    console.log('Smart meter integrations initialized');
+    logger.info('Smart meter integrations initialized', {
+      context: 'solar_system',
+      operation: 'initialize_integrations'
+    });
   }
 
   private generateId(): string {

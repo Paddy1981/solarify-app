@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Focus management utilities for WCAG 2.1 AA compliance
  * Implements focus traps, restoration, and keyboard navigation
@@ -217,6 +219,7 @@ export function restoreFocus(): void {
 /**
  * React hook for focus management
  */
+
 import { useRef, useCallback, useEffect } from 'react';
 
 export function useFocusTrap(options?: FocusTrapOptions) {

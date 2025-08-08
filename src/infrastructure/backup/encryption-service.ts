@@ -8,6 +8,7 @@ import { SecretManager } from '@google-cloud/secret-manager';
 import { Storage } from '@google-cloud/storage';
 import { BackupConfig, EncryptionConfig } from './backup-config';
 import crypto from 'crypto';
+import { logger } from '../../lib/error-handling/logger';
 
 export interface EncryptionKey {
   id: string;
@@ -144,7 +145,12 @@ export class EncryptionService {
    * Initialize encryption service
    */
   async initialize(): Promise<void> {
-    console.log('Initializing Encryption Service...');
+    logger.info('Initializing Encryption Service', {
+      context: 'encryption',
+      operation: 'initialization',
+      algorithm: this.encryptionConfig.algorithm,
+      keyManagement: this.encryptionConfig.keyManagement
+    });
     
     // Setup encryption keys
     await this.setupEncryptionKeys();
@@ -161,7 +167,13 @@ export class EncryptionService {
     // Validate encryption configuration
     await this.validateEncryptionSetup();
     
-    console.log('Encryption Service initialized');
+    logger.info('Encryption Service initialized', {
+      context: 'encryption',
+      operation: 'initialization',
+      status: 'completed',
+      activeKeys: this.keys.size,
+      accessControls: this.accessControls.size
+    });
   }
 
   /**
@@ -169,7 +181,13 @@ export class EncryptionService {
    */
   async encryptBackup(data: Buffer | string, keyId: string): Promise<EncryptionResult> {
     const startTime = Date.now();
-    console.log(`Encrypting backup data with key: ${keyId}`);
+    logger.info('Encrypting backup data', {
+      context: 'encryption',
+      operation: 'encrypt',
+      keyId,
+      algorithm: this.encryptionConfig.algorithm,
+      dataSize: Buffer.isBuffer(data) ? data.length : Buffer.from(data, 'utf8').length
+    });
 
     try {
       // Validate access
@@ -228,11 +246,25 @@ export class EncryptionService {
         }
       });
 
-      console.log(`Backup data encrypted successfully with key: ${keyId}`);
+      logger.info('Backup data encrypted successfully', {
+        context: 'encryption',
+        operation: 'encrypt',
+        keyId,
+        originalSize: result.metadata.dataSize,
+        encryptedSize: result.metadata.encryptedSize,
+        duration: Date.now() - startTime
+      });
       return result;
 
     } catch (error) {
-      console.error(`Encryption failed for key ${keyId}:`, error);
+      logger.error('Encryption failed', {
+        context: 'encryption',
+        operation: 'encrypt',
+        keyId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        duration: Date.now() - startTime
+      });
       
       await this.logSecurityEvent({
         operation: SecurityOperation.ENCRYPT,
@@ -254,7 +286,13 @@ export class EncryptionService {
    */
   async decryptBackup(encryptionResult: EncryptionResult): Promise<DecryptionResult> {
     const startTime = Date.now();
-    console.log(`Decrypting backup data with key: ${encryptionResult.keyId}`);
+    logger.info('Decrypting backup data', {
+      context: 'encryption',
+      operation: 'decrypt',
+      keyId: encryptionResult.keyId,
+      algorithm: encryptionResult.algorithm,
+      encryptedSize: encryptionResult.encryptedData.length
+    });
 
     try {
       // Validate access
@@ -304,11 +342,24 @@ export class EncryptionService {
         }
       });
 
-      console.log(`Backup data decrypted successfully with key: ${encryptionResult.keyId}`);
+      logger.info('Backup data decrypted successfully', {
+        context: 'encryption',
+        operation: 'decrypt',
+        keyId: encryptionResult.keyId,
+        decryptedSize: result.decryptedData.length,
+        duration: Date.now() - startTime
+      });
       return result;
 
     } catch (error) {
-      console.error(`Decryption failed for key ${encryptionResult.keyId}:`, error);
+      logger.error('Decryption failed', {
+        context: 'encryption',
+        operation: 'decrypt',
+        keyId: encryptionResult.keyId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        duration: Date.now() - startTime
+      });
       
       await this.logSecurityEvent({
         operation: SecurityOperation.DECRYPT,
@@ -329,7 +380,11 @@ export class EncryptionService {
    * Encrypt authentication data
    */
   async encryptAuthData(userData: any[]): Promise<string> {
-    console.log('Encrypting authentication data...');
+    logger.info('Encrypting authentication data', {
+      context: 'encryption',
+      operation: 'auth_data_encrypt',
+      userCount: userData.length
+    });
 
     const authDataString = JSON.stringify(userData);
     const keyId = await this.getKeyForPurpose(KeyPurpose.AUTH_DATA_ENCRYPTION);
@@ -353,7 +408,10 @@ export class EncryptionService {
    * Decrypt authentication data
    */
   async decryptAuthData(encryptedData: string): Promise<any[]> {
-    console.log('Decrypting authentication data...');
+    logger.info('Decrypting authentication data', {
+      context: 'encryption',
+      operation: 'auth_data_decrypt'
+    });
 
     try {
       // Decode encrypted package
@@ -379,7 +437,12 @@ export class EncryptionService {
       return userData;
 
     } catch (error) {
-      console.error('Failed to decrypt authentication data:', error);
+      logger.error('Failed to decrypt authentication data', {
+        context: 'encryption',
+        operation: 'auth_data_decrypt',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
   }
@@ -388,7 +451,11 @@ export class EncryptionService {
    * Rotate encryption key
    */
   async rotateKey(keyId: string): Promise<EncryptionKey> {
-    console.log(`Rotating encryption key: ${keyId}`);
+    logger.info('Rotating encryption key', {
+      context: 'encryption',
+      operation: 'key_rotation',
+      keyId
+    });
 
     try {
       // Validate access for key rotation
@@ -425,11 +492,24 @@ export class EncryptionService {
         }
       });
 
-      console.log(`Key rotation completed: ${keyId} -> ${newKey.id}`);
+      logger.info('Key rotation completed', {
+        context: 'encryption',
+        operation: 'key_rotation',
+        oldKeyId: keyId,
+        newKeyId: newKey.id,
+        purpose: existingKey.purpose,
+        algorithm: newKey.algorithm
+      });
       return newKey;
 
     } catch (error) {
-      console.error(`Key rotation failed for ${keyId}:`, error);
+      logger.error('Key rotation failed', {
+        context: 'encryption',
+        operation: 'key_rotation',
+        keyId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       
       await this.logSecurityEvent({
         operation: SecurityOperation.KEY_ROTATION,
@@ -449,7 +529,11 @@ export class EncryptionService {
    * Backup encryption keys securely
    */
   async backupKeys(): Promise<void> {
-    console.log('Backing up encryption keys...');
+    logger.info('Backing up encryption keys', {
+      context: 'encryption',
+      operation: 'key_backup',
+      keyCount: this.keys.size
+    });
 
     try {
       const keyBackup = {
@@ -484,10 +568,20 @@ export class EncryptionService {
         }
       });
 
-      console.log('Encryption keys backed up successfully');
+      logger.info('Encryption keys backed up successfully', {
+        context: 'encryption',
+        operation: 'key_backup',
+        keyCount: this.keys.size,
+        backupLocation
+      });
 
     } catch (error) {
-      console.error('Key backup failed:', error);
+      logger.error('Key backup failed', {
+        context: 'encryption',
+        operation: 'key_backup',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
   }
@@ -500,7 +594,12 @@ export class EncryptionService {
     issues: string[];
     recommendations: string[];
   }> {
-    console.log('Validating encryption setup...');
+    logger.info('Validating encryption setup', {
+      context: 'encryption',
+      operation: 'validation',
+      keyCount: this.keys.size,
+      algorithm: this.encryptionConfig.algorithm
+    });
 
     const issues: string[] = [];
     const recommendations: string[] = [];
@@ -559,7 +658,12 @@ export class EncryptionService {
       };
 
     } catch (error) {
-      console.error('Encryption validation failed:', error);
+      logger.error('Encryption validation failed', {
+        context: 'encryption',
+        operation: 'validation',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return {
         valid: false,
         issues: [`Validation failed: ${error instanceof Error ? error.message : String(error)}`],
@@ -596,7 +700,17 @@ export class EncryptionService {
   // Private helper methods
 
   private async setupEncryptionKeys(): Promise<void> {
-    console.log('Setting up encryption keys...');
+    logger.info('Setting up encryption keys', {
+      context: 'encryption',
+      operation: 'key_setup',
+      purposes: [
+        'backup_encryption',
+        'auth_data_encryption',
+        'storage_encryption',
+        'transport_encryption',
+        'database_encryption'
+      ]
+    });
 
     // Setup keys for different purposes
     const keyPurposes = [
@@ -610,17 +724,33 @@ export class EncryptionService {
     for (const purpose of keyPurposes) {
       try {
         const existingKey = await this.getKeyForPurpose(purpose);
-        console.log(`Using existing key for ${purpose}: ${existingKey.id}`);
+        logger.info('Using existing key for purpose', {
+          context: 'encryption',
+          operation: 'key_setup',
+          purpose,
+          keyId: existingKey.id,
+          status: existingKey.status
+        });
       } catch (error) {
         // Create new key if not exists
         const newKey = await this.createEncryptionKey(purpose);
-        console.log(`Created new key for ${purpose}: ${newKey.id}`);
+        logger.info('Created new key for purpose', {
+          context: 'encryption',
+          operation: 'key_setup',
+          purpose,
+          keyId: newKey.id,
+          algorithm: newKey.algorithm
+        });
       }
     }
   }
 
   private async setupAccessControls(): Promise<void> {
-    console.log('Setting up access controls...');
+    logger.info('Setting up access controls', {
+      context: 'encryption',
+      operation: 'access_control_setup',
+      userRoles: ['backup_operator', 'disaster_recovery', 'key_admin']
+    });
 
     // Setup default access controls for different roles
     const defaultControls: AccessControl[] = [
@@ -664,7 +794,12 @@ export class EncryptionService {
   }
 
   private async setupKeyRotation(): Promise<void> {
-    console.log('Setting up key rotation schedules...');
+    logger.info('Setting up key rotation schedules', {
+      context: 'encryption',
+      operation: 'rotation_schedule_setup',
+      rotationInterval: '24h',
+      rotationThreshold: '90d'
+    });
 
     // Setup automatic key rotation
     // This would typically integrate with a scheduler service
@@ -674,7 +809,10 @@ export class EncryptionService {
   }
 
   private async initializeAuditLogging(): Promise<void> {
-    console.log('Initializing audit logging...');
+    logger.info('Initializing audit logging', {
+      context: 'encryption',
+      operation: 'audit_initialization'
+    });
     
     // Initialize audit log storage
     this.auditLogs = [];
@@ -771,7 +909,11 @@ export class EncryptionService {
   private async storeKeyBackup(backupData: string): Promise<string> {
     // Store key backup in secure location
     const backupPath = `key-backups/${Date.now()}-key-backup.json`;
-    console.log(`Storing key backup at: ${backupPath}`);
+    logger.info('Storing key backup', {
+      context: 'encryption',
+      operation: 'key_backup_store',
+      backupPath
+    });
     return backupPath;
   }
 
@@ -785,7 +927,14 @@ export class EncryptionService {
     this.auditLogs.push(logEntry);
 
     // In production, this would also send to external audit log system
-    console.log(`Security event logged: ${event.operation} - ${event.success ? 'SUCCESS' : 'FAILURE'}`);
+    logger.info('Security event logged', {
+      context: 'encryption',
+      operation: 'security_audit',
+      eventOperation: event.operation,
+      success: event.success,
+      resource: event.resource,
+      keyId: event.keyId
+    });
   }
 
   private generateLogId(): string {
@@ -793,7 +942,12 @@ export class EncryptionService {
   }
 
   private async checkAndRotateKeys(): Promise<void> {
-    console.log('Checking keys for rotation...');
+    logger.info('Checking keys for rotation', {
+      context: 'encryption',
+      operation: 'rotation_check',
+      activeKeys: Array.from(this.keys.values()).filter(k => k.status === KeyStatus.ACTIVE).length,
+      totalKeys: this.keys.size
+    });
 
     const now = new Date();
     const rotationThreshold = 90 * 24 * 60 * 60 * 1000; // 90 days
@@ -807,9 +961,22 @@ export class EncryptionService {
         if (daysSinceRotation > rotationThreshold) {
           try {
             await this.rotateKey(key.id);
-            console.log(`Automatically rotated key: ${key.id}`);
+            logger.info('Automatically rotated key', {
+              context: 'encryption',
+              operation: 'auto_rotation',
+              keyId: key.id,
+              purpose: key.purpose,
+              daysSinceRotation: Math.floor(daysSinceRotation / (24 * 60 * 60 * 1000))
+            });
           } catch (error) {
-            console.error(`Failed to rotate key ${key.id}:`, error);
+            logger.error('Failed to rotate key automatically', {
+              context: 'encryption',
+              operation: 'auto_rotation',
+              keyId: key.id,
+              purpose: key.purpose,
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined
+            });
           }
         }
       }

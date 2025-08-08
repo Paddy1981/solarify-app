@@ -217,13 +217,13 @@ export const DynamicComponents = {
 
   // Analytics components
   Analytics: createDynamicComponent(
-    () => import('@/components/dashboard/analytics-chart'),
+    () => import('@/components/dashboard/performance-chart'),
     { loading: () => <Skeleton className="h-64 w-full" />, displayName: 'Analytics' }
   ),
 
   // Heavy form components
   EnergyCalculator: createDynamicComponent(
-    () => import('@/components/homeowner/energy-calculator'),
+    () => import('@/components/homeowner/energy-calculator-form'),
     { loading: FormSkeleton, displayName: 'EnergyCalculator' }
   ),
 

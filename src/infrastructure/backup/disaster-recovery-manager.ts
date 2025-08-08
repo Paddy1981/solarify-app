@@ -9,6 +9,7 @@ import { PubSub } from '@google-cloud/pubsub';
 import { BackupConfig, BackupMetadata, RecoveryProcedure, RecoveryStep } from './backup-config';
 import { BackupValidator, ValidationResult } from './backup-validator';
 import { MonitoringService } from './monitoring-service';
+import { logger } from '../../lib/error-handling/logger';
 
 export interface DisasterScenario {
   id: string;
@@ -109,7 +110,10 @@ export class DisasterRecoveryManager {
    * Initialize disaster recovery system
    */
   async initialize(): Promise<void> {
-    console.log('Initializing Disaster Recovery System...');
+    logger.info('Initializing Disaster Recovery System', {
+      context: 'disaster_recovery',
+      operation: 'initialization'
+    });
     
     // Load disaster scenarios
     await this.loadDisasterScenarios();
@@ -123,20 +127,35 @@ export class DisasterRecoveryManager {
     // Validate DR procedures
     await this.validateRecoveryProcedures();
     
-    console.log('Disaster Recovery System initialized');
+    logger.info('Disaster Recovery System initialized', {
+      context: 'disaster_recovery',
+      operation: 'initialization',
+      status: 'completed'
+    });
   }
 
   /**
    * Detect and automatically respond to disaster scenarios
    */
   async detectAndRespond(): Promise<void> {
-    console.log('Running disaster detection...');
+    logger.info('Running disaster detection', {
+      context: 'disaster_recovery',
+      operation: 'detection',
+      scenarioCount: this.scenarios.size
+    });
     
     for (const [scenarioId, scenario] of this.scenarios) {
       const isTriggered = await this.evaluateDetectionRules(scenario);
       
       if (isTriggered) {
-        console.log(`Disaster scenario detected: ${scenario.name}`);
+        logger.info('Disaster scenario detected', {
+          context: 'disaster_recovery',
+          operation: 'detection',
+          scenarioId,
+          scenarioName: scenario.name,
+          severity: scenario.severity,
+          triggerType: 'automatic'
+        });
         await this.triggerDisasterRecovery(scenarioId, 'automatic');
       }
     }
@@ -156,7 +175,17 @@ export class DisasterRecoveryManager {
     }
 
     const recoveryId = this.generateRecoveryId(scenarioId);
-    console.log(`Starting disaster recovery: ${recoveryId} for scenario: ${scenario.name}`);
+    logger.info('Starting disaster recovery', {
+      context: 'disaster_recovery',
+      operation: 'recovery_start',
+      recoveryId,
+      scenarioId,
+      scenarioName: scenario.name,
+      severity: scenario.severity,
+      triggerType: trigger,
+      estimatedRTO: scenario.estimatedRTO,
+      estimatedRPO: scenario.estimatedRPO
+    });
 
     // Create recovery execution
     const recovery: RecoveryExecution = {
@@ -193,21 +222,53 @@ export class DisasterRecoveryManager {
         recovery.status = RecoveryStatus.COMPLETED;
         recovery.endTime = new Date();
         await this.monitoring.notifyDisasterRecoverySuccess(recovery);
-        console.log(`Disaster recovery completed successfully: ${recoveryId}`);
+        logger.info('Disaster recovery completed successfully', {
+          context: 'disaster_recovery',
+          operation: 'recovery_complete',
+          recoveryId,
+          scenarioId: scenario.id,
+          scenarioName: scenario.name,
+          duration: recovery.endTime!.getTime() - recovery.startTime.getTime(),
+          stepsCompleted: recovery.metrics.stepsCompleted,
+          stepsTotal: recovery.metrics.stepsTotal
+        });
       } else {
         recovery.status = RecoveryStatus.PARTIALLY_COMPLETED;
         await this.monitoring.notifyDisasterRecoveryPartial(recovery, validationResult.issues);
-        console.log(`Disaster recovery partially completed: ${recoveryId}`);
+        logger.warn('Disaster recovery partially completed', {
+          context: 'disaster_recovery',
+          operation: 'recovery_partial',
+          recoveryId,
+          scenarioId: scenario.id,
+          scenarioName: scenario.name,
+          validationIssues: validationResult.issues.length,
+          stepsCompleted: recovery.metrics.stepsCompleted,
+          stepsTotal: recovery.metrics.stepsTotal
+        });
       }
 
     } catch (error) {
-      console.error(`Disaster recovery failed: ${recoveryId}`, error);
+      logger.error('Disaster recovery failed', {
+        context: 'disaster_recovery',
+        operation: 'recovery_failed',
+        recoveryId,
+        scenarioId: scenario.id,
+        scenarioName: scenario.name,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       recovery.status = RecoveryStatus.FAILED;
       recovery.endTime = new Date();
       
       // Attempt rollback if configured
       if (scenario.recoveryProcedure.rollback.length > 0) {
-        console.log(`Initiating rollback for recovery: ${recoveryId}`);
+        logger.info('Initiating rollback for recovery', {
+          context: 'disaster_recovery',
+          operation: 'rollback_start',
+          recoveryId,
+          scenarioId: scenario.id,
+          rollbackSteps: scenario.recoveryProcedure.rollback.length
+        });
         await this.executeRollback(recovery);
       }
       
@@ -255,7 +316,15 @@ export class DisasterRecoveryManager {
     recovery.steps.push(executedStep);
 
     try {
-      console.log(`Executing recovery step: ${step.name}`);
+      logger.info('Executing recovery step', {
+        context: 'disaster_recovery',
+        operation: 'step_start',
+        recoveryId: recovery.id,
+        stepName: step.name,
+        command: step.command,
+        timeout: step.timeout,
+        parallel: step.parallel
+      });
       
       // Parse timeout
       const timeout = this.parseTimeout(step.timeout);
@@ -269,10 +338,27 @@ export class DisasterRecoveryManager {
       
       recovery.metrics.stepsCompleted++;
       
-      console.log(`Recovery step completed: ${step.name}`);
+      logger.info('Recovery step completed', {
+        context: 'disaster_recovery',
+        operation: 'step_complete',
+        recoveryId: recovery.id,
+        stepName: step.name,
+        duration: executedStep.endTime.getTime() - executedStep.startTime.getTime(),
+        stepsCompleted: recovery.metrics.stepsCompleted,
+        stepsTotal: recovery.metrics.stepsTotal
+      });
 
     } catch (error) {
-      console.error(`Recovery step failed: ${step.name}`, error);
+      logger.error('Recovery step failed', {
+        context: 'disaster_recovery',
+        operation: 'step_failed',
+        recoveryId: recovery.id,
+        stepName: step.name,
+        command: step.command,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        retryCount: executedStep.retryCount
+      });
       
       executedStep.error = error instanceof Error ? error.message : String(error);
       executedStep.status = StepStatus.FAILED;
@@ -299,7 +385,12 @@ export class DisasterRecoveryManager {
     recovery.rollbackPlan = rollbackPlan;
 
     try {
-      console.log(`Executing rollback for recovery: ${recovery.id}`);
+      logger.info('Executing rollback for recovery', {
+        context: 'disaster_recovery',
+        operation: 'rollback_execute',
+        recoveryId: recovery.id,
+        rollbackSteps: rollbackSteps.length
+      });
       
       for (const step of rollbackSteps) {
         await this.executeRecoveryStep(recovery, step);
@@ -309,10 +400,21 @@ export class DisasterRecoveryManager {
       rollbackPlan.success = true;
       recovery.status = RecoveryStatus.ROLLED_BACK;
       
-      console.log(`Rollback completed for recovery: ${recovery.id}`);
+      logger.info('Rollback completed for recovery', {
+        context: 'disaster_recovery',
+        operation: 'rollback_complete',
+        recoveryId: recovery.id,
+        success: true
+      });
 
     } catch (error) {
-      console.error(`Rollback failed for recovery: ${recovery.id}`, error);
+      logger.error('Rollback failed for recovery', {
+        context: 'disaster_recovery',
+        operation: 'rollback_failed',
+        recoveryId: recovery.id,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       rollbackPlan.executed = true;
       rollbackPlan.success = false;
       throw error;
@@ -323,7 +425,13 @@ export class DisasterRecoveryManager {
    * Cross-region failover automation
    */
   async executeCrossRegionFailover(targetRegion: string): Promise<RecoveryExecution> {
-    console.log(`Initiating cross-region failover to: ${targetRegion}`);
+    logger.info('Initiating cross-region failover', {
+      context: 'disaster_recovery',
+      operation: 'cross_region_failover',
+      targetRegion,
+      estimatedRTO: 'PT4H',
+      estimatedRPO: 'PT1H'
+    });
     
     const failoverScenario: DisasterScenario = {
       id: 'cross_region_failover',
@@ -412,7 +520,11 @@ export class DisasterRecoveryManager {
    * Automated self-healing for common issues
    */
   async initiateSelfHealing(): Promise<void> {
-    console.log('Initiating self-healing procedures...');
+    logger.info('Initiating self-healing procedures', {
+      context: 'disaster_recovery',
+      operation: 'self_healing',
+      procedures: ['database_connections', 'storage_access', 'performance_degradation', 'memory_leaks']
+    });
     
     const healingScenarios = [
       this.healDatabaseConnections(),
@@ -440,7 +552,11 @@ export class DisasterRecoveryManager {
    * Test disaster recovery procedures
    */
   async testDisasterRecoveryProcedures(): Promise<{ [scenarioId: string]: ValidationResult }> {
-    console.log('Testing disaster recovery procedures...');
+    logger.info('Testing disaster recovery procedures', {
+      context: 'disaster_recovery',
+      operation: 'procedure_testing',
+      totalScenarios: this.scenarios.size
+    });
     
     const results: { [scenarioId: string]: ValidationResult } = {};
     
@@ -493,17 +609,27 @@ export class DisasterRecoveryManager {
 
   private async setupDetectionRules(): Promise<void> {
     // Setup monitoring rules for automatic disaster detection
-    console.log('Setting up disaster detection rules...');
+    logger.info('Setting up disaster detection rules', {
+      context: 'disaster_recovery',
+      operation: 'setup_detection_rules'
+    });
   }
 
   private async setupDisasterMonitoring(): Promise<void> {
     // Setup specialized monitoring for disaster scenarios
-    console.log('Setting up disaster monitoring...');
+    logger.info('Setting up disaster monitoring', {
+      context: 'disaster_recovery',
+      operation: 'setup_monitoring'
+    });
   }
 
   private async validateRecoveryProcedures(): Promise<void> {
     // Validate that recovery procedures are executable
-    console.log('Validating recovery procedures...');
+    logger.info('Validating recovery procedures', {
+      context: 'disaster_recovery',
+      operation: 'validate_procedures',
+      scenarioCount: this.scenarios.size
+    });
   }
 
   private async evaluateDetectionRules(scenario: DisasterScenario): Promise<boolean> {
@@ -557,7 +683,12 @@ export class DisasterRecoveryManager {
   private async executeCommand(command: string, timeout: number): Promise<string> {
     // Execute shell command with timeout
     // This would integrate with actual command execution
-    console.log(`Executing: ${command}`);
+    logger.debug('Executing command', {
+      context: 'disaster_recovery',
+      operation: 'command_execution',
+      command,
+      timeout
+    });
     return 'Command executed successfully';
   }
 
@@ -597,22 +728,38 @@ export class DisasterRecoveryManager {
 
   private async healDatabaseConnections(): Promise<void> {
     // Implement database connection healing
-    console.log('Healing database connections...');
+    logger.info('Healing database connections', {
+      context: 'disaster_recovery',
+      operation: 'self_healing',
+      healingType: 'database_connections'
+    });
   }
 
   private async healStorageAccessIssues(): Promise<void> {
     // Implement storage access healing
-    console.log('Healing storage access issues...');
+    logger.info('Healing storage access issues', {
+      context: 'disaster_recovery',
+      operation: 'self_healing',
+      healingType: 'storage_access'
+    });
   }
 
   private async healPerformanceDegradation(): Promise<void> {
     // Implement performance healing
-    console.log('Healing performance degradation...');
+    logger.info('Healing performance degradation', {
+      context: 'disaster_recovery',
+      operation: 'self_healing',
+      healingType: 'performance_degradation'
+    });
   }
 
   private async healMemoryLeaks(): Promise<void> {
     // Implement memory leak healing
-    console.log('Healing memory leaks...');
+    logger.info('Healing memory leaks', {
+      context: 'disaster_recovery',
+      operation: 'self_healing',
+      healingType: 'memory_leaks'
+    });
   }
 
   // Scenario creation methods

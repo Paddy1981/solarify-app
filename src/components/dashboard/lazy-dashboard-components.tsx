@@ -101,25 +101,25 @@ export const LazyDashboardComponents = {
 
   // Energy calculator (very heavy component)
   EnergyCalculator: createDynamicComponent(
-    () => import('@/components/homeowner/energy-calculator'),
+    () => import('@/components/homeowner/energy-calculator-form'),
     { loading: FormSkeleton, displayName: 'LazyEnergyCalculator' }
   ),
 
   // Savings tracker
   SavingsTracker: createDynamicComponent(
-    () => import('@/components/homeowner/savings-tracker'),
+    () => import('@/components/homeowner/savings-tracker/savings-overview-card'),
     { loading: ChartSkeleton, displayName: 'LazySavingsTracker' }
   ),
 
   // Analytics components
   Analytics: createDynamicComponent(
-    () => import('@/components/dashboard/analytics'),
+    () => import('@/components/analytics/solar-performance-dashboard'),
     { loading: ChartSkeleton, displayName: 'LazyAnalytics' }
   ),
 
   // Maintenance tasks
   MaintenanceTasks: createDynamicComponent(
-    () => import('@/components/homeowner/maintenance-tasks'),
+    () => import('@/components/homeowner/maintenance-task-card'),
     { loading: () => <Skeleton className="h-64 w-full" />, displayName: 'LazyMaintenanceTasks' }
   ),
 };
@@ -162,7 +162,7 @@ export const LazyRouteComponents = {
 
   // RFQ pages
   RfqList: createDynamicComponent(
-    () => import('@/app/homeowner/rfqs/page'),
+    () => import('@/app/homeowner/rfq/page'),
     { loading: LoadingComponents.Form, displayName: 'LazyRfqList' }
   ),
 
@@ -174,7 +174,7 @@ export const LazyRouteComponents = {
 
   // Analytics pages
   HomeownerAnalytics: createDynamicComponent(
-    () => import('@/app/homeowner/analytics/page'),
+    () => import('@/app/homeowner/savings-tracker/page'),
     { loading: ChartSkeleton, displayName: 'LazyHomeownerAnalytics' }
   ),
 
@@ -205,7 +205,7 @@ export const LazyThirdPartyComponents = {
 
   // Chart libraries
   RechartsComponent: createDynamicComponent(
-    () => import('@/components/charts/recharts-wrapper'),
+    () => import('@/components/dashboard/performance-chart'),
     { loading: ChartSkeleton, displayName: 'LazyRechartsComponent' }
   ),
 };

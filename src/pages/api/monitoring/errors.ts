@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { ErrorEvent } from '../../../lib/monitoring/error-tracker';
+import { logger } from '../../../lib/error-handling/logger';
 
 interface ErrorBatchRequest {
   errors: ErrorEvent[];
@@ -65,7 +66,10 @@ export default async function handler(
     });
 
   } catch (error) {
-    console.error('Error processing error batch:', error);
+    logger.error('Error processing error batch', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'error_monitoring'
+    });
     return res.status(500).json({
       success: false,
       processed: 0,
@@ -76,16 +80,17 @@ export default async function handler(
 
 async function storeError(error: ErrorEvent): Promise<void> {
   // In a real implementation, this would store to Firestore
-  // For now, we'll log to console and could extend to store in database
+  // For now, we'll log and could extend to store in database
   
-  console.log('Storing error:', {
+  logger.info('Storing error event', {
     id: error.id,
     type: error.type,
     severity: error.severity,
     message: error.message,
     timestamp: error.context.timestamp,
     userId: error.context.userId,
-    environment: error.context.environment
+    environment: error.context.environment,
+    context: 'error_storage'
   });
 
   // TODO: Implement Firestore storage
@@ -162,7 +167,10 @@ async function getRecentErrorCount(fingerprint: string, minutes: number): Promis
 async function sendAlert(alertData: any): Promise<void> {
   try {
     // Send to notification service (Slack, email, etc.)
-    console.log('Sending alert:', alertData);
+    logger.info('Sending alert notification', { 
+      alertData,
+      context: 'alert_system'
+    });
     
     // TODO: Implement actual notification sending
     // - Slack webhook
@@ -204,6 +212,9 @@ async function sendAlert(alertData: any): Promise<void> {
       });
     }
   } catch (error) {
-    console.error('Failed to send alert:', error);
+    logger.error('Failed to send alert', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'alert_system'
+    });
   }
 }

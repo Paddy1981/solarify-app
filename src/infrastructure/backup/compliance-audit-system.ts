@@ -8,6 +8,7 @@ import { SecretManager } from '@google-cloud/secret-manager';
 import { Storage } from '@google-cloud/storage';
 import { BackupConfig, BackupMetadata } from './backup-config';
 import { RecoveryExecution } from './disaster-recovery-manager';
+import { logger } from '../../lib/error-handling/logger';
 
 export interface ComplianceFramework {
   name: string;
@@ -400,7 +401,10 @@ export class ComplianceAuditSystem {
    * Initialize compliance and audit system
    */
   async initialize(): Promise<void> {
-    console.log('Initializing Compliance and Audit System...');
+    logger.info('Initializing Compliance and Audit System', {
+      context: 'compliance_audit',
+      operation: 'initialization'
+    });
 
     // Load compliance frameworks
     await this.loadComplianceFrameworks();
@@ -417,7 +421,13 @@ export class ComplianceAuditSystem {
     // Initialize reporting system
     await this.initializeReportingSystem();
 
-    console.log('Compliance and Audit System initialized');
+    logger.info('Compliance and Audit System initialized', {
+      context: 'compliance_audit',
+      operation: 'initialization',
+      status: 'completed',
+      frameworkCount: this.frameworks.size,
+      auditLogCount: this.auditLogs.length
+    });
   }
 
   /**
@@ -459,7 +469,17 @@ export class ComplianceAuditSystem {
     // Check for compliance violations
     await this.checkComplianceViolations(auditLog);
 
-    console.log(`Audit event logged: ${eventType} for ${resource}`);
+    logger.info('Audit event logged', {
+      context: 'compliance_audit',
+      operation: 'audit_logging',
+      eventType,
+      resource,
+      outcome,
+      source,
+      user,
+      auditId: auditLog.id,
+      complianceFramework: auditLog.compliance.framework
+    });
     return auditLog;
   }
 
@@ -546,7 +566,13 @@ export class ComplianceAuditSystem {
     startDate: Date,
     endDate: Date
   ): Promise<ComplianceReport> {
-    console.log(`Generating compliance report for ${frameworkName}`);
+    logger.info('Generating compliance report', {
+      context: 'compliance_audit',
+      operation: 'report_generation',
+      framework: frameworkName,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    });
 
     const framework = this.frameworks.get(frameworkName);
     if (!framework) {
@@ -639,7 +665,16 @@ export class ComplianceAuditSystem {
     // Export report
     await this.exportComplianceReport(report);
 
-    console.log(`Compliance report generated: ${reportId}`);
+    logger.info('Compliance report generated', {
+      context: 'compliance_audit',
+      operation: 'report_generation',
+      reportId,
+      framework: frameworkName,
+      status: report.status,
+      complianceScore: report.summary.complianceScore,
+      criticalFindings: report.summary.criticalFindings,
+      totalRequirements: report.summary.totalRequirements
+    });
     return report;
   }
 
@@ -647,7 +682,11 @@ export class ComplianceAuditSystem {
    * Monitor compliance violations
    */
   async monitorComplianceViolations(): Promise<void> {
-    console.log('Monitoring compliance violations...');
+    logger.info('Monitoring compliance violations', {
+      context: 'compliance_audit',
+      operation: 'violation_monitoring',
+      monitoringPeriod: '24h'
+    });
 
     // Check recent audit logs for violations
     const recentLogs = this.getRecentAuditLogs(24 * 60 * 60 * 1000); // Last 24 hours
@@ -665,7 +704,12 @@ export class ComplianceAuditSystem {
     // Check access control compliance
     await this.checkAccessControlCompliance();
 
-    console.log('Compliance violation monitoring completed');
+    logger.info('Compliance violation monitoring completed', {
+      context: 'compliance_audit',
+      operation: 'violation_monitoring',
+      checkedLogs: recentLogs.length,
+      checks: ['policy_violations', 'data_retention', 'access_control']
+    });
   }
 
   /**
@@ -696,7 +740,12 @@ export class ComplianceAuditSystem {
           break;
           
         default:
-          console.warn(`Unsupported evidence type: ${evidenceReq.type}`);
+          logger.warn('Unsupported evidence type', {
+            context: 'compliance_audit',
+            operation: 'evidence_generation',
+            evidenceType: evidenceReq.type,
+            requirementId: requirement.id
+          });
       }
     }
 
@@ -711,7 +760,13 @@ export class ComplianceAuditSystem {
     endDate: Date,
     format: 'json' | 'csv' | 'xml' = 'json'
   ): Promise<string> {
-    console.log(`Exporting audit logs from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    logger.info('Exporting audit logs', {
+      context: 'compliance_audit',
+      operation: 'log_export',
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      format
+    });
 
     const filteredLogs = this.auditLogs.filter(
       log => log.timestamp >= startDate && log.timestamp <= endDate
@@ -751,7 +806,14 @@ export class ComplianceAuditSystem {
       }
     });
 
-    console.log(`Audit logs exported to: ${exportPath}`);
+    logger.info('Audit logs exported', {
+      context: 'compliance_audit',
+      operation: 'log_export',
+      exportPath,
+      format,
+      recordCount: filteredLogs.length,
+      exportId
+    });
     return exportPath;
   }
 
@@ -771,27 +833,44 @@ export class ComplianceAuditSystem {
       this.frameworks.set(framework.name, framework);
     });
 
-    console.log(`Loaded ${frameworks.length} compliance frameworks`);
+    logger.info('Loaded compliance frameworks', {
+      context: 'compliance_audit',
+      operation: 'framework_loading',
+      frameworkCount: frameworks.length,
+      frameworks: frameworks.map(f => f.name)
+    });
   }
 
   private async setupAuditLogging(): Promise<void> {
     // Configure structured logging for audit events
-    console.log('Setting up audit logging infrastructure...');
+    logger.info('Setting up audit logging infrastructure', {
+      context: 'compliance_audit',
+      operation: 'audit_setup'
+    });
   }
 
   private async initializeComplianceMonitoring(): Promise<void> {
     // Setup real-time compliance monitoring
-    console.log('Initializing compliance monitoring...');
+    logger.info('Initializing compliance monitoring', {
+      context: 'compliance_audit',
+      operation: 'monitoring_setup'
+    });
   }
 
   private async setupEvidenceCollection(): Promise<void> {
     // Configure automated evidence collection
-    console.log('Setting up evidence collection...');
+    logger.info('Setting up evidence collection', {
+      context: 'compliance_audit',
+      operation: 'evidence_setup'
+    });
   }
 
   private async initializeReportingSystem(): Promise<void> {
     // Initialize automated reporting
-    console.log('Initializing reporting system...');
+    logger.info('Initializing reporting system', {
+      context: 'compliance_audit',
+      operation: 'reporting_setup'
+    });
   }
 
   private generateAuditId(): string {
@@ -882,23 +961,41 @@ export class ComplianceAuditSystem {
   private async checkComplianceViolations(auditLog: AuditLog): Promise<void> {
     // Check for immediate compliance violations
     if (auditLog.outcome === AuditOutcome.FAILURE || auditLog.outcome === AuditOutcome.DENIED) {
-      console.warn(`Potential compliance violation detected: ${auditLog.eventType} - ${auditLog.outcome}`);
+      logger.warn('Potential compliance violation detected', {
+        context: 'compliance_audit',
+        operation: 'violation_check',
+        eventType: auditLog.eventType,
+        outcome: auditLog.outcome,
+        resource: auditLog.resource,
+        auditId: auditLog.id,
+        complianceFramework: auditLog.compliance.framework,
+        riskLevel: auditLog.compliance.riskLevel
+      });
     }
   }
 
   private async checkPolicyViolations(): Promise<void> {
     // Check for policy violations
-    console.log('Checking policy violations...');
+    logger.info('Checking policy violations', {
+      context: 'compliance_audit',
+      operation: 'policy_check'
+    });
   }
 
   private async checkDataRetentionCompliance(): Promise<void> {
     // Check data retention compliance
-    console.log('Checking data retention compliance...');
+    logger.info('Checking data retention compliance', {
+      context: 'compliance_audit',
+      operation: 'retention_check'
+    });
   }
 
   private async checkAccessControlCompliance(): Promise<void> {
     // Check access control compliance
-    console.log('Checking access control compliance...');
+    logger.info('Checking access control compliance', {
+      context: 'compliance_audit',
+      operation: 'access_control_check'
+    });
   }
 
   private getRecentAuditLogs(milliseconds: number): AuditLog[] {

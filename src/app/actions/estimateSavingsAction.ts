@@ -1,7 +1,26 @@
 "use server";
 
-import { savingsPotentialEstimator, type SavingsPotentialEstimatorInput, type SavingsPotentialEstimatorOutput } from "@/ai/flows/savings-potential-estimator";
+// import { savingsPotentialEstimator, type SavingsPotentialEstimatorInput, type SavingsPotentialEstimatorOutput } from "@/ai/flows/savings-potential-estimator";
 import { z } from "zod";
+import { logger } from "@/lib/error-handling/logger";
+
+// Temporary mock types until Genkit is properly configured
+export interface SavingsPotentialEstimatorInput {
+  currentElectricityBill: number;
+  solarPanelCost: number;
+  averageMonthlyConsumptionKWh: number;
+  location: string;
+  roofOrientation: string;
+  roofShading: string;
+}
+
+export interface SavingsPotentialEstimatorOutput {
+  estimatedMonthlySavings: number;
+  paybackPeriodYears: number;
+  totalLifetimeSavings: number;
+  co2ReductionKgPerYear: number;
+  recommendedSystemSizeKW: number;
+}
 
 const InputSchema = z.object({
   currentElectricityBill: z.coerce.number().positive("Current electricity bill must be positive."),
@@ -36,7 +55,16 @@ export async function estimateSavingsAction(
     }
 
     const inputData: SavingsPotentialEstimatorInput = validatedFields.data;
-    const result = await savingsPotentialEstimator(inputData);
+    // const result = await savingsPotentialEstimator(inputData);
+    
+    // Temporary mock implementation until Genkit is properly configured
+    const result: SavingsPotentialEstimatorOutput = {
+      estimatedMonthlySavings: inputData.currentElectricityBill * 0.7,
+      paybackPeriodYears: inputData.solarPanelCost / (inputData.currentElectricityBill * 12 * 0.7),
+      totalLifetimeSavings: inputData.currentElectricityBill * 12 * 0.7 * 25,
+      co2ReductionKgPerYear: inputData.averageMonthlyConsumptionKWh * 12 * 0.4,
+      recommendedSystemSizeKW: inputData.averageMonthlyConsumptionKWh * 12 / 1200
+    };
 
     return {
       data: result,
@@ -45,7 +73,11 @@ export async function estimateSavingsAction(
     };
   } catch (e) {
     const error = e as Error;
-    console.error("Error in estimateSavingsAction:", error);
+    logger.error("Error in estimateSavingsAction", {
+      error: error.message,
+      stack: error.stack,
+      context: 'savings_estimation'
+    });
     return {
       data: null,
       error: error.message || "An unexpected error occurred while estimating savings.",

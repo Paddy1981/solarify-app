@@ -793,4 +793,4 @@ export class NetMeteringEngine {
 export const netMeteringEngine = new NetMeteringEngine();
 
 // Export utility functions for policy management
-export { NetMeteringEngine };
+// NetMeteringEngine class is already exported above

@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PerformanceMetric } from '../../../lib/monitoring/error-tracker';
+import { logger } from '../../../lib/error-handling/logger';
 
 interface PerformanceBatchRequest {
   metrics: PerformanceMetric[];
@@ -65,7 +66,10 @@ export default async function handler(
     });
 
   } catch (error) {
-    console.error('Error processing performance batch:', error);
+    logger.error('Error processing performance batch', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'performance_monitoring'
+    });
     return res.status(500).json({
       success: false,
       processed: 0,
@@ -76,7 +80,7 @@ export default async function handler(
 
 async function storePerformanceMetric(metric: PerformanceMetric): Promise<void> {
   // In a real implementation, this would store to Firestore or time-series database
-  console.log('Storing performance metric:', {
+  logger.info('Storing performance metric', {
     id: metric.id,
     type: metric.type,
     name: metric.name,
@@ -85,7 +89,8 @@ async function storePerformanceMetric(metric: PerformanceMetric): Promise<void> 
     timestamp: metric.timestamp,
     userId: metric.context.userId,
     environment: metric.context.environment,
-    tags: metric.tags
+    tags: metric.tags,
+    context: 'performance_storage'
   });
 
   // TODO: Implement time-series database storage (e.g., InfluxDB, Firestore)
@@ -241,7 +246,10 @@ async function triggerPerformanceAlert(
 
 async function sendPerformanceAlert(alertData: any): Promise<void> {
   try {
-    console.log('Sending performance alert:', alertData);
+    logger.info('Sending performance alert', { 
+      alertData,
+      context: 'performance_alert'
+    });
     
     // Send to notification channels based on severity
     if (alertData.severity === 'critical') {
@@ -256,7 +264,10 @@ async function sendPerformanceAlert(alertData: any): Promise<void> {
     }
     
   } catch (error) {
-    console.error('Failed to send performance alert:', error);
+    logger.error('Failed to send performance alert', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'performance_alert'
+    });
   }
 }
 
@@ -316,5 +327,8 @@ async function sendSlackAlert(alertData: any): Promise<void> {
 async function sendEmailAlert(alertData: any): Promise<void> {
   // TODO: Implement email alerting
   // This would integrate with services like SendGrid, AWS SES, etc.
-  console.log('Email alert would be sent:', alertData.title);
+  logger.info('Email alert would be sent', { 
+    title: alertData.title,
+    context: 'email_alert'
+  });
 }

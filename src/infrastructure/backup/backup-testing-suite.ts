@@ -9,6 +9,7 @@ import { BackupValidator, ValidationResult } from './backup-validator';
 import { DisasterRecoveryManager, RecoveryExecution } from './disaster-recovery-manager';
 import { BackupManager, BackupMetadata, BackupResult } from './backup-manager';
 import { BackupConfig } from './backup-config';
+import { logger } from '../../lib/error-handling/logger';
 
 export interface TestSuite {
   id: string;
@@ -291,7 +292,15 @@ export class BackupTestingSuite {
     const suite = await this.getTestSuite(suiteId);
     const executionId = this.generateExecutionId(suiteId);
     
-    console.log(`Starting test suite execution: ${executionId}`);
+    logger.info('Starting test suite execution', {
+      context: 'backup_testing',
+      operation: 'test_suite_execution',
+      executionId,
+      suiteId,
+      totalTests: suite.tests.length,
+      parallel: suite.configuration.parallel,
+      environment: suite.environment.type
+    });
     
     const execution: TestExecution = {
       id: executionId,
@@ -339,11 +348,27 @@ export class BackupTestingSuite {
       // Cleanup test environment
       await this.cleanupTestEnvironment(execution.environment);
 
-      console.log(`Test suite execution completed: ${executionId}`);
+      logger.info('Test suite execution completed', {
+        context: 'backup_testing',
+        operation: 'test_suite_execution',
+        executionId,
+        status: execution.status,
+        totalTests: execution.summary.totalTests,
+        passedTests: execution.summary.passedTests,
+        failedTests: execution.summary.failedTests,
+        successRate: execution.summary.successRate,
+        duration: execution.endTime!.getTime() - execution.startTime.getTime()
+      });
       return execution;
 
     } catch (error) {
-      console.error(`Test suite execution failed: ${executionId}`, error);
+      logger.error('Test suite execution failed', {
+        context: 'backup_testing',
+        operation: 'test_suite_execution',
+        executionId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       execution.status = TestExecutionStatus.FAILED;
       execution.endTime = new Date();
       
@@ -351,7 +376,13 @@ export class BackupTestingSuite {
       try {
         await this.cleanupTestEnvironment(execution.environment);
       } catch (cleanupError) {
-        console.error('Test environment cleanup failed:', cleanupError);
+        logger.error('Test environment cleanup failed', {
+          context: 'backup_testing',
+          operation: 'environment_cleanup',
+          executionId,
+          error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+          stack: cleanupError instanceof Error ? cleanupError.stack : undefined
+        });
       }
       
       throw error;
@@ -365,7 +396,12 @@ export class BackupTestingSuite {
     backupId: string,
     targetEnvironment: string
   ): Promise<TestResult> {
-    console.log(`Executing backup restoration test for: ${backupId}`);
+    logger.info('Executing backup restoration test', {
+      context: 'backup_testing',
+      operation: 'backup_restoration_test',
+      backupId,
+      targetEnvironment
+    });
     
     const testId = this.generateTestId('backup_restoration');
     const startTime = new Date();
@@ -477,11 +513,28 @@ export class BackupTestingSuite {
       testResult.endTime = new Date();
       testResult.duration = testResult.endTime.getTime() - startTime.getTime();
 
-      console.log(`Backup restoration test completed: ${testResult.status}`);
+      logger.info('Backup restoration test completed', {
+        context: 'backup_testing',
+        operation: 'backup_restoration_test',
+        testId: testResult.testId,
+        status: testResult.status,
+        duration: testResult.duration,
+        stepsExecuted: testResult.steps.length,
+        backupId,
+        targetEnvironment
+      });
       return testResult;
 
     } catch (error) {
-      console.error(`Backup restoration test failed: ${testId}`, error);
+      logger.error('Backup restoration test failed', {
+        context: 'backup_testing',
+        operation: 'backup_restoration_test',
+        testId,
+        backupId,
+        targetEnvironment,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       
       testResult.status = TestStatus.ERROR;
       testResult.errors.push({
@@ -503,7 +556,11 @@ export class BackupTestingSuite {
    * Execute disaster recovery simulation test
    */
   async executeDisasterRecoveryTest(scenario: string): Promise<TestResult> {
-    console.log(`Executing disaster recovery test for scenario: ${scenario}`);
+    logger.info('Executing disaster recovery test', {
+      context: 'backup_testing',
+      operation: 'disaster_recovery_test',
+      scenario
+    });
     
     const testId = this.generateTestId('disaster_recovery_simulation');
     const startTime = new Date();
@@ -586,11 +643,26 @@ export class BackupTestingSuite {
       testResult.endTime = new Date();
       testResult.duration = testResult.endTime.getTime() - startTime.getTime();
 
-      console.log(`Disaster recovery test completed: ${testResult.status}`);
+      logger.info('Disaster recovery test completed', {
+        context: 'backup_testing',
+        operation: 'disaster_recovery_test',
+        testId: testResult.testId,
+        scenario,
+        status: testResult.status,
+        duration: testResult.duration,
+        stepsExecuted: testResult.steps.length
+      });
       return testResult;
 
     } catch (error) {
-      console.error(`Disaster recovery test failed: ${testId}`, error);
+      logger.error('Disaster recovery test failed', {
+        context: 'backup_testing',
+        operation: 'disaster_recovery_test',
+        testId,
+        scenario,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       
       testResult.status = TestStatus.ERROR;
       testResult.errors.push({
@@ -614,7 +686,12 @@ export class BackupTestingSuite {
     targetTimestamp: Date,
     collections: string[]
   ): Promise<TestResult> {
-    console.log(`Executing point-in-time recovery test for: ${targetTimestamp.toISOString()}`);
+    logger.info('Executing point-in-time recovery test', {
+      context: 'backup_testing',
+      operation: 'point_in_time_recovery_test',
+      targetTimestamp: targetTimestamp.toISOString(),
+      collections
+    });
     
     const testResult = await this.backupValidator.testPointInTimeRecovery(targetTimestamp);
     
@@ -647,7 +724,10 @@ export class BackupTestingSuite {
    * Execute performance benchmark test
    */
   async executePerformanceBenchmarkTest(): Promise<TestResult> {
-    console.log('Executing performance benchmark test');
+    logger.info('Executing performance benchmark test', {
+      context: 'backup_testing',
+      operation: 'performance_benchmark_test'
+    });
     
     const testId = this.generateTestId('performance_benchmark');
     const startTime = new Date();
@@ -758,12 +838,22 @@ export class BackupTestingSuite {
   }
 
   private async setupTestEnvironment(environment: TestEnvironment): Promise<void> {
-    console.log('Setting up test environment...');
+    logger.info('Setting up test environment', {
+      context: 'backup_testing',
+      operation: 'environment_setup',
+      environmentType: environment.type,
+      isolationLevel: environment.isolationLevel
+    });
     // Implementation would create isolated test resources
   }
 
   private async cleanupTestEnvironment(environment: TestEnvironment): Promise<void> {
-    console.log('Cleaning up test environment...');
+    logger.info('Cleaning up test environment', {
+      context: 'backup_testing',
+      operation: 'environment_cleanup',
+      environmentType: environment.type,
+      isolationLevel: environment.isolationLevel
+    });
     // Implementation would clean up test resources
   }
 
@@ -809,11 +899,24 @@ export class BackupTestingSuite {
         
         // Check if we should fail fast
         if (execution.environment.configuration.failFast && result.status === TestStatus.FAILED) {
-          console.log('Failing fast due to test failure');
+          logger.info('Failing fast due to test failure', {
+            context: 'backup_testing',
+            operation: 'sequential_execution',
+            testId: test.id,
+            testName: test.name,
+            failFast: true
+          });
           break;
         }
       } catch (error) {
-        console.error(`Test execution failed: ${test.id}`, error);
+        logger.error('Test execution failed', {
+          context: 'backup_testing',
+          operation: 'sequential_execution',
+          testId: test.id,
+          testName: test.name,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined
+        });
         execution.results.push({
           testId: test.id,
           testName: test.name,

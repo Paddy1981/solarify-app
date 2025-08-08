@@ -73,7 +73,7 @@ Cypress.Commands.add('testFormValidation', (formSelector: string, validationTest
 // Custom command for accessibility testing
 Cypress.Commands.add('testAccessibility', () => {
   cy.injectAxe()
-  cy.checkA11y(null, {
+  cy.checkA11y(undefined, {
     rules: {
       'color-contrast': { enabled: true },
       'keyboard-navigation': { enabled: true },

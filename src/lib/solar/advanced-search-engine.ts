@@ -6,6 +6,7 @@
 import { SolarPanel, Inverter, BatteryStorage } from './solar-database';
 import { MountingHardware, RackingSystem, ElectricalComponent, MonitoringDevice } from './comprehensive-equipment-database';
 import { PricingData, AvailabilityData } from './pricing-availability-manager';
+import { logger } from '../error-handling/logger';
 
 // =====================================================
 // SEARCH INTERFACES AND TYPES
@@ -172,7 +173,10 @@ export class AdvancedSearchEngine {
     electrical: ElectricalComponent[];
     monitoring: MonitoringDevice[];
   }): Promise<void> {
-    console.log('Initializing advanced search engine...');
+    logger.info('Initializing advanced search engine', {
+      context: 'solar_system',
+      operation: 'search_engine_init'
+    });
     
     // Build search index
     await this.buildSearchIndex(equipment);
@@ -183,7 +187,19 @@ export class AdvancedSearchEngine {
     // Initialize popularity scores
     await this.initializePopularityScores(equipment);
     
-    console.log('Search engine initialized successfully');
+    logger.info('Search engine initialized successfully', {
+      context: 'solar_system',
+      operation: 'search_engine_init',
+      equipmentCounts: {
+        panels: equipment.panels.length,
+        inverters: equipment.inverters.length,
+        batteries: equipment.batteries.length,
+        racking: equipment.racking.length,
+        mounting: equipment.mounting.length,
+        electrical: equipment.electrical.length,
+        monitoring: equipment.monitoring.length
+      }
+    });
   }
   
   /**

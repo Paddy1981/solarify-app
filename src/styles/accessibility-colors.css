@@ -3,8 +3,7 @@
  * Fixed color contrast violations while maintaining brand identity
  */
 
-@layer base {
-  :root {
+:root {
     /* Background colors - keeping existing */
     --background: 0 0% 96.1%; /* #F5F5F5 Light gray */
     --foreground: 0 0% 3.9%; /* #0A0A0A Black for text */

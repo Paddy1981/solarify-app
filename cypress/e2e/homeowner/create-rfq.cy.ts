@@ -225,14 +225,14 @@ describe('Homeowner - Create RFQ Flow', () => {
     cy.get('[data-testid="rfq-title"]').focus().should('have.focus')
     
     // Tab through form fields
-    cy.get('[data-testid="rfq-title"]').tab()
+    cy.get('[data-testid="rfq-title"]').type('{tab}')
     cy.get('[data-testid="rfq-description"]').should('have.focus')
     
-    cy.get('[data-testid="rfq-description"]').tab()
+    cy.get('[data-testid="rfq-description"]').type('{tab}')
     cy.get('[data-testid="rfq-budget"]').should('have.focus')
     
     // Continue through all form fields
-    cy.get('[data-testid="rfq-budget"]').tab()
+    cy.get('[data-testid="rfq-budget"]').type('{tab}')
     cy.get('[data-testid="rfq-timeline"]').should('have.focus')
     
     // Should be able to submit with Enter key

@@ -7,6 +7,7 @@
 
 import { utilityProviderDatabase } from './utility-provider-database';
 import { netMeteringEngine } from './net-metering-engine';
+import { logger } from '../error-handling/logger';
 
 // Types and Interfaces
 
@@ -527,7 +528,14 @@ class RegulatoryComplianceTracker {
     preferences: PolicySubscription['notificationPreferences']
   ): Promise<void> {
     // Implementation would integrate with actual notification services
-    console.log(`Sending ${alert.severity} alert to customer ${customerId}:`, alert.title);
+    logger.info('Sending compliance alert to customer', {
+      context: 'solar_system',
+      operation: 'send_notification',
+      customerId,
+      alertSeverity: alert.severity,
+      alertType: alert.type,
+      alertTitle: alert.title
+    });
     
     // Email notification
     if (preferences.email) {
@@ -737,17 +745,32 @@ class RegulatoryComplianceTracker {
 
   private async sendEmailNotification(customerId: string, alert: ComplianceAlert): Promise<void> {
     // Implementation would integrate with email service
-    console.log(`Email notification sent to ${customerId}:`, alert.title);
+    logger.info('Email notification sent', {
+      context: 'solar_system',
+      operation: 'send_email',
+      customerId,
+      alertTitle: alert.title
+    });
   }
 
   private async sendSMSNotification(customerId: string, alert: ComplianceAlert): Promise<void> {
     // Implementation would integrate with SMS service
-    console.log(`SMS notification sent to ${customerId}:`, alert.title);
+    logger.info('SMS notification sent', {
+      context: 'solar_system',
+      operation: 'send_sms',
+      customerId,
+      alertTitle: alert.title
+    });
   }
 
   private async sendInAppNotification(customerId: string, alert: ComplianceAlert): Promise<void> {
     // Implementation would store in database for in-app display
-    console.log(`In-app notification created for ${customerId}:`, alert.title);
+    logger.info('In-app notification created', {
+      context: 'solar_system',
+      operation: 'send_in_app',
+      customerId,
+      alertTitle: alert.title
+    });
   }
 
   private generateId(): string {

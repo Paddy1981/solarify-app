@@ -7,6 +7,7 @@ import { Storage } from '@google-cloud/storage';
 import { Firestore } from '@google-cloud/firestore';
 import { BackupConfig, BackupMetadata, BackupType } from './backup-config';
 import crypto from 'crypto';
+import { logger } from '../../lib/error-handling/logger';
 
 export interface ValidationResult {
   valid: boolean;
@@ -75,7 +76,15 @@ export class BackupValidator {
     const warnings: ValidationWarning[] = [];
     const testResults: TestResult[] = [];
 
-    console.log(`Starting validation for backup: ${metadata.id}`);
+    logger.info('Starting backup validation', {
+      context: 'backup_validation',
+      operation: 'validation_start',
+      backupId: metadata.id,
+      backupType: metadata.type,
+      encrypted: metadata.encrypted,
+      collections: metadata.collections.length,
+      size: metadata.size
+    });
 
     try {
       // 1. File existence and accessibility validation
@@ -164,12 +173,29 @@ export class BackupValidator {
         testResults
       };
 
-      console.log(`Validation completed for backup ${metadata.id}: ${result.valid ? 'PASS' : 'FAIL'}`);
+      logger.info('Validation completed for backup', {
+        context: 'backup_validation',
+        operation: 'validation_complete',
+        backupId: metadata.id,
+        result: result.valid ? 'PASS' : 'FAIL',
+        duration: metrics.duration,
+        integrityScore: metrics.dataIntegrityScore,
+        completenessScore: metrics.completenessScore,
+        errors: errors.length,
+        warnings: warnings.length
+      });
       
       return result;
 
     } catch (error) {
-      console.error(`Validation failed for backup ${metadata.id}:`, error);
+      logger.error('Validation failed for backup', {
+        context: 'backup_validation',
+        operation: 'validation_error',
+        backupId: metadata.id,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        duration: Date.now() - startTime
+      });
       
       return {
         valid: false,
@@ -197,7 +223,12 @@ export class BackupValidator {
    */
   async performRestorationTest(metadata: BackupMetadata): Promise<TestResult> {
     const startTime = Date.now();
-    console.log(`Starting restoration test for backup: ${metadata.id}`);
+    logger.info('Starting restoration test for backup', {
+      context: 'backup_validation',
+      operation: 'restoration_test',
+      backupId: metadata.id,
+      collections: metadata.collections.length
+    });
 
     try {
       // Create test environment
@@ -224,7 +255,14 @@ export class BackupValidator {
       };
 
     } catch (error) {
-      console.error(`Restoration test failed for backup ${metadata.id}:`, error);
+      logger.error('Restoration test failed for backup', {
+        context: 'backup_validation',
+        operation: 'restoration_test',
+        backupId: metadata.id,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        duration: Date.now() - startTime
+      });
       
       return {
         testName: 'restoration_test',
@@ -241,7 +279,11 @@ export class BackupValidator {
    */
   async testPointInTimeRecovery(targetTimestamp: Date): Promise<TestResult> {
     const startTime = Date.now();
-    console.log(`Testing point-in-time recovery to: ${targetTimestamp.toISOString()}`);
+    logger.info('Testing point-in-time recovery', {
+      context: 'backup_validation',
+      operation: 'point_in_time_recovery_test',
+      targetTimestamp: targetTimestamp.toISOString()
+    });
 
     try {
       // Find backups around the target timestamp
@@ -288,7 +330,11 @@ export class BackupValidator {
    * Automated backup integrity testing scheduler
    */
   async scheduleIntegrityTests(): Promise<void> {
-    console.log('Setting up automated integrity test schedule...');
+    logger.info('Setting up automated integrity test schedule', {
+      context: 'backup_validation',
+      operation: 'schedule_setup',
+      schedules: ['daily_latest_backup', 'weekly_full_restoration', 'monthly_pit_recovery', 'quarterly_failover']
+    });
     
     // This would integrate with Cloud Scheduler or similar
     // to run integrity tests on a regular basis
@@ -569,19 +615,33 @@ export class BackupValidator {
 
   private async testRestoreToIsolatedEnvironment(metadata: BackupMetadata, testProjectId: string): Promise<boolean> {
     // Implement restoration to test environment
-    console.log(`Testing restoration to isolated environment: ${testProjectId}`);
+    logger.info('Testing restoration to isolated environment', {
+      context: 'backup_validation',
+      operation: 'isolated_restore',
+      testProjectId,
+      backupId: metadata.id
+    });
     return true; // Placeholder
   }
 
   private async validateRestoredData(testProjectId: string, collections: string[]): Promise<boolean> {
     // Validate that restored data is consistent and complete
-    console.log(`Validating restored data in: ${testProjectId}`);
+    logger.info('Validating restored data', {
+      context: 'backup_validation',
+      operation: 'restored_data_validation',
+      testProjectId,
+      collections
+    });
     return true; // Placeholder
   }
 
   private async cleanupTestEnvironment(testProjectId: string): Promise<void> {
     // Clean up test environment resources
-    console.log(`Cleaning up test environment: ${testProjectId}`);
+    logger.info('Cleaning up test environment', {
+      context: 'backup_validation',
+      operation: 'test_cleanup',
+      testProjectId
+    });
   }
 
   private async findBackupsForTimestamp(targetTimestamp: Date): Promise<BackupMetadata[]> {

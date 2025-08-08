@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { errorTracker, ErrorTracker } from '../../lib/monitoring/error-tracker';

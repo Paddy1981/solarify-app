@@ -92,7 +92,7 @@ export * from '@/lib/accessibility/screen-reader';
 export * from '@/lib/accessibility/focus-management';
 export * from '@/lib/accessibility/keyboard-navigation';
 export * from '@/lib/accessibility/color-contrast';
-export * from '@/lib/accessibility/testing';
+export { auditAccessibility, generateAccessibilityReport } from '@/lib/accessibility/testing';
 export * from '@/lib/accessibility/types';
 
 // Common accessibility patterns and hooks

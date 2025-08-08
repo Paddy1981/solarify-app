@@ -1,3 +1,5 @@
+"use client";
+
 import React, { Component, ReactNode } from 'react';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ChunkErrorBoundary } from './ChunkErrorBoundary';

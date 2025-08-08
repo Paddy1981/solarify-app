@@ -119,11 +119,11 @@ describe('Authentication - Login Flow', () => {
 
   it('should handle keyboard navigation', () => {
     cy.get('[data-testid="email-input"]').focus().should('have.focus')
-    cy.get('[data-testid="email-input"]').tab()
+    cy.get('[data-testid="email-input"]').type('{tab}')
     cy.get('[data-testid="password-input"]').should('have.focus')
-    cy.get('[data-testid="password-input"]').tab()
+    cy.get('[data-testid="password-input"]').type('{tab}')
     cy.get('[data-testid="remember-me"]').should('have.focus')
-    cy.get('[data-testid="remember-me"]').tab()
+    cy.get('[data-testid="remember-me"]').type('{tab}')
     cy.get('[data-testid="login-button"]').should('have.focus')
   })
 

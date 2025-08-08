@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Keyboard navigation utilities for WCAG 2.1 AA compliance
  * Implements standard keyboard interaction patterns
@@ -311,6 +313,7 @@ export function handleTableNavigation(
 /**
  * React hook for keyboard navigation in lists
  */
+
 import { useState, useCallback, useEffect } from 'react';
 
 export function useKeyboardNavigation(

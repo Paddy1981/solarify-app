@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { UseFormReturn, FieldValues } from 'react-hook-form';
+import { logger } from '@/lib/error-handling/logger';
 
 // Smart defaults configuration
 export interface SmartDefaultsConfig {
@@ -536,7 +537,10 @@ function generateSessionId(): string {
 
 async function sendFormAnalytics(analytics: FormAnalytics) {
   // Mock implementation - replace with actual analytics service
-  console.log('Form Analytics:', analytics);
+  logger.debug('Sending form analytics', { 
+    analytics,
+    context: 'form_analytics'
+  });
   
   // In real implementation, send to your analytics service
   try {
@@ -546,7 +550,10 @@ async function sendFormAnalytics(analytics: FormAnalytics) {
       body: JSON.stringify(analytics)
     });
   } catch (error) {
-    console.warn('Failed to send form analytics:', error);
+    logger.warn('Failed to send form analytics', {
+      error: error instanceof Error ? error.message : String(error),
+      context: 'form_analytics'
+    });
   }
 }
 
@@ -564,7 +571,12 @@ export function useFormABTesting(formId: string, variants: string[]) {
   
   const trackVariantPerformance = useCallback((metric: string, value: any) => {
     // Track performance metrics for the current variant
-    console.log(`Variant ${currentVariant} - ${metric}:`, value);
+    logger.debug('Tracking variant performance', {
+      variant: currentVariant,
+      metric,
+      value,
+      context: 'form_ab_testing'
+    });
   }, [currentVariant]);
   
   return {

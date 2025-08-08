@@ -3,6 +3,7 @@ import { getAuth, type Auth } from 'firebase-admin/auth';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { getStorage, type Storage } from 'firebase-admin/storage';
 import { serverEnv } from './env';
+import { logger } from './error-handling/logger';
 
 let app: App;
 let auth: Auth;
@@ -32,7 +33,11 @@ function initializeFirebaseAdmin() {
         storageBucket: `${serverEnv.FIREBASE_ADMIN_PROJECT_ID}.appspot.com`,
       });
 
-      console.log('✅ Firebase Admin SDK initialized successfully');
+      logger.info('Firebase Admin SDK initialized successfully', {
+        context: 'firebase_admin',
+        operation: 'initialize_admin_sdk',
+        projectId: serverEnv.FIREBASE_ADMIN_PROJECT_ID
+      });
     }
 
     // Initialize services
@@ -42,7 +47,11 @@ function initializeFirebaseAdmin() {
 
     return { app, auth, db, storage };
   } catch (error) {
-    console.error('❌ Failed to initialize Firebase Admin SDK:', error);
+    logger.error('Failed to initialize Firebase Admin SDK', {
+      context: 'firebase_admin',
+      operation: 'initialize_admin_sdk',
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw new Error('Firebase Admin initialization failed');
   }
 }
@@ -56,7 +65,11 @@ if (typeof window === 'undefined') {
     db = services.db;
     storage = services.storage;
   } catch (error) {
-    console.error('Firebase Admin initialization error:', error);
+    logger.error('Firebase Admin initialization error during module load', {
+      context: 'firebase_admin',
+      operation: 'module_initialization',
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
@@ -66,7 +79,11 @@ export async function verifyAuthToken(token: string) {
     const decodedToken = await auth.verifyIdToken(token);
     return { success: true, user: decodedToken };
   } catch (error) {
-    console.error('Token verification failed:', error);
+    logger.error('Token verification failed', {
+      context: 'firebase_admin',
+      operation: 'verify_auth_token',
+      error: error instanceof Error ? error.message : String(error)
+    });
     return { success: false, error: 'Invalid token' };
   }
 }
@@ -81,7 +98,12 @@ export async function getUserRole(uid: string): Promise<string | null> {
     }
     return null;
   } catch (error) {
-    console.error('Error getting user role:', error);
+    logger.error('Error getting user role', {
+      context: 'firebase_admin',
+      operation: 'get_user_role',
+      uid,
+      error: error instanceof Error ? error.message : String(error)
+    });
     return null;
   }
 }
@@ -92,7 +114,13 @@ export async function hasRole(uid: string, requiredRole: string): Promise<boolea
     const userRole = await getUserRole(uid);
     return userRole === requiredRole;
   } catch (error) {
-    console.error('Error checking user role:', error);
+    logger.error('Error checking user role', {
+      context: 'firebase_admin',
+      operation: 'check_user_role',
+      uid,
+      requiredRole,
+      error: error instanceof Error ? error.message : String(error)
+    });
     return false;
   }
 }
@@ -101,10 +129,21 @@ export async function hasRole(uid: string, requiredRole: string): Promise<boolea
 export async function setUserRole(uid: string, role: string) {
   try {
     await auth.setCustomUserClaims(uid, { role });
-    console.log(`✅ Set custom claims for user ${uid}: role=${role}`);
+    logger.info('Set custom claims for user', {
+      context: 'firebase_admin',
+      operation: 'set_user_role',
+      uid,
+      role
+    });
     return true;
   } catch (error) {
-    console.error('Error setting custom claims:', error);
+    logger.error('Error setting custom claims', {
+      context: 'firebase_admin',
+      operation: 'set_user_role',
+      uid,
+      role,
+      error: error instanceof Error ? error.message : String(error)
+    });
     return false;
   }
 }
@@ -114,7 +153,11 @@ export function checkAdminConnection(): boolean {
   try {
     return !!(app && auth && db && storage);
   } catch (error) {
-    console.error('Firebase Admin connection check failed:', error);
+    logger.error('Firebase Admin connection check failed', {
+      context: 'firebase_admin',
+      operation: 'connection_check',
+      error: error instanceof Error ? error.message : String(error)
+    });
     return false;
   }
 }

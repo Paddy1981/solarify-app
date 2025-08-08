@@ -12,6 +12,7 @@ import { BusinessContinuityManager } from './business-continuity-manager';
 import { BackupTestingSuite, TestExecution } from './backup-testing-suite';
 import { ComplianceAuditSystem, AuditLog } from './compliance-audit-system';
 import { BackupConfig, getBackupConfig } from './backup-config';
+import { logger } from '../../lib/error-handling/logger';
 
 export interface SystemStatus {
   overall: 'healthy' | 'degraded' | 'critical' | 'offline';
@@ -107,8 +108,11 @@ export class BackupSystemOrchestrator {
    * Initialize the complete backup and disaster recovery system
    */
   async initialize(): Promise<void> {
-    console.log('Initializing Solarify Backup and Disaster Recovery System...');
-    console.log(`Environment: ${this.orchestrationConfig.environment}`);
+    logger.info('Initializing Solarify Backup and Disaster Recovery System', {
+      context: 'backup_system',
+      operation: 'initialization',
+      environment: this.orchestrationConfig.environment
+    });
     
     try {
       // Initialize core components in order
@@ -124,7 +128,13 @@ export class BackupSystemOrchestrator {
       await this.startAutomatedProcesses();
       
       this.isInitialized = true;
-      console.log('Backup and Disaster Recovery System initialized successfully!');
+      logger.info('Backup and Disaster Recovery System initialized successfully', {
+        context: 'backup_system',
+        operation: 'initialization',
+        status: 'completed',
+        environment: this.orchestrationConfig.environment,
+        componentCount: this.systemStatus.components.length
+      });
       
       // Log system initialization
       await this.complianceAudit.logAuditEvent(
@@ -140,7 +150,13 @@ export class BackupSystemOrchestrator {
       );
 
     } catch (error) {
-      console.error('Failed to initialize Backup System:', error);
+      logger.error('Failed to initialize Backup System', {
+        context: 'backup_system',
+        operation: 'initialization',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        environment: this.orchestrationConfig.environment
+      });
       
       await this.complianceAudit.logAuditEvent(
         'system_initialization',
@@ -162,7 +178,10 @@ export class BackupSystemOrchestrator {
    * Shutdown the system gracefully
    */
   async shutdown(): Promise<void> {
-    console.log('Shutting down Backup and Disaster Recovery System...');
+    logger.info('Shutting down Backup and Disaster Recovery System', {
+      context: 'backup_system',
+      operation: 'shutdown'
+    });
     
     try {
       // Stop automated processes
@@ -174,10 +193,19 @@ export class BackupSystemOrchestrator {
       await this.gracefulShutdown();
       
       this.isInitialized = false;
-      console.log('System shutdown completed');
+      logger.info('System shutdown completed', {
+        context: 'backup_system',
+        operation: 'shutdown',
+        status: 'completed'
+      });
       
     } catch (error) {
-      console.error('Error during system shutdown:', error);
+      logger.error('Error during system shutdown', {
+        context: 'backup_system',
+        operation: 'shutdown',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
   }
@@ -188,7 +216,11 @@ export class BackupSystemOrchestrator {
   async executeBackup(backupType: 'full' | 'incremental' | 'differential' = 'full'): Promise<BackupResult> {
     this.ensureInitialized();
     
-    console.log(`Executing ${backupType} backup operation...`);
+    logger.info('Executing backup operation', {
+      context: 'backup_system',
+      operation: 'backup_execution',
+      backupType
+    });
     
     try {
       // Execute backup
@@ -208,7 +240,13 @@ export class BackupSystemOrchestrator {
       return backupResult;
       
     } catch (error) {
-      console.error('Backup execution failed:', error);
+      logger.error('Backup execution failed', {
+        context: 'backup_system',
+        operation: 'backup_execution',
+        backupType,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       this.systemStatus.metrics.backupFailure++;
       this.generateAlert('critical', 'backup_manager', `Backup execution failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
@@ -221,7 +259,11 @@ export class BackupSystemOrchestrator {
   async validateBackup(backupId: string): Promise<ValidationResult> {
     this.ensureInitialized();
     
-    console.log(`Validating backup: ${backupId}`);
+    logger.info('Validating backup', {
+      context: 'backup_system',
+      operation: 'backup_validation',
+      backupId
+    });
     
     try {
       // Get backup metadata
@@ -247,7 +289,13 @@ export class BackupSystemOrchestrator {
       return validationResult;
       
     } catch (error) {
-      console.error('Backup validation failed:', error);
+      logger.error('Backup validation failed', {
+        context: 'backup_system',
+        operation: 'backup_validation',
+        backupId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       this.generateAlert('error', 'backup_validator', `Backup validation failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
@@ -259,7 +307,12 @@ export class BackupSystemOrchestrator {
   async executeDisasterRecovery(scenarioId: string, trigger: 'manual' | 'automatic' = 'manual'): Promise<RecoveryExecution> {
     this.ensureInitialized();
     
-    console.log(`Executing disaster recovery for scenario: ${scenarioId}`);
+    logger.info('Executing disaster recovery', {
+      context: 'backup_system',
+      operation: 'disaster_recovery',
+      scenarioId,
+      triggerType: trigger
+    });
     
     try {
       // Trigger disaster recovery
@@ -280,7 +333,13 @@ export class BackupSystemOrchestrator {
       return recovery;
       
     } catch (error) {
-      console.error('Disaster recovery execution failed:', error);
+      logger.error('Disaster recovery execution failed', {
+        context: 'backup_system',
+        operation: 'disaster_recovery',
+        scenarioId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       this.generateAlert('critical', 'disaster_recovery', `Disaster recovery failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
@@ -292,7 +351,11 @@ export class BackupSystemOrchestrator {
   async runSystemTests(): Promise<TestExecution> {
     this.ensureInitialized();
     
-    console.log('Running comprehensive system tests...');
+    logger.info('Running comprehensive system tests', {
+      context: 'backup_system',
+      operation: 'system_testing',
+      testSuite: 'comprehensive_backup_test_suite'
+    });
     
     try {
       const testExecution = await this.testingSuite.executeTestSuite('comprehensive_backup_test_suite');
@@ -320,7 +383,12 @@ export class BackupSystemOrchestrator {
       return testExecution;
       
     } catch (error) {
-      console.error('System tests failed:', error);
+      logger.error('System tests failed', {
+        context: 'backup_system',
+        operation: 'system_testing',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       this.generateAlert('error', 'testing_suite', `System tests failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
@@ -398,7 +466,10 @@ export class BackupSystemOrchestrator {
   // Private helper methods
 
   private async initializeComponents(): Promise<void> {
-    console.log('Initializing system components...');
+    logger.info('Initializing system components', {
+      context: 'backup_system',
+      operation: 'component_initialization'
+    });
     
     // Initialize encryption service first (required by others)
     this.encryption = new EncryptionService(this.config);
@@ -440,7 +511,11 @@ export class BackupSystemOrchestrator {
   }
 
   private async setupSystemMonitoring(): Promise<void> {
-    console.log('Setting up system monitoring...');
+    logger.info('Setting up system monitoring', {
+      context: 'backup_system',
+      operation: 'monitoring_setup',
+      healthCheckInterval: this.orchestrationConfig.healthCheckInterval
+    });
     
     // Setup health check interval
     this.healthCheckTimer = setInterval(
@@ -468,13 +543,23 @@ export class BackupSystemOrchestrator {
       this.systemStatus.lastChecked = new Date();
       
     } catch (error) {
-      console.error('Health check failed:', error);
+      logger.error('Health check failed', {
+        context: 'backup_system',
+        operation: 'health_check',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       this.systemStatus.overall = 'critical';
     }
   }
 
   private async startAutomatedProcesses(): Promise<void> {
-    console.log('Starting automated processes...');
+    logger.info('Starting automated processes', {
+      context: 'backup_system',
+      operation: 'automated_processes_start',
+      complianceMonitoring: this.orchestrationConfig.enableComplianceMonitoring,
+      performanceTesting: this.orchestrationConfig.enablePerformanceTesting
+    });
     
     // Start automated backup scheduling (handled by Cloud Scheduler in production)
     // Start compliance monitoring
@@ -492,7 +577,11 @@ export class BackupSystemOrchestrator {
 
   private async gracefulShutdown(): Promise<void> {
     // Allow ongoing operations to complete
-    console.log('Allowing ongoing operations to complete...');
+    logger.info('Allowing ongoing operations to complete', {
+      context: 'backup_system',
+      operation: 'graceful_shutdown',
+      waitTime: 5000
+    });
     
     // Wait for any active backups or recoveries to complete
     // This is a simplified implementation - in practice would check active operations
@@ -568,7 +657,14 @@ export class BackupSystemOrchestrator {
       this.systemStatus.alerts = this.systemStatus.alerts.slice(-100);
     }
     
-    console.log(`ALERT [${level.toUpperCase()}] ${component}: ${message}`);
+    logger.info('System alert generated', {
+      context: 'backup_system',
+      operation: 'alert_generation',
+      alertLevel: level,
+      component,
+      message,
+      alertId: alert.id
+    });
   }
 
   private ensureInitialized(): void {
@@ -596,10 +692,19 @@ export class BackupSystemOrchestrator {
 
   private async runPerformanceTests(): Promise<void> {
     try {
-      console.log('Running automated performance tests...');
+      logger.info('Running automated performance tests', {
+        context: 'backup_system',
+        operation: 'performance_testing',
+        automated: true
+      });
       await this.testingSuite.executePerformanceBenchmarkTest();
     } catch (error) {
-      console.error('Performance tests failed:', error);
+      logger.error('Performance tests failed', {
+        context: 'backup_system',
+        operation: 'performance_testing',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       this.generateAlert('warning', 'performance_tests', 'Automated performance tests failed');
     }
   }
