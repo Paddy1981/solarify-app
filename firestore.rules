@@ -1,0 +1,297 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // =====================================================
+    // HELPER FUNCTIONS
+    // =====================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserRole() {
+      return getUserData().role;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserRole() == role;
+    }
+
+    function hasAnyRole(roles) {
+      return isAuthenticated() && getUserRole() in roles;
+    }
+
+    function isOwnerOrHasRole(ownerId, allowedRoles) {
+      return isUser(ownerId) || getUserRole() in allowedRoles;
+    }
+
+    function isAccountActive() {
+      return getUserData().status == 'active';
+    }
+
+    function hasVerifiedEmail() {
+      return getUserData().emailVerified == true;
+    }
+
+    function canAccessRFQ(rfqData) {
+      return rfqData.homeownerId == request.auth.uid ||
+             rfqData.selectedInstallerIds.hasAny([request.auth.uid]) ||
+             (hasRole('installer') && rfqData.visibility == 'public') ||
+             hasRole('admin');
+    }
+
+    function canCreateRFQ() {
+      return hasRole('homeowner') && isAccountActive() && hasVerifiedEmail();
+    }
+
+    function canCreateQuote() {
+      return hasRole('installer') && isAccountActive() && hasVerifiedEmail();
+    }
+
+    // =====================================================
+    // CORE USER & PROFILE COLLECTIONS
+    // =====================================================
+
+    // Users collection - core authentication data
+    match /users/{userId} {
+      allow read: if isUser(userId) || hasRole('admin');
+      allow create: if isUser(userId) && 
+                    request.resource.data.id == request.auth.uid &&
+                    request.resource.data.email == request.auth.token.email;
+      allow update: if isUser(userId) || hasRole('admin');
+      allow delete: if hasRole('admin');
+    }
+
+    // Profiles collection - extended user data by role
+    match /profiles/{userId} {
+      allow read: if isUser(userId) || 
+                     (hasRole('installer') && resource.data.type == 'homeowner') ||
+                     (hasRole('homeowner') && resource.data.type == 'installer') ||
+                     (resource.data.type == 'supplier') ||
+                     hasRole('admin');
+      allow create: if isUser(userId) && 
+                    request.resource.data.userId == request.auth.uid &&
+                    isAccountActive();
+      allow update: if isUser(userId) || hasRole('admin');
+      allow delete: if hasRole('admin');
+    }
+
+    // =====================================================
+    // RFQ & QUOTE WORKFLOW
+    // =====================================================
+
+    // RFQs - Request for Quotes from homeowners
+    match /rfqs/{rfqId} {
+      allow read: if canAccessRFQ(resource.data);
+      allow create: if canCreateRFQ() && 
+                    request.resource.data.homeownerId == request.auth.uid;
+      allow update: if resource.data.homeownerId == request.auth.uid ||
+                    (hasRole('installer') && 
+                     resource.data.selectedInstallerIds.hasAny([request.auth.uid])) ||
+                    hasRole('admin');
+      allow delete: if resource.data.homeownerId == request.auth.uid ||
+                    hasRole('admin');
+    }
+
+    // Quotes - Installer responses to RFQs
+    match /quotes/{quoteId} {
+      allow read: if resource.data.homeownerId == request.auth.uid ||
+                     resource.data.installerId == request.auth.uid ||
+                     hasRole('admin');
+      allow create: if canCreateQuote() && 
+                    request.resource.data.installerId == request.auth.uid;
+      allow update: if resource.data.installerId == request.auth.uid ||
+                    (resource.data.homeownerId == request.auth.uid && 
+                     resource.data.status in ['submitted', 'under_review']) ||
+                    hasRole('admin');
+      allow delete: if resource.data.installerId == request.auth.uid ||
+                    hasRole('admin');
+    }
+
+    // =====================================================
+    // PROJECT MANAGEMENT
+    // =====================================================
+
+    // Projects - Active solar installation projects
+    match /projects/{projectId} {
+      allow read: if resource.data.homeownerId == request.auth.uid ||
+                     resource.data.installerId == request.auth.uid ||
+                     hasRole('admin');
+      allow create: if hasRole('installer') && 
+                    request.resource.data.installerId == request.auth.uid;
+      allow update: if resource.data.homeownerId == request.auth.uid ||
+                    resource.data.installerId == request.auth.uid ||
+                    hasRole('admin');
+      allow delete: if hasRole('admin');
+    }
+
+    // =====================================================
+    // SOLAR SYSTEMS & PERFORMANCE
+    // =====================================================
+
+    // Solar Systems - Installed system specifications
+    match /solar_systems/{systemId} {
+      allow read: if resource.data.homeownerId == request.auth.uid ||
+                     resource.data.installerId == request.auth.uid ||
+                     hasRole('admin');
+      allow create: if hasRole('installer') && 
+                    request.resource.data.installerId == request.auth.uid;
+      allow update: if resource.data.homeownerId == request.auth.uid ||
+                    resource.data.installerId == request.auth.uid ||
+                    hasRole('admin');
+      allow delete: if hasRole('admin');
+
+      // Energy production data subcollection
+      match /data/{recordId} {
+        allow read: if get(/databases/$(database)/documents/solar_systems/$(systemId)).data.homeownerId == request.auth.uid ||
+                       get(/databases/$(database)/documents/solar_systems/$(systemId)).data.installerId == request.auth.uid ||
+                       hasRole('admin');
+        allow create, update: if hasRole('admin') || 
+                             get(/databases/$(database)/documents/solar_systems/$(systemId)).data.installerId == request.auth.uid;
+        allow delete: if hasRole('admin');
+      }
+    }
+
+    // Energy production time-series data
+    match /energy_production/{systemId}/data/{recordId} {
+      allow read: if get(/databases/$(database)/documents/solar_systems/$(systemId)).data.homeownerId == request.auth.uid ||
+                     get(/databases/$(database)/documents/solar_systems/$(systemId)).data.installerId == request.auth.uid ||
+                     hasRole('admin');
+      allow create, update: if hasRole('admin'); // Typically system-generated
+      allow delete: if hasRole('admin');
+    }
+
+    // =====================================================
+    // PRODUCT CATALOG & MARKETPLACE
+    // =====================================================
+
+    // Products - Solar equipment catalog
+    match /products/{productId} {
+      allow read: if true; // Public marketplace
+      allow create: if hasRole('supplier') && 
+                    request.resource.data.supplierId == request.auth.uid &&
+                    isAccountActive();
+      allow update: if (hasRole('supplier') && 
+                       resource.data.supplierId == request.auth.uid) ||
+                      hasRole('admin');
+      allow delete: if (hasRole('supplier') && 
+                       resource.data.supplierId == request.auth.uid) ||
+                      hasRole('admin');
+    }
+
+    // =====================================================
+    // WEATHER & UTILITY DATA
+    // =====================================================
+
+    // Weather data for solar calculations
+    match /weather_data/{locationId}/data/{recordId} {
+      allow read: if isAuthenticated();
+      allow write: if hasRole('admin'); // System-generated data
+    }
+
+    // Utility rates for savings calculations
+    match /utility_rates/{utilityId} {
+      allow read: if true; // Public utility information
+      allow write: if hasRole('admin');
+    }
+
+    // =====================================================
+    // NOTIFICATIONS & COMMUNICATION
+    // =====================================================
+
+    // Notifications - User notifications and messages
+    match /notifications/{notificationId} {
+      allow read: if resource.data.userId == request.auth.uid ||
+                     hasRole('admin');
+      allow create: if request.resource.data.userId == request.auth.uid ||
+                    hasRole('admin');
+      allow update: if resource.data.userId == request.auth.uid ||
+                    hasRole('admin');
+      allow delete: if resource.data.userId == request.auth.uid ||
+                    hasRole('admin');
+    }
+
+    // =====================================================
+    // ANALYTICS & MONITORING
+    // =====================================================
+
+    // Analytics - Usage and performance data
+    match /analytics/{recordId} {
+      allow read: if hasRole('admin');
+      allow create: if isAuthenticated(); // Users can log their own events
+      allow update, delete: if hasRole('admin');
+    }
+
+    // =====================================================
+    // LEGACY COLLECTIONS (for backward compatibility)
+    // =====================================================
+
+    // Orders - legacy collection, now handled by projects
+    match /orders/{orderId} {
+      allow read: if isOwnerOrHasRole(resource.data.customerId, ['supplier', 'admin']) ||
+                     resource.data.supplierId == request.auth.uid;
+      allow create: if hasRole('homeowner') && 
+                    request.resource.data.customerId == request.auth.uid;
+      allow update: if resource.data.supplierId == request.auth.uid ||
+                    resource.data.customerId == request.auth.uid ||
+                    hasRole('admin');
+      allow delete: if hasRole('admin');
+    }
+
+    // Reviews - product and installer reviews
+    match /reviews/{reviewId} {
+      allow read: if true; // Public reviews
+      allow create: if isAuthenticated() && 
+                    request.resource.data.userId == request.auth.uid &&
+                    isAccountActive();
+      allow update: if resource.data.userId == request.auth.uid ||
+                    hasRole('admin');
+      allow delete: if resource.data.userId == request.auth.uid ||
+                    hasRole('admin');
+    }
+
+    // User activity logs
+    match /userActivity/{activityId} {
+      allow read: if resource.data.userId == request.auth.uid ||
+                     hasRole('admin');
+      allow create: if isAuthenticated();
+      allow update, delete: if hasRole('admin');
+    }
+
+    // Project portfolios - installer marketing materials
+    match /portfolios/{portfolioId} {
+      allow read: if true; // Public portfolios
+      allow create, update, delete: if hasRole('installer') && 
+                                    resource.data.installerId == request.auth.uid;
+    }
+
+    // Equipment specifications (legacy)
+    match /equipment/{equipmentId} {
+      allow read: if true; // Public equipment database
+      allow write: if hasAnyRole(['admin', 'supplier']);
+    }
+
+    // System collection (admin configuration)
+    match /system/{document=**} {
+      allow read, write: if hasRole('admin');
+    }
+
+    // =====================================================
+    // SECURITY: DEFAULT DENY
+    // =====================================================
+
+    // Default deny rule for any unmatched paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

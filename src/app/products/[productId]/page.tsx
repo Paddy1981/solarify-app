@@ -4,7 +4,7 @@
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { doc, getDoc, type DocumentData } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, orderBy, limit, type DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Product } from "@/lib/mock-data/products";
 import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/currencies";
@@ -18,6 +18,10 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useCart } from "@/context/cart-context";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReviewSummaryCard } from "@/components/reviews/review-summary";
+import { ReviewCard } from "@/components/reviews/review-card";
+import { ReviewForm } from "@/components/reviews/review-form";
+import type { Review, ReviewSummary } from "@/lib/types/reviews";
 
 function ProductDetailSkeleton() {
   return (
@@ -63,6 +67,9 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { addItem } = useCart();
   const [mounted, setMounted] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -87,11 +94,56 @@ export default function ProductDetailPage() {
         }
       };
       fetchProduct();
+      fetchReviews();
     } else {
       setIsLoading(false);
       setProduct(null);
     }
   }, [productId, toast]);
+
+  const fetchReviews = async () => {
+    if (!productId) return;
+    
+    setReviewsLoading(true);
+    try {
+      const reviewsQuery = query(
+        collection(db, "reviews"),
+        where("targetId", "==", productId),
+        where("targetType", "==", "product"),
+        orderBy("createdAt", "desc"),
+        limit(10)
+      );
+      
+      const reviewsSnapshot = await getDocs(reviewsQuery);
+      const reviewsData = reviewsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Review[];
+      
+      setReviews(reviewsData);
+      
+      // Calculate review summary
+      if (reviewsData.length > 0) {
+        const totalReviews = reviewsData.length;
+        const averageRating = reviewsData.reduce((sum, review) => sum + review.rating, 0) / totalReviews;
+        
+        const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        reviewsData.forEach(review => {
+          ratingDistribution[review.rating as keyof typeof ratingDistribution]++;
+        });
+        
+        setReviewSummary({
+          averageRating,
+          totalReviews,
+          ratingDistribution
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
 
   const handleAddToCart = () => {
     if (!product || !mounted) return;
@@ -188,6 +240,86 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </Card>
+
+      {/* Reviews Section */}
+      <div className="mt-8 space-y-6">
+        {/* Review Form */}
+        <ReviewForm 
+          targetId={productId}
+          targetType="product"
+          onReviewSubmitted={(newReview) => {
+            setReviews(prev => [newReview, ...prev]);
+            fetchReviews(); // Refresh to get updated summary
+          }}
+        />
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Review Summary */}
+          <div className="md:col-span-1">
+            {reviewSummary ? (
+              <ReviewSummaryCard summary={reviewSummary} />
+            ) : (
+              <Card className="shadow-lg">
+                <CardContent className="p-6 text-center">
+                  <p className="text-muted-foreground">No reviews yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Be the first to review this product
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Reviews List */}
+          <div className="md:col-span-2">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl font-headline">
+                  Customer Reviews ({reviews.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {reviewsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                    <span>Loading reviews...</span>
+                  </div>
+                ) : reviews.length > 0 ? (
+                  <div className="space-y-4">
+                    {reviews.map((review) => (
+                      <ReviewCard 
+                        key={review.id} 
+                        review={review}
+                        onHelpfulClick={(reviewId) => {
+                          toast({ title: "Thank you for your feedback!" });
+                        }}
+                        onReportClick={(reviewId) => {
+                          toast({ title: "Review reported", description: "Thank you for helping us maintain quality." });
+                        }}
+                      />
+                    ))}
+                    {reviews.length >= 10 && (
+                      <div className="text-center pt-4">
+                        <Button variant="outline" size="sm">
+                          Load More Reviews
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No reviews yet for this product</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Purchase this product to leave a review
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
        <div className="mt-6 text-center">
          <Button variant="outline" asChild>
             <Link href="/supplier/store"><ArrowLeft className="mr-2 h-4 w-4" /> Back to All Products</Link>

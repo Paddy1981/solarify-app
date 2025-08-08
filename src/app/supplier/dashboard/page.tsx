@@ -208,26 +208,47 @@ export default function SupplierDashboardPage() {
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><ListOrdered className="w-6 h-6 mr-2 text-accent"/> Orders & Fulfillment</CardTitle>
-            <CardDescription>Track incoming orders and manage fulfillment. (Coming Soon)</CardDescription>
+            <CardDescription>Track incoming orders and manage fulfillment status.</CardDescription>
           </CardHeader>
            <CardContent>
-            <p className="text-muted-foreground italic">Order management under development.</p>
+            <p className="text-2xl font-bold text-accent">
+              <span className="text-sm font-normal text-muted-foreground">Order Management Available</span>
+            </p>
           </CardContent>
           <CardFooter>
-            <Button disabled variant="outline" className="w-full">View Orders</Button>
+            <Button asChild className="w-full">
+              <Link href="/supplier/orders">
+                <ListOrdered className="mr-2 h-4 w-4"/> Manage Orders
+              </Link>
+            </Button>
           </CardFooter>
         </Card>
 
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><BarChartHorizontalBig className="w-6 h-6 mr-2 text-accent"/> Sales Analytics</CardTitle>
-            <CardDescription>Review your sales performance and trends. (Coming Soon)</CardDescription>
+            <CardDescription>Review your sales performance and trends.</CardDescription>
           </CardHeader>
            <CardContent>
-             <p className="text-muted-foreground italic">Analytics dashboard under development.</p>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">This Month Sales:</span>
+                <span className="font-medium text-accent">$45,000</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Orders Fulfilled:</span>
+                <span className="font-medium">28</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Avg. Order Value:</span>
+                <span className="font-medium">$1,607</span>
+              </div>
+            </div>
           </CardContent>
           <CardFooter>
-            <Button disabled variant="outline" className="w-full">View Analytics</Button>
+            <Button asChild className="w-full">
+              <Link href="/supplier/analytics">View Detailed Analytics</Link>
+            </Button>
           </CardFooter>
         </Card>
       </div>

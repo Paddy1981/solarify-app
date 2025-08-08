@@ -1,0 +1,166 @@
+[
+  {
+    "document": {
+      "name": "projects/test/databases/(default)/documents/products/product-001",
+      "fields": {
+        "id": { "stringValue": "product-001" },
+        "name": { "stringValue": "SolarMax Pro 400W Monocrystalline Panel" },
+        "description": { "stringValue": "High-efficiency monocrystalline solar panel with 22.1% efficiency rating. Includes 25-year power warranty and robust aluminum frame." },
+        "category": { "stringValue": "Solar Panels" },
+        "price": { "doubleValue": 299.99 },
+        "supplierId": { "stringValue": "supplier-123" },
+        "inStock": { "booleanValue": true },
+        "stockQuantity": { "integerValue": 150 },
+        "lowStockThreshold": { "integerValue": 25 },
+        "rating": { "doubleValue": 4.7 },
+        "reviewCount": { "integerValue": 38 },
+        "specifications": {
+          "mapValue": {
+            "fields": {
+              "power": { "stringValue": "400W" },
+              "efficiency": { "stringValue": "22.1%" },
+              "warranty": { "stringValue": "25 years" },
+              "dimensions": { "stringValue": "78.7 x 39.4 x 1.4 inches" },
+              "weight": { "stringValue": "44 lbs" },
+              "cellType": { "stringValue": "Monocrystalline" },
+              "frameColor": { "stringValue": "Black" }
+            }
+          }
+        },
+        "images": {
+          "arrayValue": {
+            "values": [
+              { "stringValue": "/images/products/solarmax-pro-400w-front.jpg" },
+              { "stringValue": "/images/products/solarmax-pro-400w-side.jpg" },
+              { "stringValue": "/images/products/solarmax-pro-400w-specs.jpg" }
+            ]
+          }
+        },
+        "createdAt": { "timestampValue": "2024-01-05T08:00:00Z" },
+        "updatedAt": { "timestampValue": "2024-01-20T16:30:00Z" }
+      }
+    }
+  },
+  {
+    "document": {
+      "name": "projects/test/databases/(default)/documents/products/product-002",
+      "fields": {
+        "id": { "stringValue": "product-002" },
+        "name": { "stringValue": "EcoString 5000W Grid-Tie Inverter" },
+        "description": { "stringValue": "High-performance string inverter with built-in monitoring and rapid shutdown capability. Perfect for residential installations." },
+        "category": { "stringValue": "Inverters" },
+        "price": { "doubleValue": 899.99 },
+        "supplierId": { "stringValue": "supplier-123" },
+        "inStock": { "booleanValue": true },
+        "stockQuantity": { "integerValue": 75 },
+        "lowStockThreshold": { "integerValue": 15 },
+        "rating": { "doubleValue": 4.5 },
+        "reviewCount": { "integerValue": 22 },
+        "specifications": {
+          "mapValue": {
+            "fields": {
+              "power": { "stringValue": "5000W" },
+              "efficiency": { "stringValue": "97.5%" },
+              "warranty": { "stringValue": "12 years" },
+              "inputVoltage": { "stringValue": "300-550V DC" },
+              "outputVoltage": { "stringValue": "240V AC" },
+              "monitoring": { "stringValue": "Built-in WiFi" },
+              "rapidShutdown": { "stringValue": "Integrated" }
+            }
+          }
+        },
+        "images": {
+          "arrayValue": {
+            "values": [
+              { "stringValue": "/images/products/ecosting-5000w-front.jpg" },
+              { "stringValue": "/images/products/ecosting-5000w-display.jpg" }
+            ]
+          }
+        },
+        "createdAt": { "timestampValue": "2024-01-08T12:00:00Z" },
+        "updatedAt": { "timestampValue": "2024-01-18T14:15:00Z" }
+      }
+    }
+  },
+  {
+    "document": {
+      "name": "projects/test/databases/(default)/documents/products/product-003",
+      "fields": {
+        "id": { "stringValue": "product-003" },
+        "name": { "stringValue": "PowerMount Pro Rail System" },
+        "description": { "stringValue": "Durable aluminum mounting rail system for asphalt shingle roofs. Includes all necessary hardware and waterproof sealants." },
+        "category": { "stringValue": "Mounting Systems" },
+        "price": { "doubleValue": 45.99 },
+        "supplierId": { "stringValue": "supplier-123" },
+        "inStock": { "booleanValue": true },
+        "stockQuantity": { "integerValue": 200 },
+        "lowStockThreshold": { "integerValue": 50 },
+        "rating": { "doubleValue": 4.3 },
+        "reviewCount": { "integerValue": 15 },
+        "specifications": {
+          "mapValue": {
+            "fields": {
+              "length": { "stringValue": "10 feet" },
+              "material": { "stringValue": "Anodized Aluminum" },
+              "warranty": { "stringValue": "15 years" },
+              "roofType": { "stringValue": "Asphalt Shingle" },
+              "maxLoad": { "stringValue": "75 lbs/sq ft" },
+              "includes": { "stringValue": "Rails, end caps, splice kits" }
+            }
+          }
+        },
+        "images": {
+          "arrayValue": {
+            "values": [
+              { "stringValue": "/images/products/powermount-pro-rail.jpg" },
+              { "stringValue": "/images/products/powermount-pro-hardware.jpg" }
+            ]
+          }
+        },
+        "createdAt": { "timestampValue": "2024-01-10T10:30:00Z" },
+        "updatedAt": { "timestampValue": "2024-01-22T11:45:00Z" }
+      }
+    }
+  },
+  {
+    "document": {
+      "name": "projects/test/databases/(default)/documents/products/product-004",
+      "fields": {
+        "id": { "stringValue": "product-004" },
+        "name": { "stringValue": "EnergyBank 10kWh Home Battery" },
+        "description": { "stringValue": "Lithium iron phosphate home battery system with integrated inverter and smart energy management." },
+        "category": { "stringValue": "Energy Storage" },
+        "price": { "doubleValue": 8999.99 },
+        "supplierId": { "stringValue": "supplier-123" },
+        "inStock": { "booleanValue": false },
+        "stockQuantity": { "integerValue": 0 },
+        "lowStockThreshold": { "integerValue": 5 },
+        "rating": { "doubleValue": 4.8 },
+        "reviewCount": { "integerValue": 12 },
+        "specifications": {
+          "mapValue": {
+            "fields": {
+              "capacity": { "stringValue": "10kWh" },
+              "chemistry": { "stringValue": "LiFePO4" },
+              "warranty": { "stringValue": "10 years" },
+              "cycles": { "stringValue": "6000+" },
+              "efficiency": { "stringValue": "95%" },
+              "backup": { "stringValue": "Whole home" },
+              "monitoring": { "stringValue": "Mobile app" }
+            }
+          }
+        },
+        "images": {
+          "arrayValue": {
+            "values": [
+              { "stringValue": "/images/products/energybank-10kwh.jpg" },
+              { "stringValue": "/images/products/energybank-10kwh-app.jpg" }
+            ]
+          }
+        },
+        "createdAt": { "timestampValue": "2024-01-12T15:00:00Z" },
+        "updatedAt": { "timestampValue": "2024-01-25T09:20:00Z" }
+      }
+    }
+  }
+]

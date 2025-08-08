@@ -38,3 +38,103 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# Mobile development
+# React Native
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Android
+*.apk
+*.aab
+mobile/SolarifyMobile/android/app/build/
+mobile/SolarifyMobile/android/build/
+mobile/SolarifyMobile/android/.gradle/
+mobile/SolarifyMobile/android/gradle/
+mobile/SolarifyMobile/android/gradlew
+mobile/SolarifyMobile/android/gradlew.bat
+mobile/SolarifyMobile/android/local.properties
+
+# iOS
+mobile/SolarifyMobile/ios/build/
+mobile/SolarifyMobile/ios/Pods/
+mobile/SolarifyMobile/ios/*.xcworkspace/xcuserdata/
+mobile/SolarifyMobile/ios/*.xcodeproj/xcuserdata/
+mobile/SolarifyMobile/ios/DerivedData/
+mobile/SolarifyMobile/ios/*.hprof
+
+# Expo
+.expo/
+.expo-shared/
+
+# Fastlane
+mobile/fastlane/report.xml
+mobile/fastlane/Preview.html
+mobile/fastlane/screenshots/**/*.png
+mobile/fastlane/test_output
+
+# Bundle artifacts
+*.jsbundle
+
+# CocoaPods
+mobile/SolarifyMobile/ios/Pods/
+
+# Deployment artifacts
+deploy-*/
+*-deploy-*.tar.gz
+solarify-firebase-deploy-*/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Docker
+Dockerfile.deploy
+deploy-docker.sh
+
+# Backup files
+*.bak
+*.backup
+
+# Test artifacts
+test-results/
+.jest/
+
+# Cypress
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+logs
+*.log
+
+# Generated documentation
+docs/generated/
+
+# Environment variables
+.env

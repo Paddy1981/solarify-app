@@ -1,0 +1,15 @@
+# =============================================================================
+# Fastlane Appfile Configuration
+# =============================================================================
+# App-specific configuration for iOS and Android deployment
+# =============================================================================
+
+# iOS Configuration
+app_identifier("com.solarify.mobile")
+apple_id(ENV["APPLE_ID_USERNAME"] || "developer@solarify.com")
+team_id(ENV["APPLE_TEAM_ID"] || "YOUR_TEAM_ID")
+team_name("Solarify Inc.")
+
+# Android Configuration
+json_key_file(ENV["GOOGLE_PLAY_JSON_KEY_FILE"] || "google-play-service-account.json")
+package_name("com.solarify.mobile")

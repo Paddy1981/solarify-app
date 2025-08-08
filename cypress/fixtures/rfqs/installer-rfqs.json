@@ -1,0 +1,92 @@
+[
+  {
+    "document": {
+      "name": "projects/test/databases/(default)/documents/rfqs/rfq-001",
+      "fields": {
+        "id": { "stringValue": "rfq-001" },
+        "title": { "stringValue": "Residential Solar Installation - 2000 sq ft" },
+        "description": { "stringValue": "Looking to install solar panels on my single-family home to reduce electricity bills. House faces south with minimal shading." },
+        "budget": { "doubleValue": 15000 },
+        "timeline": { "stringValue": "3-6 months" },
+        "status": { "stringValue": "Pending" },
+        "homeownerId": { "stringValue": "homeowner-123" },
+        "selectedInstallerIds": { 
+          "arrayValue": { 
+            "values": [
+              { "stringValue": "installer-456" },
+              { "stringValue": "installer-789" }
+            ]
+          }
+        },
+        "propertyAddress": { "stringValue": "123 Oak Street, San Francisco, CA 94110" },
+        "propertyType": { "stringValue": "Single Family Home" },
+        "roofType": { "stringValue": "Asphalt Shingles" },
+        "electricityUsage": { "doubleValue": 800 },
+        "systemSizePreference": { "stringValue": "8-10 kW" },
+        "panelTypePreference": { "stringValue": "Monocrystalline" },
+        "dateCreated": { "timestampValue": "2024-01-10T10:00:00Z" },
+        "dateUpdated": { "timestampValue": "2024-01-10T10:00:00Z" }
+      }
+    }
+  },
+  {
+    "document": {
+      "name": "projects/test/databases/(default)/documents/rfqs/rfq-002",
+      "fields": {
+        "id": { "stringValue": "rfq-002" },
+        "title": { "stringValue": "Small Business Solar Project" },
+        "description": { "stringValue": "Need solar installation for small office building to cut energy costs. Building has flat roof with good sun exposure." },
+        "budget": { "doubleValue": 25000 },
+        "timeline": { "stringValue": "2-4 months" },
+        "status": { "stringValue": "Pending" },
+        "homeownerId": { "stringValue": "business-owner-456" },
+        "selectedInstallerIds": { 
+          "arrayValue": { 
+            "values": [
+              { "stringValue": "installer-456" }
+            ]
+          }
+        },
+        "propertyAddress": { "stringValue": "456 Business Ave, Oakland, CA 94612" },
+        "propertyType": { "stringValue": "Commercial" },
+        "roofType": { "stringValue": "Flat Membrane" },
+        "electricityUsage": { "doubleValue": 1200 },
+        "systemSizePreference": { "stringValue": "15-20 kW" },
+        "panelTypePreference": { "stringValue": "Polycrystalline" },
+        "dateCreated": { "timestampValue": "2024-01-12T14:30:00Z" },
+        "dateUpdated": { "timestampValue": "2024-01-12T14:30:00Z" }
+      }
+    }
+  },
+  {
+    "document": {
+      "name": "projects/test/databases/(default)/documents/rfqs/rfq-003",
+      "fields": {
+        "id": { "stringValue": "rfq-003" },
+        "title": { "stringValue": "Pool House Solar Addition" },
+        "description": { "stringValue": "Want to add solar panels to power pool equipment and guest house. Looking for cost-effective solution." },
+        "budget": { "doubleValue": 8000 },
+        "timeline": { "stringValue": "1-3 months" },
+        "status": { "stringValue": "Pending" },
+        "homeownerId": { "stringValue": "homeowner-789" },
+        "selectedInstallerIds": { 
+          "arrayValue": { 
+            "values": [
+              { "stringValue": "installer-456" },
+              { "stringValue": "installer-789" },
+              { "stringValue": "installer-101" }
+            ]
+          }
+        },
+        "propertyAddress": { "stringValue": "789 Pool Lane, Palo Alto, CA 94301" },
+        "propertyType": { "stringValue": "Single Family Home" },
+        "roofType": { "stringValue": "Tile" },
+        "electricityUsage": { "doubleValue": 400 },
+        "systemSizePreference": { "stringValue": "4-6 kW" },
+        "panelTypePreference": { "stringValue": "Monocrystalline" },
+        "dateCreated": { "timestampValue": "2024-01-15T09:15:00Z" },
+        "dateUpdated": { "timestampValue": "2024-01-15T09:15:00Z" }
+      }
+    }
+  }
+]

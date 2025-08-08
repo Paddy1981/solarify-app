@@ -3,23 +3,30 @@ import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, initializeAuth, browserLocalPersistence, indexedDBLocalPersistence, inMemoryPersistence, type Auth } from "firebase/auth";
 import { getFirestore, serverTimestamp, type Firestore } from "firebase/firestore";
 import { getDatabase, type Database } from "firebase/database";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { clientEnv, validateEnvironment } from "./env";
+
+// Validate environment on module load
+if (!validateEnvironment()) {
+  console.error('Firebase configuration validation failed. Check environment variables.');
+}
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  apiKey: clientEnv.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: clientEnv.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: clientEnv.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: clientEnv.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: clientEnv.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: clientEnv.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const isFirebaseConfigured = !!firebaseConfig.apiKey;
+const isFirebaseConfigured = !!firebaseConfig.apiKey && validateEnvironment();
 
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 let rtdb: Database;
+let storage: FirebaseStorage;
 
 if (isFirebaseConfigured) {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -39,6 +46,7 @@ if (isFirebaseConfigured) {
 
   db = getFirestore(app);
   rtdb = getDatabase(app);
+  storage = getStorage(app);
 
 } else {
   console.warn("Firebase configuration is MISSING. The app will run in a mock state. Please set up your .env.local file.");
@@ -49,6 +57,24 @@ if (isFirebaseConfigured) {
   } as unknown as Auth;
   db = {} as Firestore;
   rtdb = {} as Database;
+  storage = {} as FirebaseStorage;
 }
 
-export { app, auth, db, rtdb, serverTimestamp };
+// Health check function
+export function checkFirebaseConnection(): boolean {
+  try {
+    return !!(app && auth && db && storage && isFirebaseConfigured);
+  } catch (error) {
+    console.error('Firebase connection check failed:', error);
+    return false;
+  }
+}
+
+// Export configuration info for debugging (development only)
+export const firebaseDebugInfo = process.env.NODE_ENV === 'development' ? {
+  projectId: firebaseConfig.projectId,
+  isConfigured: isFirebaseConfigured,
+  hasValidConfig: validateEnvironment(),
+} : undefined;
+
+export { app, auth, db, rtdb, storage, serverTimestamp };

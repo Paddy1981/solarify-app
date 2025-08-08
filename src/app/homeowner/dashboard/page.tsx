@@ -4,21 +4,18 @@
 import * as React from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth, db, serverTimestamp } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, type Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, type Timestamp } from 'firebase/firestore';
+import { QueryHelpers, DocumentHelper, QueryPerformanceMonitor } from '@/lib/firestore/query-helpers';
 import { useToast } from '@/hooks/use-toast';
 import type { MockUser } from '@/lib/mock-data/users';
 import type { RFQ } from '@/lib/mock-data/rfqs';
 
-import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { LazyDashboardComponents } from '@/components/dashboard/lazy-dashboard-components';
 import { StatsCard } from "@/components/dashboard/stats-card";
-import { EnvironmentalImpactCard } from "@/components/dashboard/environmental-impact-card";
-import { HomeownerRfqStatusCard } from '@/components/dashboard/homeowner-rfq-status-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChartBig, Zap, DollarSign, CheckCircle2, Bell, Info, AlertTriangle, Wrench, LogIn, UserCircle, Signal, RadioTower, FileText, PlusCircle } from "lucide-react";
-import { SystemSetupForm, type SystemConfigData } from '@/components/dashboard/system-setup-form';
-import { SolarJourneyChoiceForm } from '@/components/dashboard/solar-journey-choice-form';
-import { NewToSolarDashboardContent } from '@/components/dashboard/new-to-solar-dashboard-content';
+import type { SystemConfigData } from '@/components/dashboard/system-setup-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 
@@ -102,11 +99,11 @@ function ActualDashboardContent({ homeownerProfile, systemConfiguration }: Actua
       const fetchRFQs = async () => {
         setIsLoadingRFQs(true);
         try {
-          const rfqsRef = collection(db, "rfqs");
-          const q = query(rfqsRef, where("homeownerId", "==", homeownerProfile.id), orderBy("dateCreated", "desc"));
-          const querySnapshot = await getDocs(q);
-          const fetchedRFQs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RFQ));
-          setUserRFQs(fetchedRFQs);
+          const result = await QueryPerformanceMonitor.measureQuery(
+            'dashboard-rfqs-by-homeowner',
+            () => QueryHelpers.getRFQsByHomeowner(homeownerProfile.id, { limit: 10 })
+          );
+          setUserRFQs(result.docs as RFQ[]);
         } catch (error) {
           console.error("Error fetching RFQs:", error);
         } finally {
@@ -179,10 +176,10 @@ function ActualDashboardContent({ homeownerProfile, systemConfiguration }: Actua
             <CardDescription>Past 7 days energy production (kWh). (Demo Data)</CardDescription>
           </CardHeader>
           <CardContent>
-            <PerformanceChart />
+            <LazyDashboardComponents.PerformanceChart />
           </CardContent>
         </Card>
-        <EnvironmentalImpactCard />
+        <LazyDashboardComponents.EnvironmentalImpactCard />
       </div>
 
       <Card className="shadow-lg">
@@ -198,7 +195,7 @@ function ActualDashboardContent({ homeownerProfile, systemConfiguration }: Actua
           ) : userRFQs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {userRFQs.map(rfq => (
-                <HomeownerRfqStatusCard key={rfq.id} rfq={rfq} />
+                <LazyDashboardComponents.HomeownerRfqStatusCard key={rfq.id} rfq={rfq} />
               ))}
             </div>
           ) : (
@@ -414,15 +411,15 @@ export default function DashboardPage() {
   }
 
   if (dashboardStatus === 'needs_choice') {
-    return <SolarJourneyChoiceForm onChoiceMade={handleSolarJourneyChoice} userName={currentUserProfile?.fullName} />;
+    return <LazyDashboardComponents.SolarJourneyChoiceForm onChoiceMade={handleSolarJourneyChoice} userName={currentUserProfile?.fullName} />;
   }
 
   if (dashboardStatus === 'existing_setup_pending') {
-    return <SystemSetupForm onConfigSubmit={handleConfigurationComplete} userProfile={currentUserProfile} />;
+    return <LazyDashboardComponents.SystemSetupForm onConfigSubmit={handleConfigurationComplete} userProfile={currentUserProfile} />;
   }
   
   if (dashboardStatus === 'new_to_solar') {
-    return <NewToSolarDashboardContent />;
+    return <LazyDashboardComponents.NewToSolarDashboardContent />;
   }
 
   if (dashboardStatus === 'existing_configured') {

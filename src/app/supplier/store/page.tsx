@@ -9,7 +9,9 @@ import { getCurrencyByCode, getDefaultCurrency, type Currency } from "@/lib/curr
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StoreIcon, Package, Search, ArrowRight, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { StoreIcon, Package, Search, ArrowRight, Loader2, Filter, X } from "lucide-react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -19,6 +21,11 @@ export default function SupplierStorePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [priceRange, setPriceRange] = useState<string>("all");
+  const [stockFilter, setStockFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -42,11 +49,70 @@ export default function SupplierStorePage() {
     fetchProducts();
   }, []);
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Get unique categories from products
+  const categories = [...new Set(products.map(product => product.category))];
+
+  // Filter and sort products
+  const filteredAndSortedProducts = products
+    .filter(product => {
+      // Search filter
+      const matchesSearch = searchTerm === "" || 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Category filter
+      const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
+
+      // Price range filter
+      const matchesPriceRange = (() => {
+        if (priceRange === "all") return true;
+        const price = product.priceValue;
+        switch (priceRange) {
+          case "0-100": return price <= 100;
+          case "100-500": return price > 100 && price <= 500;
+          case "500-1000": return price > 500 && price <= 1000;
+          case "1000-5000": return price > 1000 && price <= 5000;
+          case "5000+": return price > 5000;
+          default: return true;
+        }
+      })();
+
+      // Stock filter
+      const matchesStock = (() => {
+        if (stockFilter === "all") return true;
+        if (stockFilter === "instock") return product.stock > 0;
+        if (stockFilter === "outofstock") return product.stock === 0;
+        if (stockFilter === "lowstock") return product.stock > 0 && product.stock <= 10;
+        return true;
+      })();
+
+      return matchesSearch && matchesCategory && matchesPriceRange && matchesStock;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "price-low": return a.priceValue - b.priceValue;
+        case "price-high": return b.priceValue - a.priceValue;
+        case "name": return a.name.localeCompare(b.name);
+        case "newest": 
+        default:
+          // Assume createdAt exists, fallback to alphabetical
+          return b.createdAt && a.createdAt ? 
+            b.createdAt.toMillis() - a.createdAt.toMillis() : 
+            a.name.localeCompare(b.name);
+      }
+    });
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setCategoryFilter("all");
+    setPriceRange("all");
+    setStockFilter("all");
+    setSortBy("newest");
+  };
+
+  const hasActiveFilters = searchTerm !== "" || categoryFilter !== "all" || 
+                          priceRange !== "all" || stockFilter !== "all" || sortBy !== "newest";
 
   const getDisplayPrice = (priceValue: number, currencyCode: string): string => {
     const currency = getCurrencyByCode(currencyCode) || getDefaultCurrency();
@@ -100,22 +166,122 @@ export default function SupplierStorePage() {
 
       <Card className="shadow-lg">
         <CardHeader>
-            <CardTitle className="font-headline">Available Products</CardTitle>
-            <CardDescription>Explore our catalog of solar panels, inverters, batteries, and more.</CardDescription>
-            <div className="relative mt-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="font-headline">Available Products</CardTitle>
+                <CardDescription>Explore our catalog of solar panels, inverters, batteries, and more.</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Filters
+                {hasActiveFilters && <Badge className="ml-2" variant="secondary">Active</Badge>}
+              </Button>
+            </div>
+            
+            <div className="space-y-4 mt-4">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   placeholder="Search products by name, category, or description..."
-                  className="pl-10 w-full md:w-2/3 lg:w-1/2"
+                  className="pl-10 w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
+              </div>
+
+              {showFilters && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-md">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Category</label>
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Categories" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {categories.map(category => (
+                          <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Price Range</label>
+                    <Select value={priceRange} onValueChange={setPriceRange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Prices" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Prices</SelectItem>
+                        <SelectItem value="0-100">$0 - $100</SelectItem>
+                        <SelectItem value="100-500">$100 - $500</SelectItem>
+                        <SelectItem value="500-1000">$500 - $1,000</SelectItem>
+                        <SelectItem value="1000-5000">$1,000 - $5,000</SelectItem>
+                        <SelectItem value="5000+">$5,000+</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Stock Status</label>
+                    <Select value={stockFilter} onValueChange={setStockFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Stock" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Stock</SelectItem>
+                        <SelectItem value="instock">In Stock</SelectItem>
+                        <SelectItem value="lowstock">Low Stock (≤10)</SelectItem>
+                        <SelectItem value="outofstock">Out of Stock</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Sort By</label>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sort By" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="newest">Newest First</SelectItem>
+                        <SelectItem value="name">Name A-Z</SelectItem>
+                        <SelectItem value="price-low">Price: Low to High</SelectItem>
+                        <SelectItem value="price-high">Price: High to Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {hasActiveFilters && (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {filteredAndSortedProducts.length} of {products.length} products
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="flex items-center"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Clear Filters
+                  </Button>
+                </div>
+              )}
             </div>
         </CardHeader>
         <CardContent>
-          {filteredProducts.length > 0 ? (
+          {filteredAndSortedProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
+              {filteredAndSortedProducts.map((product) => (
                 <Card key={product.id} className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col">
                   <div className="relative w-full h-48 bg-muted/30">
                     <Image

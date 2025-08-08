@@ -1,0 +1,9 @@
+functions-framework==3.*
+google-cloud-monitoring==2.*
+google-cloud-compute==1.*
+google-cloud-run==0.*
+google-cloud-storage==2.*
+google-cloud-billing==1.*
+google-cloud-asset==3.*
+google-cloud-bigquery==3.*
+requests==2.*

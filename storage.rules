@@ -1,0 +1,118 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for Solarify
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserRole() == role;
+    }
+
+    function isValidImageFile() {
+      return resource.contentType.matches('image/.*') &&
+             resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+
+    function isValidDocumentFile() {
+      return resource.contentType in ['application/pdf', 'application/msword', 
+                                     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] &&
+             resource.size < 25 * 1024 * 1024; // 25MB limit for documents
+    }
+
+    // User profile images
+    match /users/{userId}/profile/{imageId} {
+      allow read: if true; // Profile images are public
+      allow write: if isUser(userId) && isValidImageFile();
+      allow delete: if isUser(userId) || hasRole('admin');
+    }
+
+    // Product images - suppliers can upload, public read
+    match /products/{productId}/images/{imageId} {
+      allow read: if true; // Product images are public
+      allow write: if hasRole('supplier') && isValidImageFile();
+      allow delete: if hasRole('supplier') || hasRole('admin');
+    }
+
+    // Solar system installation photos
+    match /installations/{installationId}/photos/{photoId} {
+      allow read: if hasRole('homeowner') || hasRole('installer') || hasRole('admin');
+      allow write: if hasRole('installer') && isValidImageFile();
+      allow delete: if hasRole('installer') || hasRole('admin');
+    }
+
+    // Installer portfolio images
+    match /portfolios/{installerId}/projects/{projectId}/images/{imageId} {
+      allow read: if true; // Portfolio images are public for marketing
+      allow write: if hasRole('installer') && 
+                   request.auth.uid == installerId && 
+                   isValidImageFile();
+      allow delete: if hasRole('installer') && request.auth.uid == installerId;
+    }
+
+    // Document uploads (permits, warranties, certificates)
+    match /documents/{category}/{userId}/{documentId} {
+      allow read: if isUser(userId) || hasRole('admin') || hasRole('installer');
+      allow write: if isUser(userId) && isValidDocumentFile();
+      allow delete: if isUser(userId) || hasRole('admin');
+    }
+
+    // RFQ attachments
+    match /rfqs/{rfqId}/attachments/{attachmentId} {
+      allow read: if hasRole('homeowner') || hasRole('installer') || hasRole('admin');
+      allow write: if isAuthenticated() && 
+                   (isValidImageFile() || isValidDocumentFile());
+      allow delete: if hasRole('admin');
+    }
+
+    // Quote proposals and documents
+    match /quotes/{quoteId}/proposals/{proposalId} {
+      allow read: if hasRole('homeowner') || hasRole('installer') || hasRole('admin');
+      allow write: if hasRole('installer') && isValidDocumentFile();
+      allow delete: if hasRole('installer') || hasRole('admin');
+    }
+
+    // System performance reports and maintenance logs
+    match /systems/{systemId}/reports/{reportId} {
+      allow read: if hasRole('homeowner') || hasRole('installer') || hasRole('admin');
+      allow write: if hasRole('installer') && isValidDocumentFile();
+      allow delete: if hasRole('admin');
+    }
+
+    // Certifications and licenses for installers
+    match /certifications/{installerId}/{certId} {
+      allow read: if true; // Public for verification
+      allow write: if hasRole('installer') && 
+                   request.auth.uid == installerId && 
+                   isValidDocumentFile();
+      allow delete: if hasRole('installer') && request.auth.uid == installerId;
+    }
+
+    // Admin uploads
+    match /admin/{path=**} {
+      allow read, write: if hasRole('admin');
+    }
+
+    // Temporary uploads for form processing
+    match /temp/{userId}/{tempId} {
+      allow read, write: if isUser(userId);
+      allow delete: if isUser(userId) || hasRole('admin');
+    }
+
+    // Default deny for any unmatched paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

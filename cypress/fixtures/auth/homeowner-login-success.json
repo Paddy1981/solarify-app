@@ -1,0 +1,10 @@
+{
+  "kind": "identitytoolkit#VerifyPasswordResponse",
+  "localId": "test-homeowner-uid",
+  "email": "test.homeowner@solarify.test",
+  "displayName": "Test Homeowner",
+  "idToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjFmODhiODE0MjljYzQ1MWE3YzVmMjZjNGY3NTM0NGZmYjIwZjRmMTciLCJ0eXAiOiJKV1QifQ.test-token",
+  "registered": true,
+  "refreshToken": "test-refresh-token",
+  "expiresIn": "3600"
+}

@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { collection, query, where, getDocs, orderBy, type Timestamp } from "firebase/firestore";
+import { doc, getDoc, type Timestamp } from "firebase/firestore";
+import { QueryHelpers, DocumentHelper, QueryPerformanceMonitor } from '@/lib/firestore/query-helpers';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import type { RFQ } from "@/lib/mock-data/rfqs";
@@ -34,9 +35,9 @@ function InstallerRFQsSkeleton() {
               <Skeleton className="h-4 w-5/6" />
               <Skeleton className="h-4 w-3/4" />
             </CardContent>
-            <CardFooter>
+            <div className="p-6 pt-0">
               <Skeleton className="h-10 w-full" />
-            </CardFooter>
+            </div>
           </Card>
         ))}
       </div>
@@ -60,16 +61,13 @@ export default function InstallerRFQsPage() {
           const profile = { id: userDocSnap.id, ...userDocSnap.data() } as MockUser;
           setInstallerProfile(profile);
           
-          // Fetch RFQs for this installer
+          // Fetch RFQs for this installer using optimized query
           try {
-            const rfqsRef = collection(db, "rfqs");
-            const q = query(rfqsRef, 
-                            where("selectedInstallerIds", "array-contains", profile.id),
-                            where("status", "==", "Pending"), // Only show pending RFQs for action
-                            orderBy("dateCreated", "desc"));
-            const querySnapshot = await getDocs(q);
-            const fetchedRFQs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RFQ));
-            setRelevantRFQs(fetchedRFQs);
+            const result = await QueryPerformanceMonitor.measureQuery(
+              'installer-pending-rfqs',
+              () => QueryHelpers.getRFQsByInstaller(profile.id, 'Pending', { limit: 50 })
+            );
+            setRelevantRFQs(result.docs as RFQ[]);
           } catch (error) {
             console.error("Error fetching RFQs for installer:", error);
             // Handle error (e.g., show toast)

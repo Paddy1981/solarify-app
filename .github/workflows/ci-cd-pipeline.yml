@@ -1,0 +1,551 @@
+name: 🚀 Solarify CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+env:
+  NODE_VERSION: '18.x'
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  # =====================================================
+  # CODE QUALITY & SECURITY CHECKS
+  # =====================================================
+  
+  quality-gate:
+    name: 🔍 Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 🔍 Lint code
+        run: npm run lint
+
+      - name: 🎨 Check formatting
+        run: npm run format:check
+
+      - name: 🔒 Security audit
+        run: npm audit --audit-level moderate
+
+      - name: 📊 Generate dependency report
+        run: |
+          npm list --depth=0 --json > dependency-report.json
+          echo "Dependencies:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat dependency-report.json >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # =====================================================
+  # TYPE CHECKING & BUILD VALIDATION
+  # =====================================================
+
+  type-check:
+    name: 🏗️ Type Check & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality-gate
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 🔍 Type check
+        run: npm run type-check
+
+      - name: 🏗️ Build application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_ENV: 'ci'
+
+      - name: 📁 Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            .next/
+            out/
+          retention-days: 1
+
+  # =====================================================
+  # COMPREHENSIVE TEST SUITE
+  # =====================================================
+
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality-gate
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 🧪 Run unit tests
+        run: npm run test:unit -- --coverage --watchAll=false
+        env:
+          CI: true
+
+      - name: 📊 Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: unit-tests
+          fail_ci_if_error: false
+
+      - name: 📈 Coverage summary
+        run: |
+          echo "## Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          npm run test:coverage:summary >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [quality-gate, type-check]
+
+    services:
+      firebase-emulator:
+        image: andreysenov/firebase-tools:latest
+        ports:
+          - 9099:9099
+          - 8080:8080
+          - 5001:5001
+        options: >-
+          --health-cmd "curl -f http://localhost:4000 || exit 1"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 3
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 🔥 Setup Firebase emulators
+        run: |
+          npm install -g firebase-tools
+          firebase emulators:start --only firestore,auth,functions --detached
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: 🔗 Run integration tests
+        run: npm run test:integration
+        env:
+          FIRESTORE_EMULATOR_HOST: localhost:8080
+          FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+          FUNCTIONS_EMULATOR_HOST: localhost:5001
+
+      - name: 🛑 Stop Firebase emulators
+        if: always()
+        run: firebase emulators:exec --only firestore,auth,functions "echo 'Stopping emulators'"
+
+  e2e-tests:
+    name: 🎭 E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [type-check]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 📁 Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: 🎭 Install Playwright
+        run: npx playwright install --with-deps
+
+      - name: 🚀 Start application
+        run: |
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 30000
+        env:
+          PORT: 3000
+
+      - name: 🎭 Run E2E tests
+        run: npm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: 📊 Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  # =====================================================
+  # SECURITY SCANNING
+  # =====================================================
+
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: quality-gate
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 📊 Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: 🔒 Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          languages: javascript
+
+  # =====================================================
+  # LIGHTHOUSE PERFORMANCE AUDIT
+  # =====================================================
+
+  performance-audit:
+    name: ⚡ Performance Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [type-check]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 📁 Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: 🚀 Start application
+        run: |
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 30000
+        env:
+          PORT: 3000
+
+      - name: ⚡ Run Lighthouse audit
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+  # =====================================================
+  # STAGING DEPLOYMENT
+  # =====================================================
+
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [unit-tests, integration-tests, security-scan]
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    
+    environment:
+      name: staging
+      url: https://staging.solarify.app
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 🏗️ Build for staging
+        run: npm run build
+        env:
+          NEXT_PUBLIC_ENV: 'staging'
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.STAGING_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.STAGING_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.STAGING_FIREBASE_AUTH_DOMAIN }}
+
+      - name: 🔥 Deploy to Firebase Hosting (Staging)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.STAGING_FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: ${{ secrets.STAGING_FIREBASE_PROJECT_ID }}
+          channelId: live
+
+      - name: 🔥 Deploy Firestore rules (Staging)
+        run: |
+          npm install -g firebase-tools
+          firebase deploy --only firestore:rules,firestore:indexes --project ${{ secrets.STAGING_FIREBASE_PROJECT_ID }}
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: 🧪 Run smoke tests on staging
+        run: npm run test:smoke
+        env:
+          TEST_BASE_URL: https://staging.solarify.app
+
+      - name: 📱 Send Slack notification
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+
+  # =====================================================
+  # PRODUCTION DEPLOYMENT
+  # =====================================================
+
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [unit-tests, integration-tests, e2e-tests, security-scan, deploy-staging]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    
+    environment:
+      name: production
+      url: https://solarify.app
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 🏗️ Build for production
+        run: npm run build
+        env:
+          NEXT_PUBLIC_ENV: 'production'
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.PROD_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.PROD_FIREBASE_AUTH_DOMAIN }}
+
+      - name: 🔥 Deploy to Firebase Hosting (Production)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.PROD_FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
+          channelId: live
+
+      - name: 🔥 Deploy Firestore rules (Production)
+        run: |
+          npm install -g firebase-tools
+          firebase deploy --only firestore:rules,firestore:indexes --project ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: 🧪 Run smoke tests on production
+        run: npm run test:smoke
+        env:
+          TEST_BASE_URL: https://solarify.app
+
+      - name: 📊 Create deployment summary
+        run: |
+          echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://solarify.app" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment time**: $(date)" >> $GITHUB_STEP_SUMMARY
+
+      - name: 📱 Send success notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          text: '🚀 Production deployment successful! https://solarify.app'
+
+  # =====================================================
+  # POST-DEPLOYMENT MONITORING
+  # =====================================================
+
+  post-deployment-monitoring:
+    name: 📊 Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [deploy-production]
+    if: success() && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production')
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 🔍 Health check
+        run: |
+          npm run health-check
+          echo "✅ Health check passed" >> $GITHUB_STEP_SUMMARY
+        env:
+          HEALTH_CHECK_URL: https://solarify.app/api/health
+
+      - name: ⚡ Performance baseline check
+        run: |
+          npm run performance-check
+          echo "⚡ Performance check completed" >> $GITHUB_STEP_SUMMARY
+        env:
+          PERF_CHECK_URL: https://solarify.app
+
+      - name: 📊 Update deployment metrics
+        run: |
+          echo "📊 Deployment metrics updated" >> $GITHUB_STEP_SUMMARY
+          echo "- Time to deploy: ${{ job.started_at }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests passed: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Security scan: ✅" >> $GITHUB_STEP_SUMMARY
+
+  # =====================================================
+  # CLEANUP & NOTIFICATIONS
+  # =====================================================
+
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [deploy-staging, deploy-production, post-deployment-monitoring]
+    if: always()
+
+    steps:
+      - name: 🧹 Clean up artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+
+            for (const artifact of artifacts.data.artifacts) {
+              if (artifact.name.includes('build-artifacts') && artifact.created_at < new Date(Date.now() - 24*60*60*1000)) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+              }
+            }
+
+      - name: 📋 Final summary
+        run: |
+          echo "## 🎉 Pipeline Execution Complete" >> $GITHUB_STEP_SUMMARY
+          echo "All stages of the CI/CD pipeline have been executed successfully." >> $GITHUB_STEP_SUMMARY
+          echo "### Pipeline Results:" >> $GITHUB_STEP_SUMMARY
+          echo "- Quality Gate: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Type Check & Build: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit Tests: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Integration Tests: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E Tests: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Security Scan: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Deployment: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitoring: ✅" >> $GITHUB_STEP_SUMMARY

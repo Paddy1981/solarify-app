@@ -2,6 +2,21 @@
 # https://firebase.google.com/docs/app-hosting/configure
 
 runConfig:
+  # Production configuration with redundancy and auto-scaling
+  # Minimum instances for high availability
+  minInstances: 2
+  
+  # Maximum instances to handle traffic spikes
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
-  maxInstances: 1
+  maxInstances: 10
+  
+  # CPU and memory configuration for optimal performance
+  cpu: 1
+  memory: 2Gi
+  
+  # Concurrency for handling multiple requests per instance
+  concurrency: 80
+  
+  # Health check timeout
+  timeoutSeconds: 300

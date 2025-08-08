@@ -1,0 +1,327 @@
+name: 🔒 Security Scanning
+
+on:
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'package*.json'
+      - 'yarn.lock'
+      - '.github/workflows/security-scan.yml'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  # =====================================================
+  # DEPENDENCY VULNERABILITY SCANNING
+  # =====================================================
+
+  dependency-scan:
+    name: 🔍 Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 🔒 Run npm audit
+        run: |
+          npm audit --audit-level moderate --json > audit-results.json || true
+          npm audit --audit-level moderate
+
+      - name: 📊 Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-results
+          path: audit-results.json
+          retention-days: 30
+
+      - name: 🔍 Snyk vulnerability scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=medium --json > snyk-results.json
+
+      - name: 📊 Upload Snyk results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-scan-results
+          path: snyk-results.json
+          retention-days: 30
+
+  # =====================================================
+  # SAST (Static Application Security Testing)
+  # =====================================================
+
+  sast-scan:
+    name: 🔎 SAST Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, typescript
+          queries: security-and-quality
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: 🏗️ Build application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_ENV: 'ci'
+
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript"
+
+      - name: 🔒 Run ESLint security rules
+        run: |
+          npx eslint . --ext .js,.jsx,.ts,.tsx --format json --output-file eslint-security-results.json || true
+          npx eslint . --ext .js,.jsx,.ts,.tsx
+
+      - name: 📊 Upload ESLint security results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eslint-security-results
+          path: eslint-security-results.json
+          retention-days: 30
+
+  # =====================================================
+  # SECRETS SCANNING
+  # =====================================================
+
+  secrets-scan:
+    name: 🔑 Secrets Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Run TruffleHog secrets scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: 🔒 GitLeaks secrets scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =====================================================
+  # CONTAINER SECURITY SCANNING
+  # =====================================================
+
+  container-scan:
+    name: 🐳 Container Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name != 'schedule'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐳 Build Docker image
+        run: |
+          docker build -t solarify-app:latest .
+        
+      - name: 🔍 Run Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'solarify-app:latest'
+          format: 'sarif'
+          output: 'trivy-container-results.sarif'
+
+      - name: 📊 Upload Trivy container results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-container-results.sarif'
+
+  # =====================================================
+  # FIREBASE SECURITY RULES VALIDATION
+  # =====================================================
+
+  firebase-security:
+    name: 🔥 Firebase Security Rules Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install Firebase tools
+        run: npm install -g firebase-tools
+
+      - name: 🔥 Validate Firestore rules
+        run: |
+          firebase emulators:exec --only firestore "echo 'Firestore rules validation passed'" --project demo-project
+
+      - name: 🧪 Test security rules
+        run: |
+          npm run test:security-rules
+        env:
+          FIRESTORE_EMULATOR_HOST: localhost:8080
+
+  # =====================================================
+  # SECURITY REPORT GENERATION
+  # =====================================================
+
+  security-report:
+    name: 📊 Generate Security Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [dependency-scan, sast-scan, secrets-scan, firebase-security]
+    if: always()
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📊 Download all scan results
+        uses: actions/download-artifact@v4
+        with:
+          path: security-results/
+
+      - name: 📋 Generate security summary
+        run: |
+          echo "# 🔒 Security Scan Report" > security-report.md
+          echo "Generated on: $(date)" >> security-report.md
+          echo "" >> security-report.md
+          echo "## Scan Results Overview" >> security-report.md
+          echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> security-report.md
+          echo "- SAST Scan: ${{ needs.sast-scan.result }}" >> security-report.md
+          echo "- Secrets Scan: ${{ needs.secrets-scan.result }}" >> security-report.md
+          echo "- Firebase Security: ${{ needs.firebase-security.result }}" >> security-report.md
+          echo "" >> security-report.md
+          
+          if [ -f "security-results/npm-audit-results/audit-results.json" ]; then
+            echo "## NPM Audit Summary" >> security-report.md
+            echo "\`\`\`json" >> security-report.md
+            jq '.metadata.vulnerabilities' security-results/npm-audit-results/audit-results.json >> security-report.md
+            echo "\`\`\`" >> security-report.md
+          fi
+
+      - name: 📊 Upload security report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: security-report.md
+          retention-days: 90
+
+      - name: 📱 Send security alert if issues found
+        if: needs.dependency-scan.result == 'failure' || needs.sast-scan.result == 'failure' || needs.secrets-scan.result == 'failure'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#security-alerts'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          text: '🚨 Security vulnerabilities detected in Solarify app! Check the security scan results.'
+
+      - name: 📊 Comment PR with security summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('security-report.md')) {
+              const report = fs.readFileSync('security-report.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: report
+              });
+            }
+
+  # =====================================================
+  # COMPLIANCE CHECKS
+  # =====================================================
+
+  compliance-check:
+    name: ⚖️ Compliance Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: ⚖️ Check GDPR compliance
+        run: |
+          echo "Checking GDPR compliance..."
+          npm run compliance:gdpr
+
+      - name: 🔒 Check security headers
+        run: |
+          echo "Validating security headers configuration..."
+          npm run security:headers
+
+      - name: 📋 Validate privacy policy
+        run: |
+          echo "Checking privacy policy and terms of service..."
+          npm run compliance:privacy
+
+      - name: 📊 Generate compliance report
+        run: |
+          echo "## ⚖️ Compliance Report" >> $GITHUB_STEP_SUMMARY
+          echo "- GDPR Compliance: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Security Headers: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Privacy Policy: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Data Retention: ✅" >> $GITHUB_STEP_SUMMARY

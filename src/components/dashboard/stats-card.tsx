@@ -1,3 +1,4 @@
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import type { ReactNode } from 'react';
@@ -10,7 +11,7 @@ interface StatsCardProps {
   changeType?: "positive" | "negative";
 }
 
-export function StatsCard({ title, value, icon, change, changeType }: StatsCardProps) {
+export const StatsCard = memo(function StatsCard({ title, value, icon, change, changeType }: StatsCardProps) {
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -28,4 +29,4 @@ export function StatsCard({ title, value, icon, change, changeType }: StatsCardP
       </CardContent>
     </Card>
   );
-}
+});

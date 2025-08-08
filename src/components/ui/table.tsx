@@ -4,12 +4,25 @@ import { cn } from "@/lib/utils"
 
 const Table = React.forwardRef<
   HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
+  React.HTMLAttributes<HTMLTableElement> & {
+    mobileVariant?: "scroll" | "stack" | "cards"
+  }
+>(({ className, mobileVariant = "scroll", ...props }, ref) => (
+  <div className={cn(
+    "relative w-full",
+    mobileVariant === "scroll" && "overflow-auto",
+    mobileVariant === "stack" && "md:overflow-auto",
+    mobileVariant === "cards" && "md:overflow-auto"
+  )}>
     <table
       ref={ref}
-      className={cn("w-full caption-bottom text-sm", className)}
+      className={cn(
+        "w-full caption-bottom text-sm",
+        // Mobile-first responsive behavior
+        mobileVariant === "stack" && "hidden md:table",
+        mobileVariant === "cards" && "hidden md:table",
+        className
+      )}
       {...props}
     />
   </div>

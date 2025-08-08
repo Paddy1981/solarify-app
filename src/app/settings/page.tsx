@@ -236,11 +236,27 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
-              <FormItem>
-                <FormLabel>Email Address (Read-only)</FormLabel>
-                <FormControl><Input value={currentUserProfile.email} readOnly className="bg-muted/50" /></FormControl>
-                <FormDescription>Email cannot be changed here. Contact support if needed.</FormDescription>
-              </FormItem>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormItem>
+                  <FormLabel>Email Address (Read-only)</FormLabel>
+                  <FormControl><Input value={currentUserProfile.email} readOnly className="bg-muted/50" /></FormControl>
+                  <FormDescription>Email cannot be changed here. Contact support if needed.</FormDescription>
+                </FormItem>
+                <FormItem>
+                  <FormLabel>Account Type (Read-only)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      value={currentUserProfile.role ? 
+                        currentUserProfile.role.charAt(0).toUpperCase() + currentUserProfile.role.slice(1) : 
+                        'Unknown'
+                      } 
+                      readOnly 
+                      className="bg-muted/50" 
+                    />
+                  </FormControl>
+                  <FormDescription>Your account type determines available features.</FormDescription>
+                </FormItem>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}

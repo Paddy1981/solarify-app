@@ -1,3 +1,5 @@
+@import "../styles/accessibility-colors.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,73 +10,139 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 96.1%; /* #F5F5F5 Light gray */
-    --foreground: 0 0% 3.9%; /* Default black for text */
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%; /* White */
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 55 100% 50%; /* #FFEA00 Vibrant yellow */
-    --primary-foreground: 0 0% 3.9%; /* Black text on primary */
-    --secondary: 0 0% 92%; /* Slightly darker gray for secondary elements */
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 90%; /* Muted gray */
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 197 78% 52.3%; /* #29ABE2 Bright blue */
+    /* Base colors */
+    --background: 0 0% 98%; /* Neutral-50 for clean, light background */
+    --foreground: 0 0% 10%; /* Neutral-900 for high contrast text */
+    
+    /* Surface colors */
+    --card: 0 0% 100%; /* Pure white for cards */
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%; /* Pure white for popovers */
+    --popover-foreground: 0 0% 10%;
+    
+    /* Brand colors - Solar theme */
+    --primary: 45 100% 35%; /* Solar primary - WCAG AA compliant */
+    --primary-foreground: 0 0% 98%; /* White text on primary */
+    --secondary: 197 78% 35%; /* Energy blue - WCAG AA compliant */
+    --secondary-foreground: 0 0% 98%; /* White text on secondary */
+    
+    /* Utility colors */
+    --muted: 0 0% 96%; /* Neutral-100 for muted backgrounds */
+    --muted-foreground: 0 0% 35%; /* Neutral-600 for muted text - 4.6:1 contrast */
+    --accent: 120 60% 35%; /* Eco green for accents - WCAG AA compliant */
     --accent-foreground: 0 0% 98%; /* White text on accent */
-    --destructive: 0 84.2% 60.2%;
+    
+    /* State colors */
+    --success: 120 60% 35%; /* Eco green for success states */
+    --success-foreground: 0 0% 98%;
+    --warning: 38 100% 35%; /* Solar orange for warnings */
+    --warning-foreground: 0 0% 98%;
+    --error: 0 65% 35%; /* Error red - WCAG AA compliant */
+    --error-foreground: 0 0% 98%;
+    --destructive: 0 65% 35%; /* Same as error for consistency */
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%; /* Default border */
-    --input: 0 0% 89.8%; /* Default input */
-    --ring: 197 78% 52.3%; /* Accent color for rings */
-    --chart-1: 55 100% 50%; /* Primary */
-    --chart-2: 197 78% 52.3%; /* Accent */
-    --chart-3: 30 80% 55%; /* Orange-ish for contrast */
-    --chart-4: 120 60% 45%; /* Green for positive values */
-    --chart-5: 0 0% 60%; /* Neutral gray */
+    
+    /* Interactive colors */
+    --border: 0 0% 88%; /* Neutral-300 for borders */
+    --input: 0 0% 100%; /* White background for inputs */
+    --input-border: 0 0% 70%; /* Neutral-400 for input borders */
+    --ring: 45 100% 35%; /* Primary color for focus rings */
+    
+    /* Chart colors with solar theme */
+    --chart-1: 45 100% 35%; /* Solar primary */
+    --chart-2: 197 78% 35%; /* Energy blue */
+    --chart-3: 120 60% 35%; /* Eco green */
+    --chart-4: 38 100% 35%; /* Solar orange */
+    --chart-5: 0 0% 35%; /* Neutral gray */
+    
+    /* Border radius */
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --radius-sm: 0.375rem;
+    --radius-lg: 0.75rem;
+    
+    /* Sidebar colors */
+    --sidebar-background: 0 0% 98%; /* Light background */
+    --sidebar-foreground: 0 0% 25%; /* Dark gray text */
+    --sidebar-primary: 45 100% 35%; /* Primary color */
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 0 0% 96%; /* Light accent */
+    --sidebar-accent-foreground: 0 0% 25%;
+    --sidebar-border: 0 0% 88%; /* Light border */
+    --sidebar-ring: 45 100% 35%; /* Primary ring */
+    
+    /* Solar-specific theme variables */
+    --solar-primary: 45 100% 35%; /* Main solar color */
+    --solar-secondary: 45 100% 45%; /* Lighter solar */
+    --solar-accent: 38 100% 35%; /* Solar orange accent */
+    --energy-primary: 197 78% 35%; /* Energy blue */
+    --energy-secondary: 197 78% 45%; /* Lighter energy blue */
+    --eco-primary: 120 60% 35%; /* Eco green */
+    --eco-secondary: 120 60% 45%; /* Lighter eco green */
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
+    /* Base colors for dark mode */
+    --background: 0 0% 5%; /* Very dark background */
+    --foreground: 0 0% 98%; /* Light text */
+    
+    /* Surface colors */
+    --card: 0 0% 10%; /* Dark card background */
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
+    --popover: 0 0% 10%; /* Dark popover */
     --popover-foreground: 0 0% 98%;
-    --primary: 55 100% 50%; /* #FFEA00 Vibrant yellow */
-    --primary-foreground: 0 0% 3.9%; /* Black text on primary */
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 197 78% 52.3%; /* #29ABE2 Bright blue */
-    --accent-foreground: 0 0% 98%; /* White text on accent */
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 197 78% 52.3%; /* Accent color for rings */
-    --chart-1: 55 100% 50%;
-    --chart-2: 197 78% 52.3%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 120 60% 45%;
-    --chart-5: 0 0% 70%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Brand colors - brighter for dark mode */
+    --primary: 45 100% 50%; /* Brighter solar yellow for dark mode */
+    --primary-foreground: 0 0% 5%; /* Dark text on bright primary */
+    --secondary: 197 78% 55%; /* Brighter energy blue */
+    --secondary-foreground: 0 0% 5%; /* Dark text on bright secondary */
+    
+    /* Utility colors */
+    --muted: 0 0% 15%; /* Dark muted background */
+    --muted-foreground: 0 0% 70%; /* Lighter muted text for better contrast */
+    --accent: 120 60% 50%; /* Brighter eco green */
+    --accent-foreground: 0 0% 5%; /* Dark text on bright accent */
+    
+    /* State colors - brighter for dark mode */
+    --success: 120 60% 50%; /* Bright eco green */
+    --success-foreground: 0 0% 5%;
+    --warning: 38 100% 50%; /* Bright solar orange */
+    --warning-foreground: 0 0% 5%;
+    --error: 0 65% 50%; /* Bright error red */
+    --error-foreground: 0 0% 5%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 5%;
+    
+    /* Interactive colors */
+    --border: 0 0% 25%; /* Lighter border for dark mode */
+    --input: 0 0% 15%; /* Dark input background */
+    --input-border: 0 0% 35%; /* Lighter input border */
+    --ring: 45 100% 50%; /* Bright focus ring */
+    
+    /* Chart colors - bright for dark mode */
+    --chart-1: 45 100% 50%; /* Bright solar primary */
+    --chart-2: 197 78% 55%; /* Bright energy blue */
+    --chart-3: 120 60% 50%; /* Bright eco green */
+    --chart-4: 38 100% 50%; /* Bright solar orange */
+    --chart-5: 0 0% 70%; /* Light neutral gray */
+    
+    /* Sidebar colors for dark mode */
+    --sidebar-background: 0 0% 10%; /* Dark sidebar */
+    --sidebar-foreground: 0 0% 95%; /* Light sidebar text */
+    --sidebar-primary: 45 100% 50%; /* Bright primary */
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 0 0% 15%; /* Dark sidebar accent */
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 25%; /* Lighter border */
+    --sidebar-ring: 45 100% 50%; /* Bright ring */
+    
+    /* Solar-specific dark theme variables */
+    --solar-primary: 45 100% 50%; /* Bright solar for dark mode */
+    --solar-secondary: 45 100% 60%; /* Even brighter solar */
+    --solar-accent: 38 100% 50%; /* Bright solar orange */
+    --energy-primary: 197 78% 55%; /* Bright energy blue */
+    --energy-secondary: 197 78% 65%; /* Even brighter energy blue */
+    --eco-primary: 120 60% 50%; /* Bright eco green */
+    --eco-secondary: 120 60% 60%; /* Even brighter eco green */
   }
 }
 
@@ -87,5 +155,419 @@ body {
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-headline;
+  }
+}
+
+/* Mobile-specific optimizations */
+@layer utilities {
+  /* Safe area support for notched devices */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-left {   
+    padding-left: env(safe-area-inset-left);
+  }
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Touch-friendly utilities */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  .touch-none {
+    touch-action: none;
+  }
+
+  /* Mobile-first responsive utilities */
+  .mobile-only {
+    @apply block sm:hidden;
+  }
+  
+  .desktop-only {
+    @apply hidden sm:block;
+  }
+
+  /* Prevent zoom on iOS for form inputs */
+  .no-zoom {
+    font-size: 16px;
+  }
+  
+  @media screen and (max-width: 767px) {
+    .no-zoom {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Smooth scrolling for mobile */
+  .smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Hide scrollbars on mobile while keeping functionality */
+  .mobile-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .mobile-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mobile-optimized text sizing */
+  .mobile-text-scale {
+    @apply text-base sm:text-sm;
+  }
+
+  /* Tap highlight removal */
+  .no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Focus styles for mobile */
+  .mobile-focus {
+    @apply focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none;
+  }
+
+  /* Mobile card spacing */
+  .mobile-card-spacing {
+    @apply p-4 sm:p-6;
+  }
+
+  /* Mobile grid responsive */
+  .mobile-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  /* Mobile button sizing */
+  .mobile-btn {
+    @apply min-h-[44px] px-4 py-2 sm:min-h-[40px];
+  }
+
+  /* Mobile input sizing */
+  .mobile-input {
+    @apply min-h-[44px] px-3 py-2 text-base sm:text-sm;
+  }
+
+  /* Mobile modal positioning */
+  .mobile-modal {
+    @apply fixed inset-x-0 bottom-0 sm:relative sm:inset-auto;
+  }
+
+  /* Hide elements on specific breakpoints */
+  .hide-xs {
+    @apply hidden xs:block;
+  }
+  
+  .hide-sm {
+    @apply hidden sm:block;
+  }
+  
+  .show-xs {
+    @apply block xs:hidden;
+  }
+  
+  .show-sm {
+    @apply block sm:hidden;
+  }
+}
+
+/* Mobile performance optimizations */
+@media screen and (max-width: 767px) {
+  /* Reduce animations on mobile for better performance */
+  .reduce-motion {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* Optimize images for mobile */
+  img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: optimizeSpeed;
+  }
+
+  /* Better font rendering on mobile */
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+  }
+}
+
+/* Dark mode mobile optimizations */
+@media (prefers-color-scheme: dark) and (max-width: 767px) {
+  /* Adjust colors for better mobile dark mode experience */
+  .dark-mobile-optimized {
+    background-color: #0a0a0a;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .high-contrast {
+    border-width: 2px;
+    outline-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .respect-motion-preference * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Large text support */
+@media screen and (min-resolution: 192dpi), screen and (min-resolution: 2dppx) {
+  .high-dpi-text {
+    font-weight: 400;
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+}
+
+/* Loading animations and skeletons */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes wave {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes solar-glow {
+  0%, 100% { 
+    filter: drop-shadow(0 0 8px hsl(var(--solar-primary) / 0.4));
+    transform: scale(1);
+  }
+  50% { 
+    filter: drop-shadow(0 0 16px hsl(var(--solar-primary) / 0.6));
+    transform: scale(1.05);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Loading animation utility classes */
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-wave {
+  animation: wave 1.6s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-solar-glow {
+  animation: solar-glow 3s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-blink {
+  animation: blink 1s infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out forwards;
+}
+
+/* Skeleton loading styles */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted) / 0.5) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.skeleton-solar {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--solar-primary) / 0.1) 0%,
+    hsl(var(--solar-accent) / 0.05) 50%,
+    hsl(var(--solar-primary) / 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.skeleton-energy {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--energy-primary) / 0.1) 0%,
+    hsl(var(--energy-secondary) / 0.05) 50%,
+    hsl(var(--energy-primary) / 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.skeleton-eco {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--eco-primary) / 0.1) 0%,
+    hsl(var(--eco-secondary) / 0.05) 50%,
+    hsl(var(--eco-primary) / 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* Loading state utilities */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: hsl(var(--background) / 0.8);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2px solid hsl(var(--muted));
+  border-top-color: hsl(var(--primary));
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Performance optimizations for loading states */
+.will-change-auto {
+  will-change: auto;
+}
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+/* Mobile loading optimizations */
+@media screen and (max-width: 767px) {
+  .mobile-loading-reduced {
+    animation-duration: 1s !important;
+  }
+  
+  .mobile-loading-minimal {
+    animation: none !important;
+    opacity: 0.7;
+  }
+}
+
+/* Battery-conscious animations */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer,
+  .skeleton-solar,
+  .skeleton-energy,
+  .skeleton-eco {
+    animation: none;
+    opacity: 0.6;
+  }
+  
+  .animate-shimmer,
+  .animate-wave,
+  .animate-glow,
+  .animate-solar-glow,
+  .animate-pulse-soft {
+    animation: none;
+    opacity: 0.6;
   }
 }

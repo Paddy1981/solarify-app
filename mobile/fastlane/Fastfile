@@ -1,0 +1,430 @@
+# =============================================================================
+# Fastlane Configuration for Solarify Mobile App Deployment
+# =============================================================================
+# Automates build, test, and deployment processes for iOS and Android
+# =============================================================================
+
+default_platform(:ios)
+
+# Global variables
+APP_NAME = "SolarifyMobile"
+TEAM_ID = ENV["APPLE_TEAM_ID"] || "YOUR_TEAM_ID"
+BUNDLE_ID_IOS = "com.solarify.mobile"
+PACKAGE_NAME_ANDROID = "com.solarify.mobile"
+
+# iOS Configuration
+platform :ios do
+  
+  desc "Build and test iOS app"
+  lane :test do
+    run_tests(
+      workspace: "#{APP_NAME}.xcworkspace",
+      scheme: APP_NAME,
+      device: "iPhone 14",
+      clean: true
+    )
+  end
+
+  desc "Build iOS app for development"
+  lane :development do
+    # Increment build number
+    increment_build_number(
+      xcodeproj: "#{APP_NAME}.xcodeproj"
+    )
+    
+    # Build app
+    build_app(
+      workspace: "#{APP_NAME}.xcworkspace",
+      scheme: APP_NAME,
+      configuration: "Debug",
+      export_method: "development",
+      output_directory: "./build",
+      output_name: "#{APP_NAME}-development.ipa"
+    )
+  end
+
+  desc "Build iOS app for staging"
+  lane :staging do
+    # Increment build number
+    increment_build_number(
+      xcodeproj: "#{APP_NAME}.xcodeproj"
+    )
+    
+    # Build app
+    build_app(
+      workspace: "#{APP_NAME}.xcworkspace",
+      scheme: APP_NAME,
+      configuration: "Release",
+      export_method: "ad-hoc",
+      output_directory: "./build",
+      output_name: "#{APP_NAME}-staging.ipa"
+    )
+    
+    # Upload to Firebase App Distribution
+    firebase_app_distribution(
+      app: ENV["FIREBASE_IOS_APP_ID"],
+      testers: "testers@solarify.com",
+      release_notes: "Staging build with latest features",
+      firebase_cli_token: ENV["FIREBASE_CLI_TOKEN"]
+    )
+  end
+
+  desc "Deploy iOS app to App Store"
+  lane :production do
+    # Ensure we're on the right git branch
+    ensure_git_branch(branch: 'main')
+    
+    # Ensure working directory is clean
+    ensure_git_status_clean
+    
+    # Run tests first
+    test
+    
+    # Increment build number
+    increment_build_number(
+      xcodeproj: "#{APP_NAME}.xcodeproj"
+    )
+    
+    # Update version if specified
+    if ENV["VERSION_NUMBER"]
+      increment_version_number(
+        version_number: ENV["VERSION_NUMBER"],
+        xcodeproj: "#{APP_NAME}.xcodeproj"
+      )
+    end
+    
+    # Build app
+    build_app(
+      workspace: "#{APP_NAME}.xcworkspace",
+      scheme: APP_NAME,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "#{APP_NAME}-production.ipa"
+    )
+    
+    # Upload to App Store Connect
+    upload_to_app_store(
+      force: true,
+      reject_if_possible: true,
+      skip_metadata: false,
+      skip_screenshots: false,
+      submit_for_review: false,
+      automatic_release: false
+    )
+    
+    # Create git tag
+    add_git_tag(
+      tag: "ios-v#{get_version_number}-#{get_build_number}"
+    )
+    
+    # Push to git
+    push_to_git_remote
+    
+    # Send notification
+    slack(
+      message: "🚀 iOS app successfully uploaded to App Store Connect!",
+      slack_url: ENV["SLACK_WEBHOOK_URL"]
+    ) if ENV["SLACK_WEBHOOK_URL"]
+  end
+
+  desc "Update metadata and screenshots"
+  lane :update_metadata do
+    deliver(
+      force: true,
+      skip_binary_upload: true,
+      skip_app_version_update: true
+    )
+  end
+
+  desc "Create iOS screenshots"
+  lane :screenshots do
+    capture_screenshots(
+      workspace: "#{APP_NAME}.xcworkspace",
+      scheme: "#{APP_NAME}UITests"
+    )
+  end
+
+  # Error handling
+  error do |lane, exception|
+    slack(
+      message: "❌ iOS lane #{lane} failed: #{exception}",
+      success: false,
+      slack_url: ENV["SLACK_WEBHOOK_URL"]
+    ) if ENV["SLACK_WEBHOOK_URL"]
+  end
+end
+
+# Android Configuration
+platform :android do
+  
+  desc "Build and test Android app"
+  lane :test do
+    gradle(
+      task: "test",
+      project_dir: "android/"
+    )
+  end
+
+  desc "Build Android APK for development"
+  lane :development do
+    gradle(
+      task: "clean assembleDebug",
+      project_dir: "android/",
+      print_command: false
+    )
+    
+    # Copy APK to build directory
+    sh("mkdir -p ../build")
+    sh("cp ../android/app/build/outputs/apk/debug/app-debug.apk ../build/#{APP_NAME}-development.apk")
+  end
+
+  desc "Build Android app for staging"
+  lane :staging do
+    # Increment version code
+    android_set_version_code(
+      version_code: latest_googleplay_version_code + 1,
+      gradle_file: "android/app/build.gradle"
+    )
+    
+    gradle(
+      task: "clean assembleRelease",
+      project_dir: "android/",
+      print_command: false,
+      properties: {
+        "android.injected.signing.store.file" => ENV["ANDROID_KEYSTORE_FILE"],
+        "android.injected.signing.store.password" => ENV["ANDROID_KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["ANDROID_KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["ANDROID_KEY_PASSWORD"],
+      }
+    )
+    
+    # Copy APK to build directory
+    sh("mkdir -p ../build")
+    sh("cp ../android/app/build/outputs/apk/release/app-release.apk ../build/#{APP_NAME}-staging.apk")
+    
+    # Upload to Firebase App Distribution
+    firebase_app_distribution(
+      app: ENV["FIREBASE_ANDROID_APP_ID"],
+      android_artifact_type: "APK",
+      android_artifact_path: "../build/#{APP_NAME}-staging.apk",
+      testers: "testers@solarify.com",
+      release_notes: "Staging build with latest features",
+      firebase_cli_token: ENV["FIREBASE_CLI_TOKEN"]
+    )
+  end
+
+  desc "Deploy Android app to Google Play"
+  lane :production do
+    # Ensure we're on the right git branch
+    ensure_git_branch(branch: 'main')
+    
+    # Ensure working directory is clean
+    ensure_git_status_clean
+    
+    # Run tests first
+    test
+    
+    # Increment version code
+    android_set_version_code(
+      version_code: latest_googleplay_version_code + 1,
+      gradle_file: "android/app/build.gradle"
+    )
+    
+    # Update version name if specified
+    if ENV["VERSION_NAME"]
+      android_set_version_name(
+        version_name: ENV["VERSION_NAME"],
+        gradle_file: "android/app/build.gradle"
+      )
+    end
+    
+    # Build signed AAB for Play Store
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/",
+      print_command: false,
+      properties: {
+        "android.injected.signing.store.file" => ENV["ANDROID_KEYSTORE_FILE"],
+        "android.injected.signing.store.password" => ENV["ANDROID_KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["ANDROID_KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["ANDROID_KEY_PASSWORD"],
+      }
+    )
+    
+    # Upload to Google Play
+    upload_to_play_store(
+      track: "production",
+      release_status: "draft",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    )
+    
+    # Create git tag
+    version_name = android_get_version_name(gradle_file: "android/app/build.gradle")
+    version_code = android_get_version_code(gradle_file: "android/app/build.gradle")
+    add_git_tag(
+      tag: "android-v#{version_name}-#{version_code}"
+    )
+    
+    # Push to git
+    push_to_git_remote
+    
+    # Send notification
+    slack(
+      message: "🚀 Android app successfully uploaded to Google Play!",
+      slack_url: ENV["SLACK_WEBHOOK_URL"]
+    ) if ENV["SLACK_WEBHOOK_URL"]
+  end
+
+  desc "Deploy to internal testing track"
+  lane :internal do
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/",
+      print_command: false,
+      properties: {
+        "android.injected.signing.store.file" => ENV["ANDROID_KEYSTORE_FILE"],
+        "android.injected.signing.store.password" => ENV["ANDROID_KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["ANDROID_KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["ANDROID_KEY_PASSWORD"],
+      }
+    )
+    
+    upload_to_play_store(
+      track: "internal",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab"
+    )
+  end
+
+  desc "Deploy to alpha testing track"
+  lane :alpha do
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/",
+      print_command: false,
+      properties: {
+        "android.injected.signing.store.file" => ENV["ANDROID_KEYSTORE_FILE"],
+        "android.injected.signing.store.password" => ENV["ANDROID_KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["ANDROID_KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["ANDROID_KEY_PASSWORD"],
+      }
+    )
+    
+    upload_to_play_store(
+      track: "alpha",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab"
+    )
+  end
+
+  desc "Update Google Play metadata"
+  lane :update_metadata do
+    upload_to_play_store(
+      skip_upload_aab: true,
+      skip_upload_apk: true
+    )
+  end
+
+  # Error handling
+  error do |lane, exception|
+    slack(
+      message: "❌ Android lane #{lane} failed: #{exception}",
+      success: false,
+      slack_url: ENV["SLACK_WEBHOOK_URL"]
+    ) if ENV["SLACK_WEBHOOK_URL"]
+  end
+end
+
+# Cross-platform lanes
+desc "Run tests for both platforms"
+lane :test_all do
+  ios do
+    test
+  end
+  
+  android do
+    test
+  end
+end
+
+desc "Build both platforms for staging"
+lane :staging_all do
+  ios do
+    staging
+  end
+  
+  android do
+    staging
+  end
+end
+
+desc "Deploy both platforms to production"
+lane :production_all do
+  ios do
+    production
+  end
+  
+  android do
+    production
+  end
+end
+
+# Utility lanes
+desc "Setup certificates and provisioning profiles"
+lane :setup_ios_certificates do
+  match(
+    type: "development",
+    app_identifier: BUNDLE_ID_IOS
+  )
+  
+  match(
+    type: "appstore",
+    app_identifier: BUNDLE_ID_IOS
+  )
+end
+
+desc "Update device list and regenerate profiles"
+lane :update_devices do
+  register_devices(
+    devices_file: "./devices.txt"
+  )
+  
+  match(
+    type: "development",
+    app_identifier: BUNDLE_ID_IOS,
+    force_for_new_devices: true
+  )
+end
+
+desc "Clean up old builds and derived data"
+lane :cleanup do
+  # Clean iOS
+  clear_derived_data
+  
+  # Clean Android
+  gradle(
+    task: "clean",
+    project_dir: "android/"
+  )
+  
+  # Clean build directory
+  sh("rm -rf ../build/*")
+end
+
+desc "Generate build number based on git commits"
+lane :generate_build_number do
+  build_number = number_of_commits
+  puts "Generated build number: #{build_number}"
+  build_number
+end
+
+# Before all lanes
+before_all do
+  # Ensure we have the right tools
+  ensure_bundle_exec
+  
+  # Set up environment
+  setup_circle_ci if is_ci?
+end

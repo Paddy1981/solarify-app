@@ -1,0 +1,52 @@
+{
+  "name": "users/test-homeowner-uid",
+  "fields": {
+    "id": {
+      "stringValue": "test-homeowner-uid"
+    },
+    "email": {
+      "stringValue": "test.homeowner@solarify.test"
+    },
+    "fullName": {
+      "stringValue": "John Homeowner"
+    },
+    "role": {
+      "stringValue": "homeowner"
+    },
+    "dashboardJourneyChoice": {
+      "stringValue": "existing_configured"
+    },
+    "systemConfiguration": {
+      "mapValue": {
+        "fields": {
+          "systemSizeKW": {
+            "doubleValue": 8.5
+          },
+          "panelCount": {
+            "integerValue": "25"
+          },
+          "panelType": {
+            "stringValue": "monocrystalline"
+          },
+          "inverterType": {
+            "stringValue": "string"
+          },
+          "installationDate": {
+            "timestampValue": "2024-01-15T00:00:00Z"
+          },
+          "expectedAnnualProduction": {
+            "doubleValue": 12500
+          }
+        }
+      }
+    },
+    "createdAt": {
+      "timestampValue": "2024-01-01T00:00:00Z"
+    },
+    "updatedAt": {
+      "timestampValue": "2024-01-15T00:00:00Z"
+    }
+  },
+  "createTime": "2024-01-01T00:00:00Z",
+  "updateTime": "2024-01-15T00:00:00Z"
+}

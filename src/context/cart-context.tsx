@@ -2,7 +2,7 @@
 
 import type { Product } from '@/lib/mock-data/products';
 import type { ReactNode } from 'react';
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 
 export interface CartItem extends Product {
   quantity: number;
@@ -91,42 +91,48 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
   }, [state.items]);
 
-  const addItem = (product: Product, quantity = 1) => {
+  // Memoize cart actions to prevent unnecessary re-renders
+  const addItem = useCallback((product: Product, quantity = 1) => {
     dispatch({ type: 'ADD_ITEM', product, quantity });
-  };
+  }, []);
 
-  const removeItem = (productId: string) => {
+  const removeItem = useCallback((productId: string) => {
     dispatch({ type: 'REMOVE_ITEM', productId });
-  };
+  }, []);
 
-  const updateItemQuantity = (productId: string, quantity: number) => {
+  const updateItemQuantity = useCallback((productId: string, quantity: number) => {
     dispatch({ type: 'UPDATE_QUANTITY', productId, quantity });
-  };
+  }, []);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     dispatch({ type: 'CLEAR_CART' });
-  };
+  }, []);
 
-  const getCartTotal = () => {
+  // Memoize expensive calculations
+  const cartTotal = useMemo(() => {
     return state.items.reduce((total, item) => total + item.priceValue * item.quantity, 0);
-  };
+  }, [state.items]);
 
-  const getItemCount = () => {
+  const itemCount = useMemo(() => {
     return state.items.reduce((count, item) => count + item.quantity, 0);
-  };
+  }, [state.items]);
+
+  const getCartTotal = useCallback(() => cartTotal, [cartTotal]);
+  const getItemCount = useCallback(() => itemCount, [itemCount]);
+
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    items: state.items,
+    addItem,
+    removeItem,
+    updateItemQuantity,
+    clearCart,
+    getCartTotal,
+    getItemCount,
+  }), [state.items, addItem, removeItem, updateItemQuantity, clearCart, getCartTotal, getItemCount]);
 
   return (
-    <CartContext.Provider
-      value={{
-        items: state.items,
-        addItem,
-        removeItem,
-        updateItemQuantity,
-        clearCart,
-        getCartTotal,
-        getItemCount,
-      }}
-    >
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   );
