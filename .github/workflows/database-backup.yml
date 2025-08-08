@@ -10,7 +10,6 @@ on:
       environment:
         description: 'The deployment environment to back up.'
         required: false
-        # The default value is correctly set here.
         default: 'production' 
         type: choice
         options:
@@ -56,7 +55,7 @@ jobs:
           echo "✅ Cloud SQL backup initiated."
           
       - name: 📢 Notify backup status
-        # This step uses a corrected if condition to check for the secret
+        # CORRECTED LINE: The 'if' condition now has the required ${{ ... }} syntax.
         if: ${{ secrets.SLACK_WEBHOOK != '' }}
         uses: 8398a7/action-slack@v3
         with:
