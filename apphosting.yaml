@@ -1,6 +1,13 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
+# Build configuration to override default npm ci behavior
+build:
+  commands:
+    # Use npm install instead of npm ci to regenerate lock file
+    - npm install --no-package-lock
+    - npm run build
+
 runConfig:
   # Production configuration with redundancy and auto-scaling
   # Minimum instances for high availability
